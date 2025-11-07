@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>周回走順位アプリ v1.11</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'メイリオ', Meiryo, sans-serif; margin: 10px; text-align: center; }
+  .color-buttons button { width: 60px; height: 60px; border-radius: 50%; margin: 5px; border: none; }
+  .color-red { background: red; } .color-blue { background: blue; } .color-yellow { background: yellow; }
+  .color-green { background: green; } .color-pink { background: pink; } .color-orange { background: orange; }
+  .color-none { background: #ccc; }
+  .keypad { display: grid; grid-template-columns: repeat(3, 70px); gap: 10px; justify-content: center; margin-top: 10px; }
+  .keypad button { height: 60px; font-size: 20px; }
+  .special-keys { display: flex; justify-content: center; gap: 40px; margin-top: 20px; }
+  .special-keys button { width: 120px; height: 60px; font-size: 20px; }
+  .list-container, .result-container { max-height: 150px; overflow-y: auto; margin-top: 15px; border: 1px solid #ccc; padding: 10px; border-radius: 10px; text-align: left; }
+  .entry-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+  .entry-item button { font-size: 14px; padding: 2px 6px; margin-left: 4px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border-bottom: 1px solid #ddd; padding: 5px; }
+  .option-buttons { margin-top: 15px; }
+  .option-buttons button { font-size: 14px; margin: 0 5px; padding: 5px 10px; }
+  #currentInputDisplay { font-size: 24px; margin-top: 10px; font-weight: bold; color: #333; }
+  .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+  .modal-content { background: white; padding: 20px; border-radius: 10px; text-align: center; width: 80%; max-width: 320px; }
+  .modal-content input, .modal-content select { width: 80%; font-size: 18px; margin: 10px 0; text-align: center; }
+</style>
+</head>
+<body>
+<h2>周回走順位アプリ v1.11</h2>
+
+<div class="color-buttons">
+  <button class="color-red" onclick="setColor('赤')"></button>
+  <button class="color-blue" onclick="setColor('青')"></button>
+  <button class="color-yellow" onclick="setColor('黄')"></button>
+  <button class="color-green" onclick="setColor('緑')"></button>
+  <button class="color-pink" onclick="setColor('ピンク')"></button>
+  <button class="color-orange" onclick="setColor('オレンジ')"></button>
+  <button class="color-none" onclick="setColor('色なし')"></button>
+</div>
+
+<h3 id="selectedColor">選択中: なし</h3>
+<div id="currentInputDisplay">入力中: </div>
+
+<div class="keypad">
+  <button onclick="addDigit('1')">1</button>
+  <button onclick="addDigit('2')">2</button>
+  <button onclick="addDigit('3')">3</button>
+  <button onclick="addDigit('4')">4</button>
+  <button onclick="addDigit('5')">5</button>
+  <button onclick="addDigit('6')">6</button>
+  <button onclick="addDigit('7')">7</button>
+  <button onclick="addDigit('8')">8</button>
+  <button onclick="addDigit('9')">9</button>
+  <button onclick="addDigit('0')">0</button>
+</div>
+
+<div class="special-keys">
+  <button onclick="backspace()">← BS</button>
+  <button onclick="submitEntry()">⏎ リターン</button>
+</div>
+
+<div class="list-container" id="inputList"></div>
+
+<div class="option-buttons">
+  <button onclick="enterClassMode()">クラス</button>
+  <button onclick="showAllRanks()">全体順位</button>
+  <button onclick="exportCSV()">CSV</button>
+</div>
+
+<div class="result-container" id="results"></div>
+
+<!-- モーダル -->
+<div class="modal" id="editModal">
+  <div class="modal-content">
+    <h3>訂正／削除</h3>
+    <label>色を選択:</label>
+    <select id="editColor">
+      <option value="赤">赤</option>
+      <option value="青">青</option>
+      <option value="黄">黄</option>
+      <option value="緑">緑</option>
+      <option value="ピンク">ピンク</option>
+      <option value="オレンジ">オレンジ</option>
+      <option value="色なし">色なし</option>
+    </select>
+    <label>番号を入力:</label>
+    <input type="text" id="editInput" placeholder="新しい番号を入力">
+    <div>
+      <button onclick="saveCorrection()">保存</button>
+      <button onclick="deleteEntry()">削除</button>
+      <button onclick="closeModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentColor = '';
+let currentNumber = '';
+let entries = [];
+let classMode = false;
+let selectedClass = '';
+let editIndex = null;
+
+function setColor(color) {
+  currentColor = color;
+  document.getElementById('selectedColor').innerText = '選択中: ' + color;
+  updateCurrentInputDisplay();
+  if (classMode) {
+    selectedClass = color;
+    updateResults();
+  }
+}
+
+function addDigit(digit) {
+  currentNumber += digit;
+  updateCurrentInputDisplay();
+}
+
+function backspace() {
+  currentNumber = currentNumber.slice(0, -1);
+  updateCurrentInputDisplay();
+}
+
+function updateCurrentInputDisplay() {
+  const text = currentNumber ? `${currentColor} ${currentNumber}` : `${currentColor}`;
+  document.getElementById('currentInputDisplay').innerText = '入力中: ' + (text.trim() || '');
+}
+
+function submitEntry() {
+  if (!currentColor || !currentNumber) return;
+  const newEntry = { color: currentColor, number: currentNumber, time: Date.now() };
+  entries.push(newEntry);
+  currentNumber = '';
+  updateInputList();
+  updateResults();
+  updateCurrentInputDisplay();
+}
+
+function openCorrectionModal(index) {
+  editIndex = index;
+  document.getElementById('editInput').value = entries[index].number;
+  document.getElementById('editColor').value = entries[index].color;
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('editModal').style.display = 'none';
+  editIndex = null;
+}
+
+function saveCorrection() {
+  const newNum = document.getElementById('editInput').value.trim();
+  const newColor = document.getElementById('editColor').value;
+  if (editIndex !== null && newNum) {
+    entries[editIndex].number = newNum;
+    entries[editIndex].color = newColor;
+    entries[editIndex].time = Date.now();
+    closeModal();
+    updateInputList();
+    updateResults();
+  }
+}
+
+function deleteEntry() {
+  if (editIndex !== null) {
+    entries.splice(editIndex, 1);
+    closeModal();
+    updateInputList();
+    updateResults();
+  }
+}
+
+function updateInputList() {
+  const container = document.getElementById('inputList');
+  container.innerHTML = entries
+    .map((e, i) => `<div class='entry-item'><span>${e.color} ${e.number}</span><button onclick='openCorrectionModal(${i})'>訂正</button></div>`)
+    .reverse()
+    .join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function updateResults() {
+  const lapCounts = {};
+  entries.forEach(e => {
+    const key = `${e.color}-${e.number}`;
+    if (!lapCounts[key]) lapCounts[key] = { color: e.color, number: e.number, laps: 0, firstTime: e.time };
+    lapCounts[key].laps++;
+  });
+
+  let list = Object.values(lapCounts);
+  if (classMode && selectedClass) list = list.filter(x => x.color === selectedClass);
+
+  const ranked = list.sort((a, b) => {
+    if (b.laps === a.laps) return a.firstTime - b.firstTime;
+    return b.laps - a.laps;
+  });
+
+  let html = '<table><tr><th>順位</th><th>色</th><th>番号</th><th>周回</th></tr>';
+  ranked.forEach((r, i) => {
+    html += `<tr><td>${i + 1}</td><td>${r.color}</td><td>${r.number}</td><td>${r.laps}</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('results').innerHTML = html;
+}
+
+function enterClassMode() {
+  classMode = true;
+  selectedClass = '';
+  document.getElementById('selectedColor').innerText = 'クラス選択中: 色を押してください';
+}
+
+function showAllRanks() {
+  classMode = false;
+  selectedClass = '';
+  updateResults();
+}
+
+function exportCSV() {
+  const lapCounts = {};
+  entries.forEach(e => {
+    const key = `${e.color}-${e.number}`;
+    if (!lapCounts[key]) lapCounts[key] = { color: e.color, number: e.number, laps: 0, firstTime: e.time };
+    lapCounts[key].laps++;
+  });
+
+  const ranked = Object.values(lapCounts).sort((a, b) => {
+    if (b.laps === a.laps) return a.firstTime - b.firstTime;
+    return b.laps - a.laps;
+  });
+
+  let csv = '順位,色,番号,周回\n';
+  ranked.forEach((r, i) => {
+    csv += `${i + 1},${r.color},${r.number},${r.laps}\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'results.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
