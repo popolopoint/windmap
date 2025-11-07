@@ -22,8 +22,8 @@
 </style>
 </head>
 <body>
-<h2>コース作成ツール by Popolo <small style="font-weight:normal;color:#666">(v3.06)</small></h2>
-<div id="version">v3.06</div>
+<h2>コース作成ツール by Popolo <small style="font-weight:normal;color:#666">(v3.07)</small></h2>
+<div id="version">v3.07</div>
 
 <div id="inputs">
   <label>緯度A：<input type="number" id="latA" step="any" value=""></label>
@@ -150,10 +150,10 @@ function calculateAll(){
   drawPoint('E',points.E,'#9900ff');
   if(polyline) polyline.setMap(null);
   polyline=new google.maps.Polyline({ path:[points.A,points.B,points.C,points.D,points.E], geodesic:true, strokeColor:'#444', strokeOpacity:0.9, strokeWeight:2, map});
-  document.getElementById('dAC').textContent='A～C距離：'+distanceBetween(points.A,points.C).toFixed(1)+' m';
-  document.getElementById('dAE').textContent='A～E距離：'+distanceBetween(points.A,points.E).toFixed(1)+' m';
-  
-  drawPopoloLabelFixed(); // v3.06版
+  document.getElementById('dAC').textContent='A～C距離：▢'+distanceBetween(points.A,points.C).toFixed(1)+' m▢';
+  document.getElementById('dAE').textContent='A～E距離：▢'+distanceBetween(points.A,points.E).toFixed(1)+' m▢';
+
+  drawPopoloLabelFixed();
 }
 
 function distanceBetween(p1,p2){
@@ -167,9 +167,9 @@ function distanceBetween(p1,p2){
   return R*c;
 }
 
-// v3.06: OverlayView でズームに依存せず表示、CEと垂直方向に配置
+// 固定サイズラベルを作る OverlayView
 function drawPopoloLabelFixed(){
-  if(!points.C || !points.E) return;
+  if(!points.E || !points.C) return;
   if(popoloOverlay) popoloOverlay.setMap(null);
 
   const distanceCE = distanceBetween(points.C, points.E);
@@ -177,40 +177,34 @@ function drawPopoloLabelFixed(){
     (points.E.lng - points.C.lng) * Math.PI/180 * Math.cos(points.E.lat * Math.PI/180),
     (points.E.lat - points.C.lat) * Math.PI/180
   );
-  const perpBearing = bearingCE + Math.PI/2; // CEと垂直方向
-  const offsetLat = (distanceCE/6378137) * (180/Math.PI) * Math.cos(perpBearing);
-  const offsetLng = (distanceCE/6378137) * (180/Math.PI) * Math.sin(perpBearing) / Math.cos(points.E.lat*Math.PI/180);
-
+  const offsetLat = (distanceCE / 6378137.0) * (180/Math.PI) * Math.cos(bearingCE);
+  const offsetLng = (distanceCE / 6378137.0) * (180/Math.PI) * Math.sin(bearingCE) / Math.cos(points.E.lat * Math.PI/180);
   const labelPos = { lat: points.E.lat + offsetLat, lng: points.E.lng + offsetLng };
 
-  class PopoloOverlay extends google.maps.OverlayView {
-    constructor(position, text){
-      super();
-      this.position = position;
-      this.text = text;
-    }
+  class PopoloLabelOverlay extends google.maps.OverlayView {
+    constructor(position, text){ super(); this.position = position; this.text = text; }
     onAdd(){
       this.div = document.createElement('div');
       this.div.style.position = 'absolute';
       this.div.style.color = '#888';
-      this.div.style.fontSize = '7px';
+      this.div.style.fontSize = '12px';
       this.div.style.fontWeight = 'bold';
       this.div.style.whiteSpace = 'nowrap';
+      this.div.style.pointerEvents = 'none';
+      this.div.style.transform = 'translate(-50%, -50%)';
       this.div.innerText = this.text;
       this.getPanes().overlayLayer.appendChild(this.div);
     }
     draw(){
       const projection = this.getProjection();
-      const pos = projection.fromLatLngToDivPixel(new google.maps.LatLng(this.position.lat,this.position.lng));
+      const pos = projection.fromLatLngToDivPixel(new google.maps.LatLng(this.position.lat, this.position.lng));
       this.div.style.left = pos.x + 'px';
       this.div.style.top = pos.y + 'px';
     }
-    onRemove(){
-      if(this.div) this.div.parentNode.removeChild(this.div);
-    }
+    onRemove(){ if(this.div && this.div.parentNode) this.div.parentNode.removeChild(this.div); }
   }
 
-  popoloOverlay = new PopoloOverlay(labelPos,'by Popolo Point');
+  popoloOverlay = new PopoloLabelOverlay(labelPos, 'by Popolo Point');
   popoloOverlay.setMap(map);
 }
 
@@ -230,4 +224,3 @@ window.addEventListener('load',()=>{
 
 </body>
 </html>
-
