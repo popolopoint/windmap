@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ウインドコース計算ツール v1.4</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Kaku Gothic ProN", "メイリオ", Meiryo, sans-serif; margin: 10px; }
+  h2 { margin: 0 0 8px 0; }
+  #version { position: absolute; right: 12px; top: 12px; color: #666; font-size: 13px; }
+  #inputs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom:8px; }
+  #inputs label { font-size: 14px; }
+  input[type="number"] { width: 110px; padding: 6px 6px; border-radius:6px; border:1px solid #ccc; }
+  button { padding: 6px 10px; border-radius:6px; border: none; background:#1976d2; color:white; cursor:pointer; }
+  #map { width:100%; height:500px; border-radius:8px; margin-top:10px; }
+  #coords { margin-top:10px; display:flex; flex-wrap:wrap; gap:8px; }
+  .pointBox { background:#f7f7f7; padding:8px 10px; border-radius:8px; font-size:14px; display:flex; align-items:center; gap:8px; }
+  .shareBtn { background:#1976d2; color:white; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; }
+  #distances { margin-top:10px; font-weight:600; }
+  .toggleBtn { background:#fff; color:#1976d2; border:1px solid #1976d2; padding:6px 8px; border-radius:6px; cursor:pointer; }
+  @media (max-width:600px){
+    input[type="number"]{ width: 100px; }
+    #map { height: 400px; }
+  }
+</style>
+</head>
+<body>
+<h2>ウインドコース計算ツール <small style="font-weight:normal;color:#666">(v1.4)</small></h2>
+<div id="version">v1.4</div>
+
+<!-- 入力 -->
+<div id="inputs">
+  <label>起点A 緯度：<input type="number" id="latA" step="any" value="26.331800"></label>
+  <label>経度：<input type="number" id="lngA" step="any" value="127.917900"></label>
+  <label>風向(°)：<input type="number" id="wind" value="10" step="any"></label>
+  <label>距離(m)：<input type="number" id="dist" value="500" step="any"></label>
+  <label>θ(°)：<input type="number" id="theta" value="95" step="any"></label>
+  <button id="calcBtn">計算</button>
+  <button id="toggleSetA" class="toggleBtn">マップでA点を指定：OFF</button>
+</div>
+
+<p style="margin:0;color:#666;font-size:13px;">※「マップでA点を指定」をONにして、マップ上をクリックすると A点 が自動入力されます。手入力でもOK。</p>
+
+<!-- 緯度経度表示と共有ボタン（マップ外） -->
+<div id="coords">
+  <div class="pointBox" id="coordA">A点　—　<span id="txtA">-</span> <button class="shareBtn" data-point="A">▢</button></div>
+  <div class="pointBox" id="coordB">B点　—　<span id="txtB">-</span> <button class="shareBtn" data-point="B">▢</button></div>
+  <div class="pointBox" id="coordC">C点　—　<span id="txtC">-</span> <button class="shareBtn" data-point="C">▢</button></div>
+  <div class="pointBox" id="coordD">D点　—　<span id="txtD">-</span> <button class="shareBtn" data-point="D">▢</button></div>
+  <div class="pointBox" id="coordE">E点　—　<span id="txtE">-</span> <button class="shareBtn" data-point="E">▢</button></div>
+</div>
+
+<!-- Map -->
+<div id="map"></div>
+
+<!-- 距離 -->
+<div id="distances">A〜C間距離：- m　　A〜E間距離：- m</div>
+
+<script>
+/* Wind Course Tool v1.4
+   - Google Maps JavaScript API required (replace YOUR_API_KEY)
+   - A点は手入力か「マップで指定」ボタンでクリックして設定可能
+   - 共有はスマホの共有ダイアログ（navigator.share）を優先
+     PCではクリップボードにコピー（フォールバック対応）
+*/
+
+let map;
+let circles = {};    // circle objects keyed by label
+let markersLabel = {}; // markers for labels inside circles
+let polyline = null;
+let points = { A:null, B:null, C:null, D:null, E:null };
+let setAMode = false; // if true, map click will set A
+
+// --- 初期化（Google Maps callback） ---
+function initMap() {
+  const initLat = parseFloat(document.getElementById('latA').value) || 26.3318;
+  const initLng = parseFloat(document.getElementById('lngA').value) || 127.9179;
+  map = new google.maps.Map(document.getElementById('map'), {
+    center: { lat: initLat, lng: initLng },
+    zoom: 14,
+  });
+
+  // マップクリックイベント：setAMode が true のときだけAを更新
+  map.addListener('click', (e) => {
+    if (!setAMode) return;
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+    // 小数6桁で表示・入力欄に反映
+    document.getElementById('latA').value = lat.toFixed(6);
+    document.getElementById('lngA').value = lng.toFixed(6);
+    // 更新のみ（必要なら自動計算はボタンで）
+    updatePointA({ lat, lng });
+  });
+}
+
+// --- ユーティリティ：移動計算（大円航跡） ---
+function movePoint(lat, lng, distance, bearingDeg) {
+  const R = 6378137.0;
+  const brng = bearingDeg * Math.PI / 180.0;
+  const φ1 = lat * Math.PI / 180.0;
+  const λ1 = lng * Math.PI / 180.0;
+  const δ = distance / R;
+
+  const φ2 = Math.asin(Math.sin(φ1)*Math.cos(δ) + Math.cos(φ1)*Math.sin(δ)*Math.cos(brng));
+  const λ2 = λ1 + Math.atan2(Math.sin(brng)*Math.sin(δ)*Math.cos(φ1),
+                             Math.cos(δ) - Math.sin(φ1)*Math.sin(φ2));
+  return { lat: φ2 * 180.0 / Math.PI, lng: λ2 * 180.0 / Math.PI };
+}
+
+// --- 円表示（○）と内部ラベル（A〜E文字） ---
+function drawPoint(label, pos, color, radiusMeters=8, isALarger=false) {
+  // remove old
+  if (circles[label]) { circles[label].setMap(null); circles[label]=null; }
+  if (markersLabel[label]) { markersLabel[label].setMap(null); markersLabel[label]=null; }
+
+  const r = isALarger ? Math.max(12, radiusMeters) : radiusMeters;
+
+  // Circle (visual)
+  circles[label] = new google.maps.Circle({
+    strokeColor: color,
+    strokeOpacity: 1.0,
+    strokeWeight: 2,
+    fillColor: color,
+    fillOpacity: 0.85,
+    map,
+    center: pos,
+    radius: r
+  });
+
+  // Invisible marker with label inside (Google Maps label text)
+  markersLabel[label] = new google.maps.Marker({
+    position: pos,
+    map,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 0, // invisible
+    },
+    label: {
+      text: label,
+      color: "white",
+      fontWeight: "bold",
+      fontSize: isALarger ? "14px" : "12px"
+    }
+  });
+
+  // クリックで共有（map上）
+  circles[label].addListener('click', () => {
+    shareCoords(label, pos);
+  });
+  markersLabel[label].addListener('click', () => {
+    shareCoords(label, pos);
+  });
+}
+
+// --- 共有処理 ---
+async function shareCoords(label, pos) {
+  const text = `${label}点の位置\n緯度: ${pos.lat.toFixed(6)}\n経度: ${pos.lng.toFixed(6)}\nhttps://maps.google.com/?q=${pos.lat},${pos.lng}`;
+  // スマホ等で navigator.share が使える場合はシェアダイアログ
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: `${label} の座標`, text: text });
+      return;
+    } catch (err) {
+      // ユーザーがキャンセルした場合などは無視
+    }
+  }
+  // それ以外はクリップボードへコピー（PC含む）
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('座標をクリップボードにコピーしました。\n貼り付けて共有してください。');
+      return;
+    } catch (err) {
+      // フォールバックへ
+    }
+  }
+  // フォールバック: テキストエリアで選択コピー
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    alert('座標をクリップボードにコピーしました。\n貼り付けて共有してください。');
+  } catch (err) {
+    alert(text);
+  }
+  document.body.removeChild(ta);
+}
+
+// --- 画面内の座標欄を更新 ---
+function updateCoordBox(label, pos) {
+  const el = document.getElementById('txt' + label);
+  el.textContent = pos ? `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}` : '-';
+}
+
+// --- A点だけ即座に反映（マップクリック時） ---
+function updatePointA(pos) {
+  points.A = pos;
+  drawPoint('A', pos, '#ff3b30', 12, true);
+  updateCoordBox('A', pos);
+  // Keep map center on A when setting by click
+  map.panTo(pos);
+}
+
+// --- 計算と描画（計算ボタン押下） ---
+function calculateAll() {
+  // read inputs
+  const latA = parseFloat(document.getElementById('latA').value);
+  const lngA = parseFloat(document.getElementById('lngA').value);
+  const wind = parseFloat(document.getElementById('wind').value) || 0;
+  const dist = parseFloat(document.getElementById('dist').value) || 0;
+  const theta = parseFloat(document.getElementById('theta').value) || 0;
+
+  // set A from inputs (manual entry)
+  points.A = { lat: latA, lng: lngA };
+
+  // angle logic per spec:
+  // B: A -> 90 + wind + θ
+  // C: B -> 270 + wind - θ
+  // D: C -> 90 + wind + θ
+  // E: D -> 270 + wind - θ
+  const bearingB = 90 + wind + theta;
+  const bearingC = 270 + wind - theta;
+  const bearingD = 90 + wind + theta;
+  const bearingE = 270 + wind - theta;
+
+  points.B = movePoint(points.A.lat, points.A.lng, dist, bearingB);
+  points.C = movePoint(points.B.lat, points.B.lng, dist, bearingC);
+  points.D = movePoint(points.C.lat, points.C.lng, dist, bearingD);
+  points.E = movePoint(points.D.lat, points.D.lng, dist, bearingE);
+
+  // draw points (A larger)
+  drawPoint('A', points.A, '#ff3b30', 15, true);
+  drawPoint('B', points.B, '#0088ff', 8, false);
+  drawPoint('C', points.C, '#00aa00', 8, false);
+  drawPoint('D', points.D, '#ffaa00', 8, false);
+  drawPoint('E', points.E, '#9900ff', 8, false);
+
+  // update coord boxes
+  updateCoordBox('A', points.A);
+  updateCoordBox('B', points.B);
+  updateCoordBox('C', points.C);
+  updateCoordBox('D', points.D);
+  updateCoordBox('E', points.E);
+
+  // draw polyline
+  if (polyline) polyline.setMap(null);
+  polyline = new google.maps.Polyline({
+    path: [points.A, points.B, points.C, points.D, points.E],
+    geodesic: true,
+    strokeColor: "#444",
+    strokeOpacity: 0.9,
+    strokeWeight: 2,
+    map: map
+  });
+
+  // compute distances A-C and A-E
+  const dAC = distanceBetween(points.A, points.C);
+  const dAE = distanceBetween(points.A, points.E);
+  document.getElementById('distances').textContent = `A〜C間距離：${dAC.toFixed(1)} m　　A〜E間距離：${dAE.toFixed(1)} m`;
+
+  // center map on A
+  map.panTo(points.A);
+}
+
+// --- 距離計算（ハーサイン） ---
+function distanceBetween(p1, p2) {
+  const R = 6378137.0;
+  const φ1 = p1.lat * Math.PI / 180.0;
+  const φ2 = p2.lat * Math.PI / 180.0;
+  const dφ = (p2.lat - p1.lat) * Math.PI / 180.0;
+  const dλ = (p2.lng - p1.lng) * Math.PI / 180.0;
+  const a = Math.sin(dφ/2)*Math.sin(dφ/2) + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)*Math.sin(dλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+// --- 共有ボタン (外部の▢) クリック時 ---
+function onShareButtonClick(e) {
+  const label = e.currentTarget.getAttribute('data-point');
+  const pos = points[label];
+  if (!pos) { alert(label + ' 点が未設定です。'); return; }
+  shareCoords(label, pos);
+}
+
+// --- トグルボタン（マップでAを指定） ---
+function toggleSetA() {
+  setAMode = !setAMode;
+  const btn = document.getElementById('toggleSetA');
+  btn.textContent = `マップでA点を指定：${setAMode ? 'ON' : 'OFF'}`;
+  btn.style.background = setAMode ? '#1976d2' : '#fff';
+  btn.style.color = setAMode ? '#fff' : '#1976d2';
+  btn.style.border = setAMode ? 'none' : '1px solid #1976d2';
+}
+
+// --- 初期イベントセット ---
+window.addEventListener('load', () => {
+  document.getElementById('calcBtn').addEventListener('click', calculateAll);
+  document.getElementById('toggleSetA').addEventListener('click', toggleSetA);
+  document.querySelectorAll('.shareBtn').forEach(b => b.addEventListener('click', onShareButtonClick));
+});
+</script>
+
+<!-- Google Maps API: YOUR_API_KEY_HERE を置き換えてください -->
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB4tqxDKadoSP8XTNwzOGXwh9BprCiR9Zs&callback=initMap"></script>
+</body>
+</html>
