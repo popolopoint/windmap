@@ -4,133 +4,133 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ウインドコース計算ツール v2.3</title>
+<title>ウインドコース計算ツール v2.3.1</title>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Kaku Gothic ProN", "メイリオ", Meiryo, sans-serif; margin: 10px; }
-  h2 { margin: 0 0 8px 0; }
-  #version { position: absolute; right: 12px; top: 12px; color: #666; font-size: 13px; }
-  #inputs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom:8px; }
-  #inputs label { font-size: 14px; }
-  input[type="number"] { width: 70px; padding: 6px 6px; border-radius:6px; border:1px solid #ccc; }
-  button { padding: 6px 10px; border-radius:6px; border: none; background:#1976d2; color:white; cursor:pointer; }
-  #map { width:100%; height:500px; border-radius:8px; margin-top:10px; }
-  #distances { margin-bottom:8px; font-weight:600; }
-  .pointBox { border-radius:50%; width:32px; height:32px; display:flex; justify-content:center; align-items:center; color:white; font-weight:bold; cursor:pointer; margin-right:6px; margin-bottom:6px; }
-  #coordsContainer { display:flex; flex-wrap:wrap; }
-  .distanceBox { background:#eee; padding:4px 6px; border-radius:6px; margin-bottom:4px; font-weight:bold; }
-  #inputsMode { margin-bottom:5px; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Kaku Gothic ProN", "メイリオ", Meiryo, sans-serif; margin: 10px; }
+h2 { margin: 0 0 8px 0; }
+#version { position: absolute; right: 12px; top: 12px; color: #666; font-size: 13px; }
+#inputs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom:8px; }
+#inputs label { font-size: 14px; }
+input[type="number"] { width: 70px; padding: 6px 6px; border-radius:6px; border:1px solid #ccc; }
+button { padding: 6px 10px; border-radius:6px; border: none; background:#1976d2; color:white; cursor:pointer; }
+#map { width:100%; height:500px; border-radius:8px; margin-top:10px; }
+#distances { margin-bottom:5px; font-weight:600; }
+.pointBtn { display:inline-block; margin:2px; padding:6px 10px; border-radius:50%; color:white; font-weight:bold; border:none; cursor:pointer; }
+#coordsDisplay { margin-top:5px; font-size:14px; color:#444; }
+#inputsMode { margin-bottom:5px; }
 </style>
 </head>
 <body>
-<h2>ウインドコース計算ツール <small style="font-weight:normal;color:#666">(v2.3)</small></h2>
-<div id="version">v2.3</div>
+<h2>ウインドコース計算ツール <small style="font-weight:normal;color:#666">(v2.3.1)</small></h2>
+<div id="version">v2.3.1</div>
 
 <div id="inputs">
-  <label>緯度A：<input type="number" id="latA" step="any" value=""></label>
-  <label>経度A：<input type="number" id="lngA" step="any" value=""></label>
-  <label>風向(°)：<input type="number" id="wind" step="any" value=""></label>
-  <label>距離(m)：<input type="number" id="dist" step="any" value="500"></label>
-  <label>角度(°)：<input type="number" id="theta" step="any" value="5"></label>
-  <button id="btnSetCurrent" class="toggleBtn">現在位置をA点に</button>
+  <label>緯度：<input type="number" id="latA" step="any" placeholder=""></label>
+  <label>経度：<input type="number" id="lngA" step="any" placeholder=""></label>
+  <label>風向(°)：<input type="number" id="wind" step="any" maxlength="4"></label>
+  <label>距離(m)：<input type="number" id="dist" step="any" maxlength="4"></label>
+  <label>角度(°)：<input type="number" id="theta" step="any" maxlength="4" value="5"></label>
+  <button id="btnSetCurrent">現在地をA点に</button>
   <button id="calcBtn">計算</button>
 </div>
 
 <div id="inputsMode">
   A点設定方法：
   <label><input type="radio" name="aMode" value="current" checked> 現在位置</label>
-  <label><input type="radio" name="aMode" value="map"> マップクリック</label>
+  <label><input type="radio" name="aMode" value="map"> マップタップ</label>
   <label><input type="radio" name="aMode" value="manual"> 手入力</label>
 </div>
 
-<div id="distances">
-  <div class="distanceBox" id="dAC">A～C距離：- m</div>
-  <div class="distanceBox" id="dAE">A～E距離：- m</div>
-</div>
+<div id="distances">A〜C間距離：- m　　A〜E間距離：- m</div>
 
-<div id="coordsContainer">
-  <div class="pointBox" id="btnA" style="background:#ff3b30;">A</div>
-  <div class="pointBox" id="btnB" style="background:#0088ff;">B</div>
-  <div class="pointBox" id="btnC" style="background:#00aa00;">C</div>
-  <div class="pointBox" id="btnD" style="background:#ffaa00;">D</div>
-  <div class="pointBox" id="btnE" style="background:#9900ff;">E</div>
+<div id="coordsDisplay">
+  <button class="pointBtn" id="btnA" style="background:#ff3b30">A</button>
+  <button class="pointBtn" id="btnB" style="background:#0088ff">B</button>
+  <button class="pointBtn" id="btnC" style="background:#00aa00">C</button>
+  <button class="pointBtn" id="btnD" style="background:#ffaa00">D</button>
+  <button class="pointBtn" id="btnE" style="background:#9900ff">E</button>
 </div>
 
 <div id="map"></div>
 
 <script>
 let map;
-let circles={}; 
-let markersLabel={};
-let polyline=null;
-let points={A:null,B:null,C:null,D:null,E:null};
+let circles = {};
+let points = { A:null, B:null, C:null, D:null, E:null };
+let polyline = null;
 
-function initMap(){
-  const initLat=parseFloat(document.getElementById('latA').value) || 26.3318;
-  const initLng=parseFloat(document.getElementById('lngA').value) || 127.9179;
-  map=new google.maps.Map(document.getElementById('map'), {center:{lat:initLat,lng:initLng}, zoom:14});
-  map.addListener('click', (e)=>{
-    const mode=document.querySelector('input[name="aMode"]:checked').value;
+// --- 初期化 ---
+function initMap() {
+  map = new google.maps.Map(document.getElementById('map'), { center:{lat:26.3318,lng:127.9179}, zoom:14 });
+
+  map.addListener('click', (e) => {
+    const mode = document.querySelector('input[name="aMode"]:checked').value;
     if(mode==='map'){
       const lat=e.latLng.lat();
       const lng=e.latLng.lng();
-      document.getElementById('latA').value=lat.toFixed(6);
-      document.getElementById('lngA').value=lng.toFixed(6);
+      document.getElementById('latA').value = lat.toFixed(6);
+      document.getElementById('lngA').value = lng.toFixed(6);
       updatePointA({lat,lng});
     }
   });
 }
 
+// --- 移動計算 ---
 function movePoint(lat,lng,distance,bearingDeg){
-  const R=6378137.0;
-  const brng=bearingDeg*Math.PI/180.0;
-  const φ1=lat*Math.PI/180.0;
-  const λ1=lng*Math.PI/180.0;
-  const δ=distance/R;
-  const φ2=Math.asin(Math.sin(φ1)*Math.cos(δ)+Math.cos(φ1)*Math.sin(δ)*Math.cos(brng));
-  const λ2=λ1+Math.atan2(Math.sin(brng)*Math.sin(δ)*Math.cos(φ1), Math.cos(δ)-Math.sin(φ1)*Math.sin(φ2));
-  return {lat:φ2*180/Math.PI, lng:λ2*180/Math.PI};
+  const R = 6378137.0;
+  const brng = bearingDeg*Math.PI/180.0;
+  const φ1 = lat*Math.PI/180.0;
+  const λ1 = lng*Math.PI/180.0;
+  const δ = distance/R;
+  const φ2 = Math.asin(Math.sin(φ1)*Math.cos(δ) + Math.cos(φ1)*Math.sin(δ)*Math.cos(brng));
+  const λ2 = λ1 + Math.atan2(Math.sin(brng)*Math.sin(δ)*Math.cos(φ1), Math.cos(δ)-Math.sin(φ1)*Math.sin(φ2));
+  return { lat: φ2*180/Math.PI, lng: λ2*180/Math.PI };
 }
 
-function drawPoint(label,pos,color){
-  if(circles[label]){circles[label].setMap(null); circles[label]=null;}
-  if(markersLabel[label]){markersLabel[label].setMap(null); markersLabel[label]=null;}
-  const size=label==='A'?12:24;
-  circles[label]=new google.maps.Circle({
-    strokeColor:color, strokeOpacity:1, strokeWeight:2, fillColor:color, fillOpacity:0.85,
-    map, center:pos, radius:size
+// --- 円とラベル ---
+function drawPoint(label,pos,color,radius=8){
+  if(circles[label]) circles[label].setMap(null);
+  let size = radius;
+  if(label==='A') size = radius+3; else if(label!=='A') size = radius*2;
+  circles[label] = new google.maps.Circle({ map, center:pos, radius:size, fillColor:color, fillOpacity:0.85, strokeWeight:2, strokeColor:color });
+  const marker = new google.maps.Marker({
+    position: pos,
+    map,
+    icon:{ path: google.maps.SymbolPath.CIRCLE, scale:0 },
+    label:{ text:label, color:"white", fontWeight:"bold", fontSize:"12px" }
   });
-  markersLabel[label]=new google.maps.Marker({
-    position:pos, map,
-    icon:{ path:google.maps.SymbolPath.CIRCLE, scale:0 },
-    label:{ text:label, color:'white', fontWeight:'bold', fontSize:'14px' }
-  });
-  circles[label].addListener('click',()=>shareCoords(label,pos));
-  markersLabel[label].addListener('click',()=>shareCoords(label,pos));
+  marker.addListener('click', ()=>shareCoords(label,pos));
 }
 
+// --- 座標共有 ---
 async function shareCoords(label,pos){
   const text=`${label}点\n緯度: ${pos.lat.toFixed(6)}\n経度: ${pos.lng.toFixed(6)}\nhttps://maps.google.com/?q=${pos.lat},${pos.lng}`;
   if(navigator.share){try{await navigator.share({title:`${label}座標`,text});return}catch(e){}}
   if(navigator.clipboard&&navigator.clipboard.writeText){try{await navigator.clipboard.writeText(text);alert('座標をコピーしました');return}catch(e){}}
-  const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select();
-  try{document.execCommand('copy'); alert('座標をコピーしました');}catch(e){alert(text);} document.body.removeChild(ta);
+  const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');alert('座標をコピーしました');}catch(e){alert(text);}
+  document.body.removeChild(ta);
 }
 
-function updatePointA(pos){points.A=pos; drawPoint('A',pos,'#ff3b30'); map.panTo(pos);}
-
-function setCurrentPositionA(){
-  if(!navigator.geolocation){alert("現在位置が取得できません"); return;}
-  navigator.geolocation.getCurrentPosition(pos=>{
-    const lat=pos.coords.latitude, lng=pos.coords.longitude;
-    document.getElementById('latA').value=lat.toFixed(6);
-    document.getElementById('lngA').value=lng.toFixed(6);
-    updatePointA({lat,lng});
-  }, err=>{alert("位置情報取得に失敗しました");});
+// --- 座標表示ボタン ---
+function setupButtons(){
+  ['A','B','C','D','E'].forEach(l=>{
+    document.getElementById('btn'+l).addEventListener('click',()=>{
+      const p=points[l];
+      if(!p){alert(l+' 点未設定'); return;}
+      shareCoords(l,p);
+    });
+  });
 }
 
+// --- A点更新 ---
+function updatePointA(pos){points.A=pos; drawAll();}
+
+// --- 計算 ---
 function calculateAll(){
   const latA=parseFloat(document.getElementById('latA').value);
   const lngA=parseFloat(document.getElementById('lngA').value);
+  if(isNaN(latA)||isNaN(lngA)){alert("A点が未設定です"); return;}
   const wind=parseFloat(document.getElementById('wind').value)||0;
   const dist=parseFloat(document.getElementById('dist').value)||0;
   const theta=parseFloat(document.getElementById('theta').value)||5;
@@ -143,41 +143,59 @@ function calculateAll(){
   points.C=movePoint(points.B.lat,points.B.lng,dist,bearingC);
   points.D=movePoint(points.C.lat,points.C.lng,dist,bearingD);
   points.E=movePoint(points.D.lat,points.D.lng,dist,bearingE);
-  drawPoint('A',points.A,'#ff3b30');
-  drawPoint('B',points.B,'#0088ff');
-  drawPoint('C',points.C,'#00aa00');
-  drawPoint('D',points.D,'#ffaa00');
-  drawPoint('E',points.E,'#9900ff');
-  if(polyline) polyline.setMap(null);
-  polyline=new google.maps.Polyline({ path:[points.A,points.B,points.C,points.D,points.E], geodesic:true, strokeColor:'#444', strokeOpacity:0.9, strokeWeight:2, map});
-  document.getElementById('dAC').textContent='A～C距離：▢'+distanceBetween(points.A,points.C).toFixed(1)+' m▢';
-  document.getElementById('dAE').textContent='A～E距離：▢'+distanceBetween(points.A,points.E).toFixed(1)+' m▢';
+  drawAll();
 }
 
+// --- 全描画 ---
+function drawAll(){
+  ['A','B','C','D','E'].forEach(l=>{
+    if(points[l]) drawPoint(l,points[l],getColor(l));
+  });
+  if(polyline) polyline.setMap(null);
+  polyline=new google.maps.Polyline({ path:[points.A,points.B,points.C,points.D,points.E], geodesic:true, strokeColor:"#444", strokeOpacity:0.9, strokeWeight:2, map });
+  const dAC=distanceBetween(points.A,points.C);
+  const dAE=distanceBetween(points.A,points.E);
+  document.getElementById('distances').textContent=`▢A〜C間距離：${dAC.toFixed(1)} m　▢A〜E間距離：${dAE.toFixed(1)} m`;
+}
+
+// --- 距離計算 ---
 function distanceBetween(p1,p2){
   const R=6378137.0;
-  const φ1=p1.lat*Math.PI/180;
-  const φ2=p2.lat*Math.PI/180;
-  const dφ=(p2.lat-p1.lat)*Math.PI/180;
-  const dλ=(p2.lng-p1.lng)*Math.PI/180;
+  const φ1=p1.lat*Math.PI/180.0;
+  const φ2=p2.lat*Math.PI/180.0;
+  const dφ=(p2.lat-p1.lat)*Math.PI/180.0;
+  const dλ=(p2.lng-p1.lng)*Math.PI/180.0;
   const a=Math.sin(dφ/2)**2+Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
   const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
   return R*c;
 }
 
-document.getElementById('btnA').addEventListener('click',()=>points.A?shareCoords('A',points.A):null);
-document.getElementById('btnB').addEventListener('click',()=>points.B?shareCoords('B',points.B):null);
-document.getElementById('btnC').addEventListener('click',()=>points.C?shareCoords('C',points.C):null);
-document.getElementById('btnD').addEventListener('click',()=>points.D?shareCoords('D',points.D):null);
-document.getElementById('btnE').addEventListener('click',()=>points.E?shareCoords('E',points.E):null);
+// --- 色取得 ---
+function getColor(l){switch(l){case'A':return'#ff3b30';case'B':return'#0088ff';case'C':return'#00aa00';case'D':return'#ffaa00';case'E':return'#9900ff';}}
 
+// --- 現在地取得 ---
+function setCurrentPositionA(){
+  if(!navigator.geolocation){alert("現在位置が取得できません");return;}
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat=pos.coords.latitude;
+    const lng=pos.coords.longitude;
+    document.getElementById('latA').value=lat.toFixed(6);
+    document.getElementById('lngA').value=lng.toFixed(6);
+    updatePointA({lat,lng});
+    calculateAll();
+  },err=>{alert("位置情報取得に失敗しました");});
+}
+
+// --- 初期 ---
 window.addEventListener('load',()=>{
+  initMap();
+  setupButtons();
   document.getElementById('calcBtn').addEventListener('click',calculateAll);
   document.getElementById('btnSetCurrent').addEventListener('click',setCurrentPositionA);
 });
 </script>
 
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB4tqxDKadoSP8XTNwzOGXwh9BprCiR9Zs&callback=initMap"></script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap"></script>
 
 </body>
 </html>
