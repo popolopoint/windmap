@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>WindMap v1.7</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<style>
+  body { font-family: sans-serif; padding: 10px; margin:0; }
+  input { margin: 4px; width: 100px; font-size:16px; }
+  button { padding: 12px 18px; margin: 5px; font-size: 18px; }
+  #map { width: 100%; height: 60vh; margin-top: 10px; border-radius: 10px; }
+  .coord-box { margin: 4px 0; font-size: 16px; }
+  .coord-btn { cursor: pointer; padding: 4px 8px; margin-left: 5px; border: 1px solid #888; border-radius: 3px; background: #eee; font-size: 16px;}
+</style>
+</head>
+<body>
+<h2>WindMap v1.7 PWA</h2>
+<p>バージョン: v1.7（iPhone PWA対応）</p>
+
+<label>緯度（北緯）:</label> <input id="lat" type="number" step="0.000001" value=""> <label>経度（東経）:</label> <input id="lon" type="number" step="0.000001" value=""><br>
+
+<button onclick="setCurrentAsA()">現在位置をA点に設定</button><br>
+
+<label>風向（°）:</label> <input id="wind" type="number" value=""> <label>移動角度（°）:</label> <input id="angle" type="number" value=""> <label>距離（m）:</label> <input id="dist" type="number" value="500"><br>
+
+<button onclick="calc()">計算＆マップ表示</button>
+
+<div id="coordDisplay"></div>
+<div id="distanceDisplay"></div>
+<div id="map"></div>
+
+<script>
+// --- v1.6のコードをそのままコピー ---
+// A点マーカー、B-E計算、マップタップ設定、現在位置設定、距離表示、緯度経度コピーなど
+let map, markers=[], polyline, aMarker, currentMarker, currentPos;
+
+function initMap() {
+  map=new google.maps.Map(document.getElementById("map"), {center:{lat:26.34528,lng:127.91794},zoom:15});
+  map.addListener("click",function(e){
+    const lat=e.latLng.lat(), lng=e.latLng.lng();
+    document.getElementById("lat").value=lat.toFixed(6);
+    document.getElementById("lon").value=lng.toFixed(6);
+    updateAMarker(lat,lng);
+  });
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(function(pos){
+      const lat=pos.coords.latitude, lng=pos.coords.longitude;
+      currentPos={lat:lat,lon:lng};
+      currentMarker=new google.maps.Marker({
+        position:{lat:lat,lng:lng},
+        map:map,
+        title:"現在地",
+        icon:{path:google.maps.SymbolPath.CIRCLE, scale:8, fillColor:"#0000FF", fillOpacity:1, strokeColor:"white", strokeWeight:2}
+      });
+    });
+  }
+}
+
+function setCurrentAsA(){
+  if(!currentPos){alert("現在地情報が取得できていません");return;}
+  document.getElementById("lat").value=currentPos.lat.toFixed(6);
+  document.getElementById("lon").value=currentPos.lon.toFixed(6);
+  updateAMarker(currentPos.lat,currentPos.lon);
+}
+
+function updateAMarker(lat,lon){
+  if(aMarker) aMarker.setMap(null);
+  aMarker=new google.maps.Marker({
+    position:{lat:lat,lng:lon},
+    map:map,
+    title:"A点",
+    label:{text:"A",color:"white",fontWeight:"bold"},
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:"#4285F4",fillOpacity:1,strokeColor:"white",strokeWeight:2}
+  });
+}
+
+function destination(lat,lon,bearingDeg,distance){
+  const R=6371000, brng=bearingDeg*Math.PI/180, φ1=lat*Math.PI/180, λ1=lon*Math.PI/180;
+  const φ2=Math.asin(Math.sin(φ1)*Math.cos(distance/R)+Math.cos(φ1)*Math.sin(distance/R)*Math.cos(brng));
+  const λ2=λ1+Math.atan2(Math.sin(brng)*Math.sin(distance/R)*Math.cos(φ1), Math.cos(distance/R)-Math.sin(φ1)*Math.sin(φ2));
+  return { lat: φ2*180/Math.PI, lon: λ2*180/Math.PI };
+}
+
+function copyCoord(lat, lon) {
+  const text = lat.toFixed(6) + "," + lon.toFixed(6);
+  navigator.clipboard.writeText(text).then(()=>{alert("コピーしました: "+text);});
+}
+
+function clearMap() {
+  if (polyline) polyline.setMap(null);
+  markers.forEach(m=>m.setMap(null));
+  markers = [];
+  if (aMarker) aMarker.setMap(null);
+}
+
+function calc() {
+  clearMap();
+
+  const latA = Number(document.getElementById("lat").value);
+  const lonA = Number(document.getElementById("lon").value);
+  const windVal = document.getElementById("wind").value;
+  const angleVal = document.getElementById("angle").value;
+  const dist = Number(document.getElementById("dist").value);
+
+  if (isNaN(latA) || isNaN(lonA)) { alert("A点の緯度経度を入力してください"); return; }
+  if (windVal=="" || angleVal=="") { alert("風向と移動角度を入力してください"); return; }
+
+  const wind = Number(windVal);
+  const θ = Number(angleVal);
+
+  const A = { lat: latA, lon: lonA };
+  const B = destination(A.lat,A.lon,90+wind+θ,dist);
+  const C = destination(B.lat,B.lon,270+wind-θ,dist);
+  const D = destination(C.lat,C.lon,90+wind+θ,dist);
+  const E = destination(D.lat,D.lon,270+wind-θ,dist);
+
+  updateAMarker(A.lat,A.lon);
+  markers.push(aMarker);
+  markers.push(addMarker(B,"B","#34A853"));
+  markers.push(addMarker(C,"C","#FBBC05"));
+  markers.push(addMarker(D,"D","#EA4335"));
+  markers.push(addMarker(E,"E","#9C27B0"));
+
+  const pathCoords = [A,B,C,D,E].map(p=>({lat:p.lat,lng:p.lon}));
+  polyline = new google.maps.Polyline({
+    path: pathCoords,
+    geodesic: true,
+    strokeColor:"#2196F3",
+    strokeOpacity:0.9,
+    strokeWeight:3
+  });
+  polyline.setMap(map);
+  map.setCenter(A);
+
+  const coordDiv = document.getElementById("coordDisplay");
+  coordDiv.innerHTML = "";
+  [A,B,C,D,E].forEach((p,i)=>{
+    const label = ["A","B","C","D","E"][i];
+    const div = document.createElement("div");
+    div.className="coord-box";
+    div.innerHTML = `${label}点: ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)} <span class="coord-btn" onclick="copyCoord(${p.lat},${p.lon})">▢</span>`;
+    coordDiv.appendChild(div);
+  });
+
+  const distDiv = document.getElementById("distanceDisplay");
+  const dAC = getDistance(A,C);
+  const dAE = getDistance(A,E);
+  distDiv.innerHTML = `A→C: ${dAC.toFixed(1)} m, A→E: ${dAE.toFixed(1)} m`;
+}
+
+function addMarker(lat,label,color="#ff0000") {
+  return new google.maps.Marker({
+    position:{lat:lat.lat?lat.lat:lat,lng:lat.lon?lat.lon:lat},
+    map:map,
+    label:{text:label,color:"white",fontWeight:"bold"},
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:color,fillOpacity:1,strokeColor:"white",strokeWeight:1}
+  });
+}
+
+function getDistance(p1,p2){
+  const R=6371000;
+  const φ1=p1.lat*Math.PI/180;
+  const φ2=p2.lat*Math.PI/180;
+  const Δφ=(p2.lat-p1.lat)*Math.PI/180;
+  const Δλ=(p2.lon-p1.lon)*Math.PI/180;
+  const a=Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  return R*c;
+}
+</script>
+
+<script async defer
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB4tqxDKadoSP8XTNwzOGXwh9BprCiR9Zs&callback=initMap">
+</script>
+
+</body>
+</html>
