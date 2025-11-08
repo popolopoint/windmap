@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>風向セットテスト v3.1.7T</title>
+<style>
+  body { font-family: sans-serif; padding: 20px; }
+  button { padding: 10px 20px; font-size: 18px; margin: 10px; border-radius: 10px; }
+  #setWindButton { background: #4CAF50; color: white; }
+</style>
+</head>
+<body>
+<h2>風向セットテスト v3.1.7T</h2>
+<button id="setWindButton">風向セット</button>
+
+<script>
+document.getElementById('setWindButton').addEventListener('click', async () => {
+  try {
+    // iOSでは許可ダイアログが必要
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const permission = await DeviceOrientationEvent.requestPermission();
+      if (permission !== 'granted') {
+        alert('方位センサーの使用が許可されませんでした。設定を確認してください。');
+        return;
+      }
+    }
+
+    alert('風向をセットします。スマホを北に向けて少し待ってください。');
+
+    window.addEventListener('deviceorientation', (event) => {
+      let heading;
+      if (event.webkitCompassHeading !== undefined) {
+        heading = 360 - event.webkitCompassHeading; // Safari用
+      } else if (event.alpha !== null) {
+        heading = event.alpha; // Androidなど
+      }
+
+      if (heading !== undefined) {
+        alert('現在の方位: ' + Math.round(heading) + '°');
+      } else {
+        alert('方位センサーが利用できません。');
+      }
+    }, { once: true });
+
+  } catch (error) {
+    alert('エラー: ' + error);
+  }
+});
+</script>
+</body>
+</html>
