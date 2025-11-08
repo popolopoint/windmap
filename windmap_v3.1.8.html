@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>コース作成ツール by Popolo (v3.1.8)</title>
+<style>
+  :root{
+    --blue:#1976d2;
+    --purple:#6a1b9a;
+    --red:#d32f2f;
+    --green:#2e7d32;
+    --orange:#f57c00;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Kaku Gothic ProN", "メイリオ", Meiryo, sans-serif; margin: 10px; color:#222; }
+  h2 { margin: 0 0 8px 0; font-size:18px; }
+  #version { position: absolute; right: 12px; top: 12px; color: #666; font-size: 13px; }
+  #inputs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom:8px; }
+  #inputs label { font-size: 14px; }
+  input[type="number"] { width: 70px; padding: 6px 6px; border-radius:6px; border:1px solid #ccc; }
+  button { padding: 6px 10px; border-radius:6px; border: none; color:white; cursor:pointer; }
+  button.gray { background:#888; }
+  #map { width:100%; height:500px; border-radius:8px; margin-top:10px; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  #distances { margin-bottom:8px; font-weight:600; display:flex; gap:8px; flex-wrap:wrap; }
+  .pointBox { border-radius:50%; width:32px; height:32px; display:flex; justify-content:center; align-items:center; color:white; font-weight:bold; cursor:pointer; margin-right:6px; margin-bottom:6px; }
+  #coordsContainer { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  .distanceBox { background:#eee; padding:4px 6px; border-radius:6px; margin-bottom:4px; font-weight:bold; }
+  #inputsMode { margin-bottom:5px; font-size:14px; color:#333; }
+  /* button colors */
+  #calcBtn { background: var(--blue); }
+  #btnWindSet { background: var(--purple); }
+  #btnSetCurrent { background: var(--red); }
+  #btnStarboard { background: var(--green); }
+  #btnPort { background: var(--orange); }
+  /* modal */
+  .overlay {
+    position: fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background: rgba(0,0,0,0.50); z-index: 2000;
+  }
+  .modal {
+    background: #fff; padding:16px; border-radius:10px; width:92%; max-width:380px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25); text-align:center;
+  }
+  .modal h3 { margin: 0 0 8px 0; font-size:16px; }
+  .modal p { margin: 6px 0 12px 0; color:#333; font-size:14px; }
+  .modal .reading { font-size:20px; font-weight:700; color:#111; margin-bottom:12px; }
+  .modal .buttons { display:flex; gap:8px; justify-content:center; }
+  .modal button { padding:8px 12px; border-radius:8px; font-weight:600; }
+  .modal .btnConfirm { background: var(--purple); color:white; }
+  .modal .btnCancel { background: #ccc; color:#111; }
+  /* small instruction text */
+  .note { font-size:13px; color:#666; margin-top:6px; }
+  @media (max-width:600px){
+    input[type="number"]{ width: 90px; }
+    #map { height:420px; }
+  }
+</style>
+</head>
+<body>
+<h2>コース作成ツール by Popolo <small style="font-weight:normal;color:#666">(v3.1.8)</small></h2>
+<div id="version">v3.1.8</div>
+
+<div id="inputs">
+  <label>緯度A：<input type="number" id="latA" step="any" value=""></label>
+  <label>経度A：<input type="number" id="lngA" step="any" value=""></label>
+  <label>風向(°)：<input type="number" id="wind" step="any" value=""></label>
+  <label>距離(m)：<input type="number" id="dist" step="any" value="500"></label>
+  <label>角度(°)：<input type="number" id="theta" step="any" value="5"></label>
+
+  <button id="btnWindSet">風向をセット</button>
+  <button id="calcBtn">計算</button>
+  <button id="btnSetCurrent">現在位置をA点に</button>
+  <button id="btnStarboard" title="スタボー">スタボー</button>
+  <button id="btnPort" title="ポート">ポート</button>
+</div>
+
+<div id="inputsMode">
+  A点設定方法：
+  <label><input type="radio" name="aMode" value="current" checked> 現在位置</label>
+  <label><input type="radio" name="aMode" value="map"> マップ</label>
+  <label><input type="radio" name="aMode" value="manual"> 手入力</label>
+</div>
+
+<div id="distances">
+  <div class="distanceBox" id="dAC">A～C距離：- m</div>
+  <div class="distanceBox" id="dAE">A～E距離：- m</div>
+</div>
+
+<div id="coordsContainer">
+  <div class="pointBox" id="btnA" style="background:#ff3b30;">A</div>
+  <div class="pointBox" id="btnB" style="background:#0088ff;">B</div>
+  <div class="pointBox" id="btnC" style="background:#00aa00;">C</div>
+  <div class="pointBox" id="btnD" style="background:#ffaa00;">D</div>
+  <div class="pointBox" id="btnE" style="background:#9900ff;">E</div>
+</div>
+
+<div id="map"></div>
+
+<!-- モーダル（初期は非表示） -->
+<div id="windModal" style="display:none;" aria-hidden="true">
+  <div class="overlay" id="modalOverlay">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3>風向をセット</h3>
+      <p id="modalInstruction">スマホを風向に向けて少し待ってから「設定」を押してください。</p>
+      <div class="reading" id="headingRead">--°</div>
+      <div class="buttons">
+        <button class="btnConfirm" id="modalSetBtn">設定</button>
+        <button class="btnCancel" id="modalCloseBtn">閉じる</button>
+      </div>
+      <div class="note" id="modalNote">端末の許可が必要な場合は画面の案内に従ってください。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* v3.1.8
+ - 風向セット用の見やすいモーダルを追加
+ - DeviceOrientation の取り扱いを強化（webkitCompassHeading 優先、alpha 補正、window.orientation考慮）
+ - サンプリングして平均を取り、ノイズや左右反転の影響を低減する
+ - Chrome/iOS の permission API に対応して案内表示
+ - 既存の計算ロジックは維持（ポート/スタボーの計算も呼べるように）
+*/
+
+/* --- マップ / 点描画の既存ロジック（簡潔に） --- */
+let map;
+let circles = {};
+let markersLabel = {};
+let polyline = null;
+let points = { A:null, B:null, C:null, D:null, E:null };
+
+/* 初期化（Google Maps callback） */
+function initMap(){
+  map = new google.maps.Map(document.getElementById('map'), { center:{ lat:26.3318, lng:127.9179 }, zoom:14 });
+  map.addListener('click', (e) => {
+    const mode = document.querySelector('input[name="aMode"]:checked').value;
+    if(mode === 'map'){
+      const lat = e.latLng.lat(), lng = e.latLng.lng();
+      document.getElementById('latA').value = lat.toFixed(6);
+      document.getElementById('lngA').value = lng.toFixed(6);
+      updatePointA({ lat, lng });
+    }
+  });
+}
+
+/* 大円航跡で移動 */
+function movePoint(lat, lng, distance, bearingDeg){
+  const R = 6378137.0;
+  const brng = bearingDeg * Math.PI / 180.0;
+  const φ1 = lat * Math.PI / 180.0;
+  const λ1 = lng * Math.PI / 180.0;
+  const δ = distance / R;
+  const φ2 = Math.asin(Math.sin(φ1)*Math.cos(δ) + Math.cos(φ1)*Math.sin(δ)*Math.cos(brng));
+  const λ2 = λ1 + Math.atan2(Math.sin(brng)*Math.sin(δ)*Math.cos(φ1), Math.cos(δ)-Math.sin(φ1)*Math.sin(φ2));
+  return { lat: φ2 * 180.0 / Math.PI, lng: λ2 * 180.0 / Math.PI };
+}
+
+/* 描画（円＋ラベル） */
+function drawPoint(label, pos, color, radius=12){
+  if(!pos) return;
+  if(circles[label]) circles[label].setMap(null);
+  if(markersLabel[label]) markersLabel[label].setMap(null);
+
+  // A点は少し大きめ
+  const actualRadius = (label === 'A') ? radius + 4 : radius;
+
+  circles[label] = new google.maps.Circle({
+    strokeColor: color, strokeOpacity:1, strokeWeight:2, fillColor: color, fillOpacity:0.85,
+    map, center: pos, radius: actualRadius
+  });
+
+  markersLabel[label] = new google.maps.Marker({
+    position: pos, map,
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
+    label: { text: label, color:"white", fontWeight:"bold", fontSize:"14px" }
+  });
+
+  // クリックで共有（既存の share）
+  circles[label].addListener('click', ()=> shareCoords(label, pos));
+  markersLabel[label].addListener('click', ()=> shareCoords(label, pos));
+}
+
+/* 共有処理（同じ実装） */
+async function shareCoords(label, pos){
+  if(!pos){ alert(label + ' 点は未設定です'); return; }
+  const text = `${label}点\n緯度: ${pos.lat.toFixed(6)}\n経度: ${pos.lng.toFixed(6)}\nhttps://maps.google.com/?q=${pos.lat},${pos.lng}`;
+  if(navigator.share){
+    try { await navigator.share({ title:`${label} 座標`, text }); return; } catch(e) { /* ignore */ }
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    try { await navigator.clipboard.writeText(text); alert('座標をコピーしました'); return; } catch(e) { /* fallback */ }
+  }
+  const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); alert('座標をコピーしました'); } catch(e) { alert(text); }
+  document.body.removeChild(ta);
+}
+
+/* A点更新（地図クリックなど） */
+function updatePointA(pos){
+  points.A = pos;
+  drawPoint('A', pos, '#ff3b30');
+  map.panTo(pos);
+}
+
+/* 現在地をA点にして計算も行う（ボタン） */
+function setCurrentPositionA(){
+  if(!navigator.geolocation){ alert("現在位置が取得できません"); return; }
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    document.getElementById('latA').value = lat.toFixed(6);
+    document.getElementById('lngA').value = lng.toFixed(6);
+    updatePointA({ lat, lng });
+    calculatePort(); // 既定は Port（従来の計算）を行う
+  }, err => { alert("位置情報取得に失敗しました"); });
+}
+
+/* 距離（ハーサイン） */
+function distanceBetween(p1, p2){
+  if(!p1 || !p2) return 0;
+  const R = 6378137.0;
+  const φ1 = p1.lat * Math.PI/180;
+  const φ2 = p2.lat * Math.PI/180;
+  const dφ = (p2.lat - p1.lat) * Math.PI/180;
+  const dλ = (p2.lng - p1.lng) * Math.PI/180;
+  const a = Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
+  const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R*c;
+}
+
+/* 既定（Port）計算（従来の式） */
+function calculatePort(){
+  const latA = parseFloat(document.getElementById('latA').value);
+  const lngA = parseFloat(document.getElementById('lngA').value);
+  if(isNaN(latA) || isNaN(lngA)){ alert("A点が未設定です"); return; }
+  const wind = parseFloat(document.getElementById('wind').value) || 0;
+  const dist = parseFloat(document.getElementById('dist').value) || 0;
+  const theta = parseFloat(document.getElementById('theta').value) || 0;
+
+  points.A = { lat: latA, lng: lngA };
+  const bB = 90 + wind + theta;
+  const bC = 270 + wind - theta;
+  const bD = 90 + wind + theta;
+  const bE = 270 + wind - theta;
+  points.B = movePoint(points.A.lat, points.A.lng, dist, bB);
+  points.C = movePoint(points.B.lat, points.B.lng, dist, bC);
+  points.D = movePoint(points.C.lat, points.C.lng, dist, bD);
+  points.E = movePoint(points.D.lat, points.D.lng, dist, bE);
+
+  drawPoint('A', points.A, '#ff3b30');
+  drawPoint('B', points.B, '#0088ff');
+  drawPoint('C', points.C, '#00aa00');
+  drawPoint('D', points.D, '#ffaa00');
+  drawPoint('E', points.E, '#9900ff');
+
+  if(polyline) polyline.setMap(null);
+  polyline = new google.maps.Polyline({ path:[points.A,points.B,points.C,points.D,points.E], geodesic:true, strokeColor:'#444', strokeOpacity:0.9, strokeWeight:2, map });
+
+  document.getElementById('dAC').textContent = 'A～C距離：▢' + distanceBetween(points.A, points.C).toFixed(1) + ' m▢';
+  document.getElementById('dAE').textContent = 'A～E距離：▢' + distanceBetween(points.A, points.E).toFixed(1) + ' m▢';
+
+  // 描画後に Popolo ラベル更新（あれば）
+  drawPopoloLabel();
+}
+
+/* Starboard（スタボー）計算（ユーザー指定の式） */
+function calculateStarboard(){
+  const latA = parseFloat(document.getElementById('latA').value);
+  const lngA = parseFloat(document.getElementById('lngA').value);
+  if(isNaN(latA) || isNaN(lngA)){ alert("A点が未設定です"); return; }
+  const wind = parseFloat(document.getElementById('wind').value) || 0;
+  const dist = parseFloat(document.getElementById('dist').value) || 0;
+  const theta = parseFloat(document.getElementById('theta').value) || 0;
+
+  points.A = { lat: latA, lng: lngA };
+  const bB = 270 + wind - theta;
+  const bC = 90 + wind + theta;
+  const bD = 270 + wind - theta;
+  const bE = 90 + wind + theta;
+  points.B = movePoint(points.A.lat, points.A.lng, dist, bB);
+  points.C = movePoint(points.B.lat, points.B.lng, dist, bC);
+  points.D = movePoint(points.C.lat, points.C.lng, dist, bD);
+  points.E = movePoint(points.D.lat, points.D.lng, dist, bE);
+
+  drawPoint('A', points.A, '#ff3b30');
+  drawPoint('B', points.B, '#0088ff');
+  drawPoint('C', points.C, '#00aa00');
+  drawPoint('D', points.D, '#ffaa00');
+  drawPoint('E', points.E, '#9900ff');
+
+  if(polyline) polyline.setMap(null);
+  polyline = new google.maps.Polyline({ path:[points.A,points.B,points.C,points.D,points.E], geodesic:true, strokeColor:'#444', strokeOpacity:0.9, strokeWeight:2, map });
+
+  document.getElementById('dAC').textContent = 'A～C距離：▢' + distanceBetween(points.A, points.C).toFixed(1) + ' m▢';
+  document.getElementById('dAE').textContent = 'A～E距離：▢' + distanceBetween(points.A, points.E).toFixed(1) + ' m▢';
+
+  drawPopoloLabel();
+}
+
+/* --- Popolo ラベル表示（Eの近く） --- */
+let popoloLabelMarker = null;
+function drawPopoloLabel(){
+  // EとCが必要
+  if(!points.E || !points.C) return;
+  // 既存ラベルクリア
+  if(popoloLabelMarker) { popoloLabelMarker.setMap(null); popoloLabelMarker = null; }
+
+  const distanceCE = distanceBetween(points.C, points.E);
+  // bearing from C -> E in radians (approx)
+  const dy = (points.E.lat - points.C.lat) * Math.PI/180;
+  const dx = (points.E.lng - points.C.lng) * Math.PI/180 * Math.cos(points.E.lat * Math.PI/180);
+  const bearing = Math.atan2(dx, dy); // note: swap to aim perpendicular sometimes
+  // We want label positioned at E + vector in same direction as C->E (so continue beyond E)
+  const offsetLat = (distanceCE / 6378137.0) * (180/Math.PI) * Math.cos(bearing);
+  const offsetLng = (distanceCE / 6378137.0) * (180/Math.PI) * Math.sin(bearing) / Math.cos(points.E.lat * Math.PI/180);
+  const labelPos = { lat: points.E.lat + offsetLat, lng: points.E.lng + offsetLng };
+
+  // Use a Marker with a fixed-size DOM overlay to keep text size stable with zoom:
+  // We'll use an OverlayView so text does not scale with map zoom (keeps pixel size).
+  class FixedLabel extends google.maps.OverlayView {
+    constructor(pos, text){ super(); this.pos = pos; this.text = text; this.div = null; }
+    onAdd(){
+      this.div = document.createElement('div');
+      this.div.style.position = 'absolute';
+      this.div.style.transform = 'translate(-50%,-50%)';
+      this.div.style.padding = '4px 8px';
+      this.div.style.borderRadius = '6px';
+      this.div.style.background = 'rgba(240,240,240,0.95)';
+      this.div.style.color = '#666';
+      this.div.style.fontWeight = '700';
+      this.div.style.fontSize = '12px'; // match E label size-ish
+      this.div.style.whiteSpace = 'nowrap';
+      this.div.innerText = this.text;
+      const panes = this.getPanes();
+      panes.overlayLayer.appendChild(this.div);
+    }
+    draw(){
+      if(!this.div) return;
+      const projection = this.getProjection();
+      const p = projection.fromLatLngToDivPixel(new google.maps.LatLng(this.pos.lat, this.pos.lng));
+      this.div.style.left = p.x + 'px';
+      this.div.style.top = p.y + 'px';
+    }
+    onRemove(){ if(this.div){ this.div.parentNode.removeChild(this.div); this.div = null; } }
+  }
+
+  popoloLabelMarker = new FixedLabel(labelPos, 'by Popolo Point');
+  popoloLabelMarker.setMap(map);
+}
+
+/* --- 風向取得用（モーダル制御＋センサー読み取り） --- */
+let headingSamples = [];
+let headingWatcher = null;
+let headingSampling = false;
+
+const modalRoot = document.getElementById('windModal');
+const modalOverlay = document.getElementById('modalOverlay');
+const headingReadEl = document.getElementById('headingRead');
+const modalInstructionEl = document.getElementById('modalInstruction');
+const modalSetBtn = document.getElementById('modalSetBtn');
+const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+function openWindModal(){
+  headingSamples = [];
+  headingSampling = true;
+  modalRoot.style.display = 'block';
+  modalRoot.setAttribute('aria-hidden','false');
+  headingReadEl.textContent = '--°';
+  modalInstructionEl.textContent = 'スマホを風向に向けて少し待ってから「設定」を押してください。';
+  startOrientationListening();
+}
+
+function closeWindModal(){
+  stopOrientationListening();
+  headingSampling = false;
+  modalRoot.style.display = 'none';
+  modalRoot.setAttribute('aria-hidden','true');
+}
+
+/* orientation handler helpers:
+   - prefer event.webkitCompassHeading (iOS)
+   - fallback to alpha with common correction (360 - alpha)
+   - consider screen orientation (window.orientation) where available
+   - sample a few readings and take circular mean
+*/
+function normalizeHeadingFromEvent(e){
+  // If webkitCompassHeading exists (iOS Safari), it is already compass heading 0..360
+  if(typeof e.webkitCompassHeading === 'number' && e.webkitCompassHeading >= 0){
+    return e.webkitCompassHeading; // use directly
+  }
+  // fallback: use alpha (rotation around z) -> convert to compass heading
+  // Common formula: heading = 360 - alpha  (works for many cases)
+  let alpha = e.alpha;
+  if(alpha === null || typeof alpha !== 'number') return null;
+  // If device reports absolute === true sometimes alpha is already compass; we still apply fallback formula:
+  let heading = 360 - alpha;
+  // adjust for screen orientation if available
+  let screenOrientation = 0;
+  if (typeof window.screen.orientation !== 'undefined' && typeof window.screen.orientation.angle === 'number') {
+    screenOrientation = window.screen.orientation.angle;
+  } else if (typeof window.orientation === 'number') {
+    screenOrientation = window.orientation;
+  }
+  heading = (heading + screenOrientation) % 360;
+  if(heading < 0) heading += 360;
+  return heading;
+}
+
+/* compute circular mean of headings (degrees) */
+function circularMean(degs){
+  if(!degs || degs.length===0) return null;
+  let x=0,y=0;
+  degs.forEach(d=>{
+    const r = d * Math.PI/180;
+    x += Math.cos(r);
+    y += Math.sin(r);
+  });
+  const mean = Math.atan2(y, x) * 180/Math.PI;
+  return (mean + 360) % 360;
+}
+
+function startOrientationListening(){
+  // Request permission on iOS/Chrome if needed
+  // iOS 13+ requires DeviceOrientationEvent.requestPermission() in a user gesture
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    // iOS Safari / iOS Chrome path
+    DeviceOrientationEvent.requestPermission().then(response => {
+      if(response === 'granted'){
+        addOrientationListener();
+      } else {
+        modalInstructionEl.textContent = '方位センサーが許可されていません。設定を確認してください。';
+      }
+    }).catch(err=>{
+      // user or browser denied
+      modalInstructionEl.textContent = '方位センサーの使用が許可されませんでした。設定を確認してください。';
+    });
+  } else {
+    // No explicit permission API -> just add listener
+    addOrientationListener();
+  }
+}
+
+function addOrientationListener(){
+  // add listener that samples readings
+  function handler(e){
+    const heading = normalizeHeadingFromEvent(e);
+    if(heading === null) return;
+    // push sample
+    headingSamples.push(heading);
+    // keep recent N
+    if(headingSamples.length > 30) headingSamples.shift();
+    const avg = circularMean(headingSamples);
+    if(avg !== null){
+      headingReadEl.textContent = Math.round(avg) + '°';
+    }
+  }
+  window.addEventListener('deviceorientation', handler, true);
+  headingWatcher = handler;
+}
+
+function stopOrientationListening(){
+  if(headingWatcher){
+    window.removeEventListener('deviceorientation', headingWatcher, true);
+    headingWatcher = null;
+  }
+}
+
+/* モーダルの設定ボタン */
+modalSetBtn.addEventListener('click', ()=>{
+  // use current average
+  const avg = circularMean(headingSamples);
+  if(avg === null){ alert('方位が取得できませんでした。端末の許可を確認してください。'); return; }
+  const headingRounded = Math.round(avg);
+  document.getElementById('wind').value = headingRounded;
+  closeWindModal();
+});
+
+/* モーダル閉じる */
+modalCloseBtn.addEventListener('click', ()=> { closeWindModal(); });
+
+/* --- Popolo label uses drawPopoloLabel() above --- */
+
+/* --- ボタンイベントセット --- */
+window.addEventListener('load', ()=>{
+  document.getElementById('calcBtn').addEventListener('click', calculatePort);
+  document.getElementById('btnWindSet').addEventListener('click', openWindModal);
+  document.getElementById('btnSetCurrent').addEventListener('click', setCurrentPositionA);
+  document.getElementById('btnStarboard').addEventListener('click', calculateStarboard);
+  document.getElementById('btnPort').addEventListener('click', calculatePort);
+
+  // point buttons share
+  ['A','B','C','D','E'].forEach(l=>{
+    const el = document.getElementById('btn'+l);
+    if(!el) return;
+    el.addEventListener('click', ()=>{
+      const p = points[l];
+      if(!p){ alert(l + ' 点は未設定です'); return; }
+      shareCoords(l, p);
+    });
+  });
+});
+
+/* --- Google Maps API 読み込み後に initMap が呼ばれます --- */
+</script>
+
+<!-- Replace YOUR_API_KEY with your actual API key when deploying -->
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB4tqxDKadoSP8XTNwzOGXwh9BprCiR9Zs&callback=initMap"></script>
+
+</body>
+</html>
