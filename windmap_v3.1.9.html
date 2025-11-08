@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>コース作成ツール v3.1.9 by Popolo</title>
+<title>コース作成ツール by Popolo</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Kaku Gothic ProN", "メイリオ", Meiryo, sans-serif; margin: 10px; }
   h2 { margin: 0 0 8px 0; }
@@ -11,17 +11,17 @@
   #inputs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom:8px; }
   #inputs label { font-size: 14px; }
   input[type="number"] { width: 70px; padding: 6px 6px; border-radius:6px; border:1px solid #ccc; }
-  button { padding: 6px 10px; border-radius:6px; border: none; color:white; cursor:pointer; font-weight:bold; }
-  #calcBtn { background:#1976d2; }       /* 青 */
-  #setWindBtn { background:#9c27b0; }    /* 紫 */
-  #btnSetCurrent { background:#d32f2f; } /* 赤 */
-  #btnStarboard { background:#2e7d32; }  /* 緑 */
-  #btnPort { background:#f57c00; }       /* オレンジ */
+  button { padding: 6px 10px; border-radius:6px; border: none; cursor:pointer; color:white; }
+  #btnCalc { background:#1976d2; } /* 計算ボタン */
+  #btnWind { background:#8e44ad; } /* 風向セット */
+  #btnSetCurrent { background:#e74c3c; } /* 現在位置をA点に */
+  #btnStarboard { background:#27ae60; } /* スタボー */
+  #btnPort { background:#f39c12; } /* ポート */
   #map { width:100%; height:500px; border-radius:8px; margin-top:10px; }
-  #distances { margin-bottom:8px; font-weight:600; }
+  #distances { margin-bottom:8px; font-weight:600; display:flex; gap:10px; flex-wrap:wrap; }
+  .distanceBox { background:#eee; padding:4px 6px; border-radius:6px; margin-bottom:4px; font-weight:bold; }
   .pointBox { border-radius:50%; width:32px; height:32px; display:flex; justify-content:center; align-items:center; color:white; font-weight:bold; cursor:pointer; margin-right:6px; margin-bottom:6px; }
   #coordsContainer { display:flex; flex-wrap:wrap; }
-  .distanceBox { background:#eee; padding:4px 6px; border-radius:6px; margin-bottom:4px; font-weight:bold; }
   #inputsMode { margin-bottom:5px; }
 </style>
 </head>
@@ -30,16 +30,16 @@
 <div id="version">v3.1.9</div>
 
 <div id="inputs">
-  <label>緯度A：<input type="number" id="latA" step="any"></label>
-  <label>経度A：<input type="number" id="lngA" step="any"></label>
+  <label>緯度A：<input type="number" id="latA" step="any" value=""></label>
+  <label>経度A：<input type="number" id="lngA" step="any" value=""></label>
   <label>風向(°)：<input type="number" id="wind" step="any" value=""></label>
   <label>距離(m)：<input type="number" id="dist" step="any" value="500"></label>
   <label>角度(°)：<input type="number" id="theta" step="any" value="5"></label>
-  <button id="setWindBtn">風向をセット</button>
-  <button id="calcBtn">計算</button>
+  <button id="btnCalc">計算</button>
+  <button id="btnWind">風向をセット</button>
+  <button id="btnSetCurrent">現在位置をA点に</button>
   <button id="btnStarboard">スタボー</button>
   <button id="btnPort">ポート</button>
-  <button id="btnSetCurrent">現在位置をA点に</button>
 </div>
 
 <div id="inputsMode">
@@ -50,8 +50,9 @@
 </div>
 
 <div id="distances">
-  <div class="distanceBox" id="dAC">A～C距離：- m</div>
-  <div class="distanceBox" id="dAE">A～E距離：- m</div>
+  <div class="distanceBox" id="dAC">A～C：- m</div>
+  <div class="distanceBox" id="dAE">A～E：- m</div>
+  <div class="distanceBox" id="dTotal">総距離：- m</div>
 </div>
 
 <div id="coordsContainer">
@@ -64,26 +65,22 @@
 
 <div id="map"></div>
 
-<!-- 方位セットモーダル -->
-<div id="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999; justify-content:center; align-items:center;">
-  <div style="background:#fff; padding:20px; border-radius:8px; text-align:center; max-width:300px;">
-    <p>スマホを風向に向けて少し待って「設定」を押してください。</p>
-    <button id="modalClose">設定</button>
-  </div>
-</div>
-
 <script>
 let map;
-let circles={}, markersLabel={}, polyline=null;
+let circles={}; 
+let markersLabel={};
+let polyline=null;
 let points={A:null,B:null,C:null,D:null,E:null};
 let popoloLabelMarker=null;
-let currentMode='port'; // デフォルトはポート
+let lastMode='port';
 
 function initMap(){
   map=new google.maps.Map(document.getElementById('map'), {center:{lat:26.3318,lng:127.9179}, zoom:14});
-  map.addListener('click', e=>{
-    if(document.querySelector('input[name="aMode"]:checked').value==='map'){
-      const lat=e.latLng.lat(), lng=e.latLng.lng();
+  map.addListener('click', (e)=>{
+    const mode=document.querySelector('input[name="aMode"]:checked').value;
+    if(mode==='map'){
+      const lat=e.latLng.lat();
+      const lng=e.latLng.lng();
       document.getElementById('latA').value=lat.toFixed(6);
       document.getElementById('lngA').value=lng.toFixed(6);
       updatePointA({lat,lng});
@@ -94,7 +91,8 @@ function initMap(){
 function movePoint(lat,lng,distance,bearingDeg){
   const R=6378137.0;
   const brng=bearingDeg*Math.PI/180.0;
-  const φ1=lat*Math.PI/180.0, λ1=lng*Math.PI/180.0;
+  const φ1=lat*Math.PI/180.0;
+  const λ1=lng*Math.PI/180.0;
   const δ=distance/R;
   const φ2=Math.asin(Math.sin(φ1)*Math.cos(δ)+Math.cos(φ1)*Math.sin(δ)*Math.cos(brng));
   const λ2=λ1+Math.atan2(Math.sin(brng)*Math.sin(δ)*Math.cos(φ1), Math.cos(δ)-Math.sin(φ1)*Math.sin(φ2));
@@ -102,47 +100,31 @@ function movePoint(lat,lng,distance,bearingDeg){
 }
 
 function drawPoint(label,pos,color){
-  if(circles[label]){circles[label].setMap(null); markersLabel[label].setMap(null);}
-  const size=label==='A'?16:12;
-  circles[label]=new google.maps.Circle({strokeColor:color, strokeOpacity:1, strokeWeight:2, fillColor:color, fillOpacity:0.85, map, center:pos, radius:size});
-  markersLabel[label]=new google.maps.Marker({position:pos, map, icon:{path:google.maps.SymbolPath.CIRCLE, scale:0}, label:{text:label, color:'white', fontWeight:'bold', fontSize:'14px'}});
+  if(circles[label]){circles[label].setMap(null); circles[label]=null;}
+  if(markersLabel[label]){markersLabel[label].setMap(null); markersLabel[label]=null;}
+  const size=label==='A'?16:12; 
+  circles[label]=new google.maps.Circle({
+    strokeColor:color, strokeOpacity:1, strokeWeight:2, fillColor:color, fillOpacity:0.85,
+    map, center:pos, radius:size
+  });
+  markersLabel[label]=new google.maps.Marker({
+    position:pos, map,
+    icon:{ path:google.maps.SymbolPath.CIRCLE, scale:0 },
+    label:{ text:label, color:'white', fontWeight:'bold', fontSize:'14px' }
+  });
+  circles[label].addListener('click',()=>shareCoords(label,pos));
+  markersLabel[label].addListener('click',()=>shareCoords(label,pos));
 }
 
-function distanceBetween(p1,p2){
-  const R=6378137.0;
-  const φ1=p1.lat*Math.PI/180, φ2=p2.lat*Math.PI/180;
-  const dφ=(p2.lat-p1.lat)*Math.PI/180, dλ=(p2.lng-p1.lng)*Math.PI/180;
-  const a=Math.sin(dφ/2)**2+Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
-  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+async function shareCoords(label,pos){
+  const text=`${label}点\n緯度: ${pos.lat.toFixed(6)}\n経度: ${pos.lng.toFixed(6)}\nhttps://maps.google.com/?q=${pos.lat},${pos.lng}`;
+  if(navigator.share){try{await navigator.share({title:`${label}座標`,text});return}catch(e){}}
+  if(navigator.clipboard&&navigator.clipboard.writeText){try{await navigator.clipboard.writeText(text);alert('座標をコピーしました');return}catch(e){}}
+  const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select();
+  try{document.execCommand('copy'); alert('座標をコピーしました');}catch(e){alert(text);} document.body.removeChild(ta);
 }
 
 function updatePointA(pos){points.A=pos; drawPoint('A',pos,'#ff3b30'); map.panTo(pos);}
-
-function calculateAll(){
-  if(!points.A){alert('A点が設定されていません'); return;}
-  const latA=points.A.lat, lngA=points.A.lng;
-  const wind=parseFloat(document.getElementById('wind').value)||0;
-  const dist=parseFloat(document.getElementById('dist').value)||0;
-  const theta=parseFloat(document.getElementById('theta').value)||5;
-
-  if(currentMode==='starboard'){
-    points.B=movePoint(latA,lngA,dist,270+wind-theta);
-    points.C=movePoint(points.B.lat,points.B.lng,dist,90+wind+theta);
-    points.D=movePoint(points.C.lat,points.C.lng,dist,270+wind-theta);
-    points.E=movePoint(points.D.lat,points.D.lng,dist,90+wind+theta);
-  } else {
-    points.B=movePoint(latA,lngA,dist,90+wind+theta);
-    points.C=movePoint(points.B.lat,points.B.lng,dist,270+wind-theta);
-    points.D=movePoint(points.C.lat,points.C.lng,dist,90+wind+theta);
-    points.E=movePoint(points.D.lat,points.D.lng,dist,270+wind-theta);
-  }
-
-  ['A','B','C','D','E'].forEach(p=>drawPoint(p,points[p],circles[p]?circles[p].strokeColor:'#888'));
-  if(polyline) polyline.setMap(null);
-  polyline=new google.maps.Polyline({path:[points.A,points.B,points.C,points.D,points.E], geodesic:true, strokeColor:'#444', strokeOpacity:0.9, strokeWeight:2, map});
-  document.getElementById('dAC').textContent=`A～C距離：${distanceBetween(points.A,points.C).toFixed(1)} m`;
-  document.getElementById('dAE').textContent=`A～E距離：${distanceBetween(points.A,points.E).toFixed(1)} m`;
-}
 
 function setCurrentPositionA(){
   if(!navigator.geolocation){alert("現在位置が取得できません"); return;}
@@ -152,43 +134,128 @@ function setCurrentPositionA(){
     document.getElementById('lngA').value=lng.toFixed(6);
     updatePointA({lat,lng});
     calculateAll();
-  },()=>alert("位置情報取得に失敗しました"));
+  }, err=>{alert("位置情報取得に失敗しました");});
 }
 
-// --- 方位取得（v3.1.3と同じ仕組み＋Safari/Chrome対応） ---
-function setWindDirection(){
-  const modal=document.getElementById('modal');
-  modal.style.display='flex';
-  document.getElementById('modalClose').onclick=()=>{
-    modal.style.display='none';
-    if(window.DeviceOrientationEvent){
-      if(typeof DeviceOrientationEvent.requestPermission==='function'){
-        DeviceOrientationEvent.requestPermission()
-        .then(state=>{
-          if(state==='granted'){
-            window.addEventListener('deviceorientation', handleOrientationOnce, {once:true});
-          } else alert('方位センサーの使用が許可されませんでした。設定を確認してください。');
-        }).catch(()=>alert('方位センサーの使用が許可されませんでした。'));
-      } else {
-        window.addEventListener('deviceorientationabsolute', handleOrientationOnce, {once:true});
-      }
-    } else alert('この端末は方位センサーに対応していません。');
+function calculateAll(){
+  const latA=parseFloat(document.getElementById('latA').value);
+  const lngA=parseFloat(document.getElementById('lngA').value);
+  const wind=parseFloat(document.getElementById('wind').value)||0;
+  const dist=parseFloat(document.getElementById('dist').value)||0;
+  const theta=parseFloat(document.getElementById('theta').value)||5;
+
+  points.A={lat:latA,lng:lngA};
+  let bearingB,bearingC,bearingD,bearingE;
+
+  if(lastMode==='port'){
+    bearingB=90+wind+theta;
+    bearingC=270+wind-theta;
+    bearingD=90+wind+theta;
+    bearingE=270+wind-theta;
+  } else {
+    bearingB=270+wind-theta;
+    bearingC=90+wind+theta;
+    bearingD=270+wind-theta;
+    bearingE=90+wind+theta;
+  }
+
+  points.B=movePoint(points.A.lat,points.A.lng,dist,bearingB);
+  points.C=movePoint(points.B.lat,points.B.lng,dist,bearingC);
+  points.D=movePoint(points.C.lat,points.C.lng,dist,bearingD);
+  points.E=movePoint(points.D.lat,points.D.lng,dist,bearingE);
+
+  drawPoint('A',points.A,'#ff3b30');
+  drawPoint('B',points.B,'#0088ff');
+  drawPoint('C',points.C,'#00aa00');
+  drawPoint('D',points.D,'#ffaa00');
+  drawPoint('E',points.E,'#9900ff');
+
+  if(polyline) polyline.setMap(null);
+  polyline=new google.maps.Polyline({ path:[points.A,points.B,points.C,points.D,points.E], geodesic:true, strokeColor:'#444', strokeOpacity:0.9, strokeWeight:2, map});
+
+  // 距離計算
+  const dAB=distanceBetween(points.A,points.B);
+  const dBC=distanceBetween(points.B,points.C);
+  const dCD=distanceBetween(points.C,points.D);
+  const dDE=distanceBetween(points.D,points.E);
+
+  document.getElementById('dAC').textContent='A～C：'+(dAB+dBC).toFixed(1)+' m';
+  document.getElementById('dAE').textContent='A～E：'+(dAB+dBC+dCD+dDE).toFixed(1)+' m';
+  document.getElementById('dTotal').textContent='総距離：'+(dAB+dBC+dCD+dDE).toFixed(1)+' m';
+
+  drawPopoloLabel();
+}
+
+function distanceBetween(p1,p2){
+  const R=6378137.0;
+  const φ1=p1.lat*Math.PI/180;
+  const φ2=p2.lat*Math.PI/180;
+  const dφ=(p2.lat-p1.lat)*Math.PI/180;
+  const dλ=(p2.lng-p1.lng)*Math.PI/180;
+  const a=Math.sin(dφ/2)**2+Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
+  const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  return R*c;
+}
+
+// E近くに「by Popolo Point」を描画する関数
+function drawPopoloLabel(){
+  if(!points.E || !points.C) return;
+  if(popoloLabelMarker) popoloLabelMarker.setMap(null);
+
+  const distanceCE = distanceBetween(points.C, points.E);
+  const bearingCE = Math.atan2(
+    (points.E.lng - points.C.lng) * Math.PI/180 * Math.cos(points.E.lat * Math.PI/180),
+    (points.E.lat - points.C.lat) * Math.PI/180
+  );
+
+  const offsetLat = (distanceCE / 6378137.0) * (180/Math.PI) * Math.cos(bearingCE);
+  const offsetLng = (distanceCE / 6378137.0) * (180/Math.PI) * Math.sin(bearingCE) / Math.cos(points.E.lat * Math.PI/180);
+
+  const labelPos = {lat: points.E.lat + offsetLat, lng: points.E.lng + offsetLng};
+
+  popoloLabelMarker = new google.maps.Marker({
+    position: labelPos,
+    map,
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
+    label: { text: 'by Popolo Point', color: '#888', fontSize:'14px', fontWeight:'bold' }
+  });
+}
+
+// イベント
+document.getElementById('btnA').addEventListener('click',()=>points.A?shareCoords('A',points.A):null);
+document.getElementById('btnB').addEventListener('click',()=>points.B?shareCoords('B',points.B):null);
+document.getElementById('btnC').addEventListener('click',()=>points.C?shareCoords('C',points.C):null);
+document.getElementById('btnD').addEventListener('click',()=>points.D?shareCoords('D',points.D):null);
+document.getElementById('btnE').addEventListener('click',()=>points.E?shareCoords('E',points.E):null);
+
+window.addEventListener('load',()=>{
+  document.getElementById('btnCalc').addEventListener('click',()=>{lastMode='port'; calculateAll();});
+  document.getElementById('btnStarboard').addEventListener('click',()=>{lastMode='starboard'; calculateAll();});
+  document.getElementById('btnPort').addEventListener('click',()=>{lastMode='port'; calculateAll();});
+  document.getElementById('btnSetCurrent').addEventListener('click',setCurrentPositionA);
+  document.getElementById('btnWind').addEventListener('click',setWindFromDevice);
+});
+
+// 風向取得（v3.1.3と同じ方式）
+function setWindFromDevice(){
+  if(window.DeviceOrientationEvent){
+    if(typeof DeviceOrientationEvent.requestPermission==='function'){
+      DeviceOrientationEvent.requestPermission().then(response=>{
+        if(response==='granted'){listenOrientation();}
+        else{alert('方位センサーの使用が許可されませんでした。設定を確認してください。');}
+      }).catch(()=>{alert('方位センサーの使用が許可されませんでした。設定を確認してください。');});
+    } else {listenOrientation();}
+  } else {alert('方位センサーに対応していません。');}
+}
+
+function listenOrientation(){
+  alert('スマホを風向に向けて少し待って設定を押してください。');
+  const handler=(e)=>{
+    const alpha=e.alpha;
+    if(alpha!==null) document.getElementById('wind').value=(360-alpha).toFixed(1);
   };
+  window.addEventListener('deviceorientation',handler,{once:true});
 }
-
-function handleOrientationOnce(e){
-  const alpha=e.webkitCompassHeading || e.alpha;
-  if(alpha!=null){
-    document.getElementById('wind').value=(360-alpha).toFixed(1);
-    alert('風向が設定されました：' + (360-alpha).toFixed(1) + '°');
-  } else alert('風向を取得できませんでした。');
-}
-
-document.getElementById('setWindBtn').addEventListener('click',setWindDirection);
-document.getElementById('calcBtn').addEventListener('click',calculateAll);
-document.getElementById('btnSetCurrent').addEventListener('click',setCurrentPositionA);
-document.getElementById('btnStarboard').addEventListener('click',()=>{currentMode='starboard'; calculateAll();});
-document.getElementById('btnPort').addEventListener('click',()=>{currentMode='port'; calculateAll();});
 </script>
 
 <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB4tqxDKadoSP8XTNwzOGXwh9BprCiR9Zs&callback=initMap"></script>
