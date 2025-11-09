@@ -249,6 +249,24 @@ document.getElementById('btnPort').addEventListener('click',()=>calculatePort(fa
 document.getElementById('btnSetCurrent').addEventListener('click',setCurrentPositionA);
 
 window.initMap=initMap;
+
+
+
+['A','B','C','D','E'].forEach(label => {
+  const btn = document.getElementById('btn' + label);
+  btn.addEventListener('click', () => {
+    const p = points[label];
+    if(!p){
+      alert(label + ' 点は未設定です');
+      return;
+    }
+    shareCoords(label, p);
+  });
+});
+
+
+
+
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB4tqxDKadoSP8XTNwzOGXwh9BprCiR9Zs&callback=initMap" async defer></script>
 </body>
