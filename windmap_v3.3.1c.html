@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>WindMap v3.3.1c</title>
+<style>
+  body { font-family: sans-serif; padding:10px; }
+  #map { width:100%; height: 70vh; margin-top:10px; }
+  .point-label {
+    background:#fff; padding:2px 4px; border:1px solid #333;
+    border-radius:4px; font-size:12px;
+  }
+</style>
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY"></script>
+</head>
+<body>
+
+<h2>WindMap v3.3.1c</h2>
+
+<div>
+  <label>コース：
+    <select id="courseSelect">
+      <option value="M">Mコース</option>
+      <option value="figure8">フィギア8</option>
+    </select>
+  </label>
+  <br><br>
+
+  <label>A点 Lat：<input id="latA" type="number" step="0.000001"></label>
+  <label>Lng：<input id="lngA" type="number" step="0.000001"></label>
+  <button onclick="setAfromGPS()">現在地→A</button>
+  <br><br>
+
+  <label>風向（°）：<input id="wind" type="number" value="0"></label>
+  <label>距離（m）：<input id="dist" type="number" value="100"></label>
+  <label>角度θ（Mコース用）：<input id="theta" type="number" value="45"></label>
+  <br><br>
+
+  <button onclick="calculateCourse(true)">ポート計算</button>
+  <button onclick="calculateCourse(false)">スタボー計算</button>
+
+  <p id="dAC">A～C距離：-</p>
+  <p id="dAE">A～E距離：-</p>
+</div>
+
+<div id="map"></div>
+
+<script>
+let map;
+let markers = {};
+let polyline = null;
+let points = {};
+
+function initMap(){
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: {lat:26.3207, lng:127.8925},
+    zoom: 14
+  });
+}
+
+function setAfromGPS(){
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    document.getElementById('latA').value = lat;
+    document.getElementById('lngA').value = lng;
+    drawPoint("A", {lat,lng}, "#ff3b30");
+    map.setCenter({lat,lng});
+  });
+}
+
+function movePoint(lat, lng, dist, bearingDeg){
+  const R = 6378137;
+  const br = bearingDeg * Math.PI/180;
+  const lat1 = lat * Math.PI/180;
+  const lng1 = lng * Math.PI/180;
+  const lat2 = lat1 + (dist*Math.cos(br))/R;
+  const lng2 = lng1 + (dist*Math.sin(br))/(R*Math.cos(lat1));
+  return { lat: lat2*180/Math.PI, lng: lng2*180/Math.PI };
+}
+
+function drawPoint(label, pos, color){
+  if(markers[label]) markers[label].setMap(null);
+
+  markers[label] = new google.maps.Marker({
+    position: pos,
+    map,
+    label: { text: label, color:"#000" },
+    icon:{
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 7,
+      fillColor: color,
+      fillOpacity: 1,
+      strokeColor: "#222",
+      strokeWeight: 1
+    }
+  });
+}
+
+function distanceBetween(p1,p2){
+  const R=6378137;
+  const dLat=(p2.lat-p1.lat)*Math.PI/180;
+  const dLng=(p2.lng-p1.lng)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2 + Math.cos(p1.lat*Math.PI/180)*Math.cos(p2.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+  return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function calculateCourse(isPort){
+  const latA=parseFloat(document.getElementById('latA').value);
+  const lngA=parseFloat(document.getElementById('lngA').value);
+  if(isNaN(latA)||isNaN(lngA)){ alert("A点が未設定です"); return; }
+
+  const wind=parseFloat(document.getElementById('wind').value)||0;
+  const dist=parseFloat(document.getElementById('dist').value)||0;
+  const theta=parseFloat(document.getElementById('theta').value)||0;
+  const course=document.getElementById('courseSelect').value;
+
+  points.A = {lat:latA, lng:lngA};
+  drawPoint("A", points.A, "#ff3b30");
+
+  if(course==="figure8"){
+    // --- フィギア8 ---
+    points.B = points.A; // A点と同じ（そのまま）
+    drawPoint("B", points.B, "#0088ff");
+
+    const bearingC = isPort ? (wind + 270) : (wind + 90);
+    points.C = movePoint(points.B.lat, points.B.lng, dist, bearingC);
+    drawPoint("C", points.C, "#00aa00");
+
+    // D/Eは非表示
+    if(markers["D"]) markers["D"].setMap(null);
+    if(markers["E"]) markers["E"].setMap(null);
+    points.D = null;
+    points.E = null;
+
+    // ポリライン
+    if(polyline) polyline.setMap(null);
+    polyline = new google.maps.Polyline({
+      path:[points.A, points.B, points.C],
+      map,
+      strokeColor:"#444",
+      strokeOpacity:0.9,
+      strokeWeight:2
+    });
+
+    document.getElementById('dAC').textContent =
+      "A～C距離：" + distanceBetween(points.A, points.C).toFixed(1) + " m";
+    document.getElementById('dAE').textContent = "A～E距離：- m";
+    return;
+  }
+
+  // --- Mコース（従来） ---
+  const bB = wind + (isPort ? 90+theta : 270-theta);
+  const bC = wind + (isPort ? 270-theta : 90+theta);
+  const bD = wind + (isPort ? 90+theta : 270-theta);
+  const bE = wind + (isPort ? 270-theta : 90+theta);
+
+  points.B = movePoint(points.A.lat,points.A.lng,dist,bB);
+  points.C = movePoint(points.B.lat,points.B.lng,dist,bC);
+  points.D = movePoint(points.C.lat,points.C.lng,dist,bD);
+  points.E = movePoint(points.D.lat,points.D.lng,dist,bE);
+
+  drawPoint("B", points.B, "#0088ff");
+  drawPoint("C", points.C, "#00aa00");
+  drawPoint("D", points.D, "#ffaa00");
+  drawPoint("E", points.E, "#9900ff");
+
+  if(polyline) polyline.setMap(null);
+  polyline=new google.maps.Polyline({
+    path:[points.A,points.B,points.C,points.D,points.E],
+    map,
+    strokeColor:"#444",
+    strokeOpacity:0.9,
+    strokeWeight:2
+  });
+
+  document.getElementById('dAC').textContent =
+    "A～C距離：" + distanceBetween(points.A, points.C).toFixed(1) + " m";
+  document.getElementById('dAE').textContent =
+    "A～E距離：" + distanceBetween(points.A, points.E).toFixed(1) + " m";
+}
+
+window.onload = initMap;
+</script>
+
+</body>
+</html>
