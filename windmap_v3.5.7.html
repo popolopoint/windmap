@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>コース作るくん v3.5.7</title>
+<style>
+:root{
+  --blue:#1976d2; --purple:#6a1b9a; --red:#d32f2f; --green:#2e7d32; --orange:#f57c00;
+}
+body { font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; }
+h2 { margin:0 0 8px 0; font-size:18px; }
+#version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
+#inputs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; }
+#inputs label { font-size:14px; }
+input[type="number"], select { padding:6px; border-radius:6px; border:1px solid #ccc; }
+button { padding:6px 10px; border-radius:6px; border:none; color:white; cursor:pointer; font-weight:bold; }
+button.gray { background:#888; }
+#map { width:100%; height:500px; border-radius:8px; margin-top:10px; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+.distanceBox { background:#eee; padding:4px 6px; border-radius:6px; margin-bottom:4px; font-weight:bold; }
+.pointBox { border-radius:50%; width:32px; height:32px; display:flex; justify-content:center; align-items:center; color:white; font-weight:bold; cursor:pointer; margin-right:6px; margin-bottom:6px; }
+#compassPermissionBtn { position:absolute; top:10px; right:10px; padding:10px; background:#ff4444; color:#fff; border:none; border-radius:6px; font-weight:bold; z-index:10000; }
+.modal { background:#fff; padding:16px; border-radius:10px; width:92%; max-width:380px; box-shadow:0 8px 24px rgba(0,0,0,0.25); text-align:center; }
+.modal h3 { margin:0 0 8px 0; font-size:16px; }
+.modal .buttons { display:flex; gap:8px; justify-content:center; margin-top:10px; }
+.modal button { padding:8px 12px; border-radius:8px; font-weight:600; }
+.modal .btnConfirm { background: var(--purple); color:white; }
+.modal .btnCancel { background:#ccc; color:#111; }
+</style>
+</head>
+<body>
+
+<h2>コース作るくん <span style="font-size:0.7em;">v3.5.7</span></h2>
+<div id="version">v3.5.7</div>
+
+<div id="inputs">
+  <label>緯度A：<input type="number" id="latA" step="any"></label>
+  <label>経度A：<input type="number" id="lngA" step="any"></label>
+  <label>風向(°)：<input type="number" id="wind" step="any"></label>
+  <label>距離(m)：<input type="number" id="dist" step="any" value="500"></label>
+  <label>角度(°)：<input type="number" id="theta" step="any" value="5"></label>
+  <label>コース：
+    <select id="courseSelect">
+      <option value="mcourse">Ｍコース</option>
+      <option value="figure8">フィギア８</option>
+    </select>
+  </label>
+  <button id="btnSetCurrent" style="background: var(--red);">現在位置をA点に</button>
+  <button id="btnWindSet" style="background: var(--purple);">風向Hセット</button>
+  <button id="btnTargetSet" style="background:#ff99cc;color:#000;">目標物Tセット</button>
+</div>
+
+<div id="targetSelect" style="display:none;margin-top:6px;">
+  <label>目標物：
+    <select id="targetList">
+      <option value="Gusikawa">具志川火力発電所</option>
+      <option value="Kin">金武火力発電所</option>
+      <option value="Whale">くじらのしっぽ</option>
+      <option value="Ayahashi">海の駅あやはし</option>
+      <option value="Heiansa">平安座海中大橋</option>
+    </select>
+  </label>
+  <span>※マップタップでも設定可能</span>
+</div>
+
+<div id="distances">
+  <div class="distanceBox" id="dAC">A～C距離：- m</div>
+  <div class="distanceBox" id="dAE">A～E距離：- m</div>
+</div>
+
+<div id="map"></div>
+
+<button id="compassPermissionBtn">コンパス許可 ←ここをタップ</button>
+
+<!-- 風向モーダル -->
+<div id="windModal" style="display:none;">
+  <div class="modal">
+    <h3>風向をスマホでセット</h3>
+    <div id="headingRead" style="font-size:20px;font-weight:700;color:#111;">--°</div>
+    <div class="buttons">
+      <button class="btnConfirm" id="modalSetBtn">設定</button>
+      <button class="btnCancel" id="modalCloseBtn">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB4tqxDKadoSP8XTNwzOGXwh9BprCiR9Zs&callback=initMap" async defer></script>
+<script>
+let map, points={A:null,T:null}, currentHeading=null;
+
+// --- Google Map 初期化 ---
+function initMap(){
+  map = new google.maps.Map(document.getElementById('map'), {center:{lat:26.3318,lng:127.9179}, zoom:14});
+  map.addListener('click', e=>{
+    if(!points.A) return alert("A点を先に設定してください");
+    const lat=e.latLng.lat(), lng=e.latLng.lng();
+    points.T={lat,lng};
+    document.getElementById('targetList').value="";
+    drawMarker('T',points.T,'#0088ff');
+  });
+}
+
+function drawMarker(label,pos,color){
+  if(pos._marker) pos._marker.setMap(null);
+  const marker = new google.maps.Marker({position:pos,map:map,label:{text:label,color:"#fff",fontWeight:"bold"},icon:{path:google.maps.SymbolPath.CIRCLE,scale:0}});
+  pos._marker=marker;
+}
+
+// --- 現在位置取得 ---
+document.getElementById('btnSetCurrent').addEventListener('click',()=>{
+  if(!navigator.geolocation){ alert("現在位置が取得できません"); return; }
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat=pos.coords.latitude, lng=pos.coords.longitude;
+    points.A={lat,lng};
+    document.getElementById('latA').value=lat.toFixed(6);
+    document.getElementById('lngA').value=lng.toFixed(6);
+    drawMarker('A',points.A,'#ff3b30');
+  },()=>alert("位置情報取得に失敗しました"));
+});
+
+// --- コンパス許可 ---
+document.getElementById('compassPermissionBtn').addEventListener('click',()=>{
+  if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+    DeviceOrientationEvent.requestPermission().then(r=>{
+      if(r==='granted'){
+        window.addEventListener('deviceorientationabsolute', e=>{currentHeading=e.webkitCompassHeading||360-e.alpha;}, true);
+        window.addEventListener('deviceorientation', e=>{currentHeading=e.webkitCompassHeading||360-e.alpha;}, true);
+        document.getElementById('compassPermissionBtn').style.display='none';
+      } else alert("コンパスの使用が許可されませんでした。");
+    }).catch(console.error);
+  } else {
+    window.addEventListener('deviceorientationabsolute', e=>{currentHeading=e.webkitCompassHeading||360-e.alpha;}, true);
+    window.addEventListener('deviceorientation', e=>{currentHeading=e.webkitCompassHeading||360-e.alpha;}, true);
+    document.getElementById('compassPermissionBtn').style.display='none';
+  }
+});
+
+// --- 目標物Tセット ---
+document.getElementById('btnTargetSet').addEventListener('click',()=>{
+  if(!points.A) return alert("A点を先に設定してください");
+  document.getElementById('targetSelect').style.display='block';
+  const sel=document.getElementById('targetList');
+  sel.addEventListener('change', ()=>{
+    const v=sel.value;
+    let latlng;
+    switch(v){
+      case 'Gusikawa': latlng={lat:26.3441,lng:127.8912}; break;
+      case 'Kin': latlng={lat:26.4232,lng:127.8754}; break;
+      case 'Whale': latlng={lat:26.3408,lng:127.9123}; break;
+      case 'Ayahashi': latlng={lat:26.3456,lng:127.9472}; break;
+      case 'Heiansa': latlng={lat:26.3801,lng:127.9583}; break;
+    }
+    points.T=latlng;
+    drawMarker('T',points.T,'#0088ff');
+  });
+});
+
+// --- 風向セット ---
+document.getElementById('btnWindSet').addEventListener('click',()=>{
+  if(!points.A || !points.T) return alert("A点と目標物Tを先に設定してください");
+  document.getElementById('windModal').style.display='block';
+  const headingRead=document.getElementById('headingRead');
+  const watcher=setInterval(()=>{ if(currentHeading) headingRead.textContent=Math.round(currentHeading)+'°'; }, 100);
+  document.getElementById('modalSetBtn').onclick=()=>{
+    if(!currentHeading) return alert("コンパス値が取得できていません");
+    // 地図上のA-Tベアリング
+    const y = points.T.lat-points.A.lat;
+    const x = points.T.lng-points.A.lng;
+    const trueBearing=(Math.atan2(x,y)*180/Math.PI+360)%360;
+    // 補正値 = 目標物方位 - スマホコンパス
+    const correction = trueBearing-currentHeading;
+    // 補正後風向
+    const windDir = (currentHeading + correction + 360)%360;
+    document.getElementById('wind').value=Math.round(windDir);
+    clearInterval(watcher);
+    document.getElementById('windModal').style.display='none';
+    alert(`補正値: ${Math.round(correction)}°\n補正後風向: ${Math.round(windDir)}°`);
+  };
+  document.getElementById('modalCloseBtn').onclick=()=>{ clearInterval(watcher); document.getElementById('windModal').style.display='none'; };
+});
+</script>
+
+</body>
+</html>
