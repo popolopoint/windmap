@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>windmap v3.4.7 完全版</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+html,body{margin:0;padding:0;height:100%;}
+#map{width:100%;height:100vh;}
+
+#bearingPanel {
+  position: absolute;
+  top: 80px;
+  right: 12px;
+  width: 300px;
+  background: rgba(255,255,255,0.95);
+  border: 1px solid #ccc;
+  padding: 10px;
+  font-family: sans-serif;
+  z-index: 9999;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  transition: height 0.3s ease, padding 0.3s ease;
+}
+
+button {
+  background-color: #ff99cc !important;
+  color: #000 !important;
+  padding: 10px 14px !important;
+  border-radius: 10px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  text-align: center !important;
+  margin: 6px 0 !important;
+  border: none !important;
+  display: block !important;
+  width: 100%;
+  cursor: pointer;
+}
+
+.leaflet-popup-content,
+.leaflet-popup-content * {
+  color: #000 !important;
+}
+
+#bearingPanel.shrink label,
+#bearingPanel.shrink #bearingAB,
+#bearingPanel.shrink #compassT,
+#bearingPanel.shrink #compassH {
+  display: none;
+}
+#bearingPanel.shrink #setTargetBtn,
+#bearingPanel.shrink #setWindBtn {
+  font-size: 14px;
+  padding: 6px;
+}
+#bearingPanel .restoreBtn {
+  display: none;
+  font-size: 12px;
+  text-align: right;
+  margin-top: 4px;
+  cursor: pointer;
+  color: #0077cc;
+}
+#bearingPanel.shrink .restoreBtn {
+  display: block;
+}
+#compassPermissionBtn {
+  position: absolute; top:10px; right:10px; z-index:10000;
+  padding:10px; background:#ff99cc; color:#000; border:none; border-radius:6px;
+}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="bearingPanel">
+  <h3>風向補正（v3.4.7）</h3>
+
+  <label>目標物を選択
+    <select id="landmarkList"></select>
+  </label>
+
+  <div style="margin-top:6px;">
+    A → T 方位（地図真北基準）： <span id="bearingAB">—</span>°
+  </div>
+
+  <div style="margin-top:8px;">
+    スマホコンパス値（目標物）： <span id="compassT">—</span>°
+    <button id="setTargetBtn">目標物セット</button>
+  </div>
+
+  <div style="margin-top:8px;">
+    スマホコンパス値（風向）： <span id="compassH">—</span>°
+    <button id="setWindBtn">風向セット</button>
+  </div>
+
+  <div style="margin-top:8px;">
+    補正値: <span id="correctionVal">—</span>°<br>
+    補正後風向: <span id="correctedWind">—</span>°
+  </div>
+
+  <div class="restoreBtn">▼ 元に戻す</div>
+</div>
+
+<button id="compassPermissionBtn">コンパス許可</button>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+const map = L.map('map').setView([26.34,127.92],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution:'© OpenStreetMap contributors'
+}).addTo(map);
+
+const landmarks=[
+  {id:'gushikawa',name:'具志川火力発電所',lat:26.380361,lng:127.875278},
+  {id:'kin',name:'金武火力発電所',lat:26.445250,lng:127.920944},
+  {id:'kujira',name:'くじらのしっぽ',lat:26.333500,lng:127.928000},
+  {id:'uminoeki',name:'海の駅あやはし',lat:26.332681,lng:127.928668},
+  {id:'henza_bridge',name:'平安座海中大橋',lat:26.331640,lng:127.917560}
+];
+
+const landmarkList=document.getElementById('landmarkList');
+const bearingABspan=document.getElementById('bearingAB');
+const compassTspan=document.getElementById('compassT');
+const compassHspan=document.getElementById('compassH');
+const correctionValSpan=document.getElementById('correctionVal');
+const correctedWindSpan=document.getElementById('correctedWind');
+const setTargetBtn=document.getElementById('setTargetBtn');
+const setWindBtn=document.getElementById('setWindBtn');
+const panel=document.getElementById('bearingPanel');
+const restoreBtn=document.querySelector('#bearingPanel .restoreBtn');
+const compassBtn=document.getElementById('compassPermissionBtn');
+
+let startA={lat:26.34,lng:127.92},Tcompass,Hcompass;
+
+landmarks.forEach(l=>{
+  const opt=document.createElement('option'); opt.value=l.id; opt.textContent=l.name;
+  landmarkList.appendChild(opt);
+});
+
+function toRad(d){return d*Math.PI/180;}
+function toDeg(r){return r*180/Math.PI;}
+function calcBearing(latA,lngA,latB,lngB){
+  const y=Math.sin(toRad(lngB-lngA))*Math.cos(toRad(latB));
+  const x=Math.cos(toRad(latA))*Math.sin(toRad(latB))-
+          Math.sin(toRad(latA))*Math.cos(toRad(latB))*Math.cos(toRad(lngB-lngA));
+  return (toDeg(Math.atan2(y,x))+360)%360;
+}
+
+function updateBearingDisplay(){
+  const sel=landmarkList.value;
+  const l=landmarks.find(x=>x.id===sel);
+  if(!l){ bearingABspan.textContent='—'; return; }
+  const b=calcBearing(startA.lat,startA.lng,l.lat,l.lng);
+  bearingABspan.textContent=b.toFixed(1);
+  return b;
+}
+
+// コンパス値取得
+function handleOrientation(e){
+  if(e.alpha===null) return;
+  const compass = (360 - e.alpha + 360)%360;
+  if(!setTargetBtn.disabled) compassTspan.textContent = compass.toFixed(1);
+  if(!setWindBtn.disabled) compassHspan.textContent = compass.toFixed(1);
+}
+
+// 許可ボタン押下で iOS/Android対応
+compassBtn.addEventListener('click', ()=>{
+  if(DeviceOrientationEvent.requestPermission){
+    DeviceOrientationEvent.requestPermission().then(res=>{
+      if(res==='granted'){
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
+        compassBtn.style.display='none';
+      }else{
+        alert('コンパス使用が許可されませんでした');
+      }
+    }).catch(console.error);
+  } else {
+    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+    window.addEventListener('deviceorientation', handleOrientation, true);
+    compassBtn.style.display='none';
+  }
+});
+
+// 目標物セット
+setTargetBtn.addEventListener('click', ()=>{
+  const t=parseFloat(compassTspan.textContent);
+  if(isNaN(t)){alert('コンパス値が取得できていません'); return;}
+  Tcompass = t;
+  const mapBearing = updateBearingDisplay();
+  const correction = (Tcompass - mapBearing + 360)%360;
+  correctionValSpan.textContent = correction.toFixed(1);
+  setTargetBtn.disabled=true;
+});
+
+// 風向セット
+setWindBtn.addEventListener('click', ()=>{
+  const h=parseFloat(compassHspan.textContent);
+  if(isNaN(h)){alert('コンパス値が取得できていません'); return;}
+  Hcompass = h;
+  const correctedWind = (Hcompass + parseFloat(correctionValSpan.textContent))%360;
+  correctedWindSpan.textContent = correctedWind.toFixed(1);
+
+  const sel=landmarkList.value;
+  const l=landmarks.find(x=>x.id===sel);
+  if(l){
+    L.polyline([[startA.lat,startA.lng],[l.lat,l.lng]],{color:'blue'}).addTo(map);
+    const arrowLat=startA.lat + 0.01*Math.sin(toRad(correctedWind));
+    const arrowLng=startA.lng + 0.01*Math.cos(toRad(correctedWind));
+    L.polyline([[startA.lat,startA.lng],[arrowLat,arrowLng]],{color:'red'}).addTo(map);
+  }
+  setWindBtn.disabled=true;
+  panel.classList.add('shrink');
+});
+
+restoreBtn.addEventListener('click',()=>{panel.classList.remove('shrink');});
+
+updateBearingDisplay();
+})();
+</script>
+
+</body>
+</html>
