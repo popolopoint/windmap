@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>コース作るくん by Popolo (v3.5.1候補)</title>
+<style>
+:root{
+  --blue:#1976d2; --purple:#6a1b9a; --red:#d32f2f; --green:#2e7d32; --orange:#f57c00;
+}
+body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; }
+h2 { margin:0 0 8px 0; font-size:18px; }
+#version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
+#map { width:100%; height:500px; border-radius:8px; margin-top:10px; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+button { padding:6px 10px; border-radius:6px; border:none; color:white; cursor:pointer; }
+#compassPermissionBtn {
+  position:absolute; top:10px; right:10px;
+  padding:10px; background:#ff4444; color:#fff;
+  border:none; border-radius:6px; font-weight:bold;
+  z-index:10000;
+}
+.overlay{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.5); z-index:2000;}
+.modal{background:#fff; padding:16px; border-radius:10px; width:92%; max-width:380px; text-align:center;}
+.modal .reading{font-size:20px;font-weight:700;color:#111;margin-bottom:12px;}
+.modal .buttons{display:flex; gap:8px; justify-content:center;}
+.modal button{padding:8px 12px; border-radius:8px; font-weight:600;}
+.modal .btnConfirm{background: var(--purple); color:white;}
+.modal .btnCancel{background:#ccc;color:#111;}
+</style>
+</head>
+<body>
+
+<h2>コース作るくん <span style="font-size:0.7em;">by Popolo v3.5.1候補</span></h2>
+<div id="version">v3.5.1候補</div>
+
+<button id="compassPermissionBtn">コンパス許可 ←ここをタップ</button>
+
+<div id="inputs">
+  <label>風向(°)：<input type="number" id="wind" step="any" value=""></label>
+  <button id="btnWindSet">風向をセット</button>
+</div>
+
+<div id="map"></div>
+
+<!-- 風向モーダル -->
+<div id="windModal" style="display:none;" aria-hidden="true">
+  <div class="overlay">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3>風向をセット</h3>
+      <p id="modalInstruction">スマホを風向に向けて少し待ってから「設定」を押してください。</p>
+      <div class="reading" id="headingRead">--°</div>
+      <div class="buttons">
+        <button class="btnConfirm" id="modalSetBtn">設定</button>
+        <button class="btnCancel" id="modalCloseBtn">閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let headingSamples=[], headingWatcher=null;
+let currentHeading=null;
+
+const compassBtn = document.getElementById('compassPermissionBtn');
+const windModal = document.getElementById('windModal');
+const headingReadEl = document.getElementById('headingRead');
+const modalInstructionEl = document.getElementById('modalInstruction');
+const modalSetBtn = document.getElementById('modalSetBtn');
+const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+// --- コンパス取得 ---
+function normalizeHeadingFromEvent(e){
+  if(typeof e.webkitCompassHeading==='number' && e.webkitCompassHeading>=0) return e.webkitCompassHeading;
+  let alpha=e.alpha; if(alpha===null||typeof alpha!=='number') return null;
+  let heading=360-alpha;
+  let screenOrientation=0;
+  if(typeof window.screen.orientation!=='undefined' && typeof window.screen.orientation.angle==='number') screenOrientation=window.screen.orientation.angle;
+  else if(typeof window.orientation==='number') screenOrientation=window.orientation;
+  heading=(heading+screenOrientation)%360; if(heading<0) heading+=360;
+  return heading;
+}
+function circularMean(degs){ 
+  if(!degs||degs.length===0) return null;
+  let x=0,y=0;
+  degs.forEach(d=>{ const r=d*Math.PI/180; x+=Math.cos(r); y+=Math.sin(r); });
+  const mean=Math.atan2(y,x)*180/Math.PI;
+  return (mean+360)%360;
+}
+function startOrientationListening(){
+  function handler(e){
+    const heading = normalizeHeadingFromEvent(e);
+    if(heading===null) return;
+    currentHeading=heading;
+    headingSamples.push(heading);
+    if(headingSamples.length>30) headingSamples.shift();
+    const avg = circularMean(headingSamples);
+    if(avg!==null) headingReadEl.textContent=Math.round(avg)+'°';
+  }
+  window.addEventListener('deviceorientation',handler,true);
+  headingWatcher = handler;
+}
+function stopOrientationListening(){ 
+  if(headingWatcher){ window.removeEventListener('deviceorientation',headingWatcher,true); headingWatcher=null; }
+}
+
+// --- モーダル操作 ---
+function openWindModal(){
+  headingSamples=[]; currentHeading=null;
+  windModal.style.display='block'; windModal.setAttribute('aria-hidden','false');
+  headingReadEl.textContent='--°';
+  modalInstructionEl.textContent='スマホを風向に向けて少し待ってから「設定」を押してください。';
+  startOrientationListening();
+}
+function closeWindModal(){ stopOrientationListening(); windModal.style.display='none'; windModal.setAttribute('aria-hidden','true'); }
+
+modalSetBtn.addEventListener('click',()=>{
+  const avg=circularMean(headingSamples);
+  if(avg===null){ alert('方位が取得できませんでした。'); return; }
+  document.getElementById('wind').value = Math.round(avg);
+  closeWindModal();
+});
+modalCloseBtn.addEventListener('click',()=>{ closeWindModal(); });
+
+// --- ボタンイベント ---
+compassBtn.addEventListener('click',()=>{
+  if(typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission==='function'){
+    DeviceOrientationEvent.requestPermission()
+      .then(res=>{
+        if(res==='granted'){
+          startOrientationListening();
+          compassBtn.style.display='none';
+          openWindModal();  // 許可後にモーダルを開く
+        } else alert('コンパスの使用が許可されませんでした。');
+      }).catch(console.error);
+  } else {
+    startOrientationListening();
+    compassBtn.style.display='none';
+    openWindModal();
+  }
+});
+
+document.getElementById('btnWindSet').addEventListener('click', openWindModal);
+</script>
+
+</body>
+</html>
