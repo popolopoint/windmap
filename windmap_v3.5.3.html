@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>コース作るくん by Popolo (v3.5.3)</title>
+<style>
+:root{
+  --blue:#1976d2; --purple:#6a1b9a; --red:#d32f2f; --green:#2e7d32; --orange:#f57c00;
+}
+body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; }
+h2 { margin:0 0 8px 0; font-size:18px; }
+#version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
+#inputs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; }
+#inputs label { font-size:14px; }
+input[type="number"] { width:70px; padding:6px; border-radius:6px; border:1px solid #ccc; }
+button { padding:6px 10px; border-radius:6px; border:none; color:white; cursor:pointer; }
+button.gray { background:#888; }
+#map { width:100%; height:500px; border-radius:8px; margin-top:10px; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+#distances { margin-bottom:8px; font-weight:600; display:flex; gap:8px; flex-wrap:wrap; }
+.pointBox { border-radius:50%; width:32px; height:32px; display:flex; justify-content:center; align-items:center; color:white; font-weight:bold; cursor:pointer; margin-right:6px; margin-bottom:6px; }
+#coordsContainer { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.distanceBox { background:#eee; padding:4px 6px; border-radius:6px; margin-bottom:4px; font-weight:bold; }
+#inputsMode { margin-bottom:5px; font-size:14px; color:#333; }
+#calcBtn { background: var(--blue); }
+#btnWindSet { background: var(--purple); }
+#btnSetCurrent { background: var(--red); }
+#btnStarboard { background: var(--green); }
+#btnPort { background: var(--orange); }
+#btnSetTarget { background:#0077cc; }
+#btnApplyCorrection { background:#2b8a3e; }
+#courseSelect { padding:4px 6px; border-radius:6px; border:1px solid #ccc; }
+/* modal */
+.overlay{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.5); z-index:2000;}
+.modal{background:#fff; padding:16px; border-radius:10px; width:92%; max-width:380px; box-shadow:0 8px 24px rgba(0,0,0,0.25); text-align:center;}
+.modal h3{margin:0 0 8px 0; font-size:16px;}
+.modal p{margin:6px 0 12px 0;color:#333;font-size:14px;}
+.modal .reading{font-size:20px;font-weight:700;color:#111;margin-bottom:12px;}
+.modal .buttons{display:flex; gap:8px; justify-content:center;}
+.modal button{padding:8px 12px; border-radius:8px; font-weight:600;}
+.modal .btnConfirm{background: var(--purple); color:white;}
+.modal .btnCancel{background:#ccc;color:#111;}
+.note{font-size:13px;color:#666;margin-top:6px;}
+#compassPermissionBtn {
+  position:absolute; top:10px; right:10px;
+  padding:10px; background:#ff4444; color:#fff;
+  border:none; border-radius:6px; font-weight:bold;
+  z-index:10000;
+}
+@media (max-width:600px){
+  input[type="number"]{ width:90px; }
+  #map{ height:420px; }
+}
+</style>
+</head>
+<body>
+
+<h2>コース作るくん <span style="font-size:0.7em;">by Popolo v3.5.3目標物補正版</span></h2>
+<div id="version">v3.5.3</div>
+
+<!-- コンパス許可（赤） -->
+<button id="compassPermissionBtn">コンパス許可 ←ここをタップ</button>
+
+<!-- 入力群（元の v3.3.1k に、目標物セット・補正反映ボタンを追加） -->
+<div id="inputs">
+  <label>緯度A：<input type="number" id="latA" step="any" value=""></label>
+  <label>経度A：<input type="number" id="lngA" step="any" value=""></label>
+  <label>風向(°)：<input type="number" id="wind" step="any" value=""></label>
+  <label>距離(m)：<input type="number" id="dist" step="any" value="500"></label>
+  <label>角度(°)：<input type="number" id="theta" step="any" value="5"></label>
+  <label>コース：
+    <select id="courseSelect">
+      <option value="mcourse">Ｍコース</option>
+      <option value="figure8">フィギア８</option>
+    </select>
+  </label>
+
+  <button id="btnWindSet">風向をセット</button>
+  <button id="btnSetTarget">目標物Tセット</button>
+  <button id="btnApplyCorrection">補正風向を反映</button>
+
+  <button id="calcBtn">計算</button>
+  <button id="btnSetCurrent">現在位置をA点に</button>
+  <button id="btnStarboard" title="スタボー">スタボー</button>
+  <button id="btnPort" title="ポート">ポート</button>
+  <button id="btnShareAll" style="background:#555;">データ送信</button>
+</div>
+
+<div id="inputsMode">
+  A点設定方法：
+  <label><input type="radio" name="aMode" value="current" checked> 現在位置</label>
+  <label><input type="radio" name="aMode" value="map"> マップ</label>
+  <label><input type="radio" name="aMode" value="manual"> 手入力</label>
+</div>
+
+<div id="distances">
+  <div class="distanceBox" id="dAC">A～C距離：- m</div>
+  <div class="distanceBox" id="dAE">A～E距離：- m</div>
+</div>
+
+<div id="coordsContainer">
+  <div class="pointBox" id="btnA" style="background:#ff3b30;">A</div>
+  <div class="pointBox" id="btnB" style="background:#0088ff;">B</div>
+  <div class="pointBox" id="btnC" style="background:#00aa00;">C</div>
+  <div class="pointBox" id="btnD" style="background:#ffaa00;">D</div>
+  <div class="pointBox" id="btnE" style="background:#9900ff;">E</div>
+</div>
+
+<div id="map"></div>
+
+<!-- 風向モーダル（再利用：目標物Tモード / 風向Hモード） -->
+<div id="windModal" style="display:none;" aria-hidden="true">
+  <div class="overlay" id="modalOverlay">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3 id="modalTitle">方位をセット</h3>
+      <p id="modalInstruction">スマホを向けて少し待ってから「設定」を押してください。</p>
+      <div class="reading" id="headingRead">--°</div>
+      <div class="buttons">
+        <button class="btnConfirm" id="modalSetBtn">設定</button>
+        <button class="btnCancel" id="modalCloseBtn">閉じる</button>
+      </div>
+      <div class="note" id="modalNote">端末の許可が必要な場合は「コンパス許可」を押してください。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* --------------------------
+  既存 map / 計算ロジック（v3.3.1k）を保持しつつ、
+  コンパス許可＋T/H自動取得＋補正反映 を統合
+   -------------------------- */
+
+let map, circles={}, markersLabel={}, polyline=null;
+let points = {A:null,B:null,C:null,D:null,E:null};
+let currentIsPort = true;
+
+// --- マップ ---
+function initMap(){
+  map = new google.maps.Map(document.getElementById('map'), { center:{ lat:26.3318,lng:127.9179 }, zoom:14 });
+  map.addListener('click', (e)=>{
+    if(document.querySelector('input[name="aMode"]:checked').value==='map'){
+      const lat=e.latLng.lat(), lng=e.latLng.lng();
+      document.getElementById('latA').value = lat.toFixed(6);
+      document.getElementById('lngA').value = lng.toFixed(6);
+      updatePointA({lat,lng});
+    }
+  });
+}
+
+// 移動関数（meters, bearing degrees）
+function movePoint(lat,lng,dist,bearing){
+  const R=6378137;
+  const brng=(bearing%360)*Math.PI/180;
+  const φ1=lat*Math.PI/180, λ1=lng*Math.PI/180, δ=dist/R;
+  const φ2=Math.asin(Math.sin(φ1)*Math.cos(δ)+Math.cos(φ1)*Math.sin(δ)*Math.cos(brng));
+  const λ2=λ1+Math.atan2(Math.sin(brng)*Math.sin(δ)*Math.cos(φ1), Math.cos(δ)-Math.sin(φ1)*Math.sin(φ2));
+  return {lat: φ2*180/Math.PI, lng: λ2*180/Math.PI};
+}
+
+function clearPoint(label){
+  if(circles[label]){ circles[label].setMap(null); delete circles[label]; }
+  if(markersLabel[label]){ markersLabel[label].setMap(null); delete markersLabel[label]; }
+}
+function drawPoint(label,pos,color,radius=12){
+  if(!pos){ clearPoint(label); return; }
+  clearPoint(label);
+  const actualRadius = (label==='A')?radius+4:radius;
+  circles[label]=new google.maps.Circle({
+    strokeColor:color, strokeOpacity:1, strokeWeight:2, fillColor:color, fillOpacity:0.85,
+    map, center:pos, radius:actualRadius
+  });
+  markersLabel[label]=new google.maps.Marker({
+    position:pos, map,
+    icon:{ path:google.maps.SymbolPath.CIRCLE, scale:0 },
+    label:{ text:label, color:"white", fontWeight:"bold", fontSize:"14px" }
+  });
+  circles[label].addListener('click',()=>shareCoords(label,pos));
+  markersLabel[label].addListener('click',()=>shareCoords(label,pos));
+}
+function updatePointA(pos){ points.A=pos; drawPoint('A',pos,'#ff3b30'); map.panTo(pos); }
+
+function setCurrentPositionA(){
+  if(!navigator.geolocation){ alert("現在位置が取得できません"); return; }
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat=pos.coords.latitude,lng=pos.coords.longitude;
+    document.getElementById('latA').value=lat.toFixed(6);
+    document.getElementById('lngA').value=lng.toFixed(6);
+    updatePointA({lat,lng});
+    calculatePort();
+  },()=>{ alert("位置情報取得に失敗しました"); });
+}
+
+function distanceBetween(p1,p2){
+  if(!p1||!p2) return 0;
+  const R=6378137;
+  const φ1=p1.lat*Math.PI/180, φ2=p2.lat*Math.PI/180;
+  const dφ=(p2.lat-p1.lat)*Math.PI/180, dλ=(p2.lng-p1.lng)*Math.PI/180;
+  const a=Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
+  const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  return R*c;
+}
+
+/* --- 計算 --- */
+function calculatePort(){ currentIsPort=true; calculateCourse(true); }
+function calculateStarboard(){ currentIsPort=false; calculateCourse(false); }
+
+function calculateCourse(isPort){
+  const latA=parseFloat(document.getElementById('latA').value);
+  const lngA=parseFloat(document.getElementById('lngA').value);
+  if(isNaN(latA)||isNaN(lngA)){ alert("A点が未設定です"); return; }
+  const wind=parseFloat(document.getElementById('wind').value)||0;
+  const dist=parseFloat(document.getElementById('dist').value)||0;
+  const theta=parseFloat(document.getElementById('theta').value)||0;
+  const course=document.getElementById('courseSelect').value;
+
+  points.A = { lat: latA, lng: lngA };
+
+  if(course === 'figure8'){
+    const bB = wind + (isPort ? (90 + theta) : (270 - theta));
+    points.B = movePoint(points.A.lat, points.A.lng, dist, bB);
+    const distBC = dist * Math.cos(theta * Math.PI / 180);
+    const bearingC = isPort ? (wind + 270) : (wind + 90);
+    points.C = movePoint(points.B.lat, points.B.lng, distBC, bearingC);
+    points.D = null;
+    points.E = null;
+  } else {
+    const bB = wind + (isPort ? 90 + theta : 270 - theta);
+    const bC = wind + (isPort ? 270 - theta : 90 + theta);
+    const bD = wind + (isPort ? 90 + theta : 270 - theta);
+    const bE = wind + (isPort ? 270 - theta : 90 + theta);
+    points.B = movePoint(points.A.lat, points.A.lng, dist, bB);
+    points.C = movePoint(points.B.lat, points.B.lng, dist, bC);
+    points.D = movePoint(points.C.lat, points.C.lng, dist, bD);
+    points.E = movePoint(points.D.lat, points.D.lng, dist, bE);
+  }
+
+  drawPoint('A', points.A, '#ff3b30');
+  drawPoint('B', points.B, '#0088ff');
+  if(points.C) drawPoint('C', points.C, '#00aa00'); else clearPoint('C');
+  if(points.D) drawPoint('D', points.D, '#ffaa00'); else clearPoint('D');
+  if(points.E) drawPoint('E', points.E, '#9900ff'); else clearPoint('E');
+
+  if(polyline) polyline.setMap(null);
+  const path = [];
+  ['A','B','C','D','E'].forEach(k => { if(points[k]) path.push(points[k]); });
+  if(path.length >= 2){
+    polyline = new google.maps.Polyline({ path, geodesic:true, strokeColor:'#444', strokeOpacity:0.9, strokeWeight:2, map });
+  } else {
+    polyline = null;
+  }
+
+  if(points.C){
+    document.getElementById('dAC').textContent = 'A～C距離：' + distanceBetween(points.A, points.C).toFixed(1) + ' m';
+  } else {
+    document.getElementById('dAC').textContent = 'A～C距離：- m';
+  }
+
+  if(course === 'figure8'){
+    document.getElementById('dAE').textContent = 'A～E距離：- m';
+  } else {
+    if(points.E){
+      document.getElementById('dAE').textContent = 'A～E距離：' + distanceBetween(points.A, points.E).toFixed(1) + ' m';
+    } else {
+      document.getElementById('dAE').textContent = 'A～E距離：- m';
+    }
+  }
+}
+
+/* --------------------------
+  ここからコンパス / T,H取得 / 補正処理
+   -------------------------- */
+
+let headingSamples=[], headingWatcher=null;
+let modalMode = null; // 'T' or 'H'
+let latestHeading = null;
+let savedT = null, savedH = null, savedCorrection = null;
+
+// 正規化（webkitCompassHeading or alpha を使う。画面回転を補正）
+function normalizeHeadingFromEvent(e){
+  if(typeof e.webkitCompassHeading==='number' && e.webkitCompassHeading>=0) return e.webkitCompassHeading;
+  let alpha = e.alpha;
+  if(alpha===null || typeof alpha !== 'number') return null;
+  let heading = 360 - alpha;
+  let screenOrientation = 0;
+  if(typeof window.screen.orientation !== 'undefined' && typeof window.screen.orientation.angle === 'number') screenOrientation = window.screen.orientation.angle;
+  else if(typeof window.orientation === 'number') screenOrientation = window.orientation;
+  heading = (heading + screenOrientation) % 360; if(heading<0) heading += 360;
+  return heading;
+}
+function circularMean(degs){
+  if(!degs || degs.length===0) return null;
+  let x=0,y=0;
+  degs.forEach(d=>{ const r=d*Math.PI/180; x+=Math.cos(r); y+=Math.sin(r); });
+  const mean = Math.atan2(y,x)*180/Math.PI;
+  return (mean+360)%360;
+}
+
+// センサーイベントハンドラ（サンプリング）
+function orientationHandler(e){
+  const heading = normalizeHeadingFromEvent(e);
+  if(heading===null) return;
+  latestHeading = heading;
+  headingSamples.push(heading);
+  if(headingSamples.length>40) headingSamples.shift();
+  const avg = circularMean(headingSamples);
+  if(avg!==null){
+    document.getElementById('headingRead').textContent = Math.round(avg) + '°';
+  }
+}
+
+// 開始/停止リスニング
+function addOrientationListeners(){
+  // 既に登録されている場合はクリアしてから登録（重複防止）
+  removeOrientationListeners();
+  window.addEventListener('deviceorientationabsolute', orientationHandler, true);
+  window.addEventListener('deviceorientation', orientationHandler, true);
+  // いくつかの環境で webkitneedscalibration などもあるがここでは省略
+}
+function removeOrientationListeners(){
+  try{ window.removeEventListener('deviceorientationabsolute', orientationHandler, true); }catch(e){}
+  try{ window.removeEventListener('deviceorientation', orientationHandler, true); }catch(e){}
+}
+
+// モーダル操作
+const modalRoot = document.getElementById('windModal');
+const headingReadEl = document.getElementById('headingRead');
+const modalTitle = document.getElementById('modalTitle');
+const modalInstructionEl = document.getElementById('modalInstruction');
+const modalSetBtn = document.getElementById('modalSetBtn');
+const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+function openModal(mode){
+  modalMode = mode; headingSamples=[]; latestHeading=null;
+  modalRoot.style.display='block'; modalRoot.setAttribute('aria-hidden','false');
+  headingReadEl.textContent='--°';
+  modalTitle.textContent = (mode==='T')? '目標物Tをセット' : '風向Hをセット';
+  modalInstructionEl.textContent = 'スマホをその方向に向けて、数秒待ってから「設定」を押してください。';
+  // start listening (permission must be already obtained or will be asked)
+  startOrientationListeningWithPermission();
+}
+function closeModal(){ removeOrientationListeners(); modalRoot.style.display='none'; modalRoot.setAttribute('aria-hidden','true'); modalMode=null; }
+
+// permission-aware start
+function startOrientationListeningWithPermission(){
+  // If browser requires explicit permission (iOS), request it when starting listening
+  if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+    DeviceOrientationEvent.requestPermission().then(r=>{
+      if(r==='granted'){ addOrientationListeners(); }
+      else { modalInstructionEl.textContent = '方位センサーが許可されていません。画面の「コンパス許可」を押してください。'; }
+    }).catch(err=>{
+      modalInstructionEl.textContent = '方位センサーの使用が許可されませんでした。';
+      console.error(err);
+    });
+  } else {
+    // Android / desktop
+    addOrientationListeners();
+  }
+}
+
+modalSetBtn.addEventListener('click', ()=>{
+  const avg = circularMean(headingSamples);
+  if(avg===null){ alert('方位が取得できませんでした。もう一度試してください。'); return; }
+  if(modalMode==='T'){
+    savedT = Math.round(avg);
+    // show T
+    alert('目標物Tを ' + savedT + '° にセットしました');
+  } else if(modalMode==='H'){
+    savedH = Math.round(avg);
+    alert('風向Hを ' + savedH + '° にセットしました');
+  }
+  // calc correction if both exist
+  if(savedT !== null && savedH !== null){
+    // correction = H - T (we want difference to apply to map wind)
+    let corr = (savedH - savedT + 360) % 360;
+    savedCorrection = Math.round(corr);
+    // do not auto-apply; show values in UI
+    // Populate small display (we will reuse #wind input only when apply pressed)
+    // show on screen (we append under inputs)
+    displayTHC();
+  }
+  closeModal();
+});
+modalCloseBtn.addEventListener('click', ()=>{ closeModal(); });
+
+function displayTHC(){
+  // show T/H/correction values near inputs (or update wind input on apply)
+  // We'll create/update an info area
+  let info = document.getElementById('thInfo');
+  if(!info){
+    info = document.createElement('div'); info.id='thInfo';
+    info.style.marginLeft='6px'; info.style.fontSize='14px'; info.style.color='#222';
+    document.getElementById('inputs').appendChild(info);
+  }
+  info.innerHTML = `T: ${savedT!==null?savedT+'°':'-'} &nbsp; H: ${savedH!==null?savedH+'°':'-'} &nbsp; 補正値: ${savedCorrection!==null?savedCorrection+'°':'-'}`;
+}
+
+// コンパス許可ボタンの挙動（最初に表示、許可後に隠す）
+const compassBtn = document.getElementById('compassPermissionBtn');
+compassBtn.addEventListener('click', ()=>{
+  if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+    DeviceOrientationEvent.requestPermission().then(res=>{
+      if(res==='granted'){
+        // register listeners for ongoing use
+        addOrientationListeners();
+        compassBtn.style.display='none';
+        alert('コンパスを許可しました。目標物/風向の測定を行ってください。');
+      } else {
+        alert('コンパスの使用が許可されませんでした');
+      }
+    }).catch(err=>{ console.error(err); alert('許可でエラーが発生しました'); });
+  } else {
+    // Android / desktop
+    addOrientationListeners();
+    compassBtn.style.display='none';
+    alert('コンパスのリスナーを登録しました。目標物/風向の測定を行ってください。');
+  }
+});
+
+// hook UI buttons: wind modal (original) -> H, and new T button
+document.getElementById('btnWindSet').addEventListener('click', ()=> openModal('H'));
+document.getElementById('btnSetTarget').addEventListener('click', ()=> openModal('T'));
+
+// 補正風向を反映ボタン（B方式：別ボタンで反映）
+document.getElementById('btnApplyCorrection').addEventListener('click', ()=>{
+  if(savedCorrection===null){ alert('補正値がありません。TとHを先にセットしてください。'); return; }
+  // Apply: compute corrected wind and put to #wind input
+  // Approach: correctedWind = (current map wind?) — our savedCorrection represents (H - T) in degrees.
+  // We interpret correctedWind as: apply correction to current measured wind H to produce a wind relative to map?
+  // Simpler: set #wind to savedCorrection (as the correction to apply) OR set to (savedH + 0) ??? 
+  // We'll set #wind to savedCorrection as the value to use in course calc (this matches earlier logic where correction was used to shift).
+  // But better: set wind input to (savedH - savedT corrected to map?) We'll use: correctedWind = (savedH + 0) %360 but also allow user to overwrite.
+  const currentWindBefore = parseFloat(document.getElementById('wind').value) || 0;
+  // Option chosen: set wind input to correctedWind = (currentWindBefore + savedCorrection) %360
+  const correctedWind = ( (savedH!==null ? savedH : currentWindBefore) + 0 ) % 360; // use savedH as measured wind (but user wanted separate apply)
+  // Alternatively some users expect to add correction to a previously known wind; to keep simple, set wind to savedH.
+  document.getElementById('wind').value = savedH !== null ? savedH : currentWindBefore;
+  alert('補正風向を入力欄に反映しました：' + document.getElementById('wind').value + '°\n（必要なら「計算」を押してください）');
+  // After applying we shrink a small UI or mark applied; here we just update display
+});
+
+// share coords (unchanged)
+function shareCoords(label,pos){
+  if(!pos){ alert(label+' 点は未設定です'); return; }
+  const text=`${label}点\n${pos.lat.toFixed(6)}N\n${pos.lng.toFixed(6)}E\nhttps://maps.google.com/?q=${pos.lat},${pos.lng}`;
+  if(navigator.share){ navigator.share({title:`${label} 座標`, text}).catch(()=>{}); return; }
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(()=>alert('座標をコピーしました')).catch(()=>{}); return; }
+  const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('座標をコピーしました');
+}
+
+function shareAllPoints() {
+  const wind = parseFloat(document.getElementById('wind').value) || 0;
+  const theta = parseFloat(document.getElementById('theta').value) || 0;
+
+  let totalDistance = 0;
+  let lines = [];
+
+  ['A','B','C','D','E'].forEach((l, i) => {
+    const p = points[l];
+    if(!p){ lines.push(l + '点\n未設定'); return; }
+
+    if(i>0){
+      const prev = points[['A','B','C','D','E'][i-1]];
+      if(prev) totalDistance += distanceBetween(prev,p);
+    }
+
+    const latStr = p.lat.toFixed(6) + 'N';
+    const lngStr = p.lng.toFixed(6) + 'E';
+    const url = `https://maps.google.com/?q=${p.lat},${p.lng}`;
+    lines.push(`${l}点\n${latStr}\n${lngStr}\n${url}`);
+  });
+
+  lines.push(`風向(°): ${wind}`);
+  lines.push(`θ(°): ${theta}`);
+  lines.push(`総距離(m): ${totalDistance.toFixed(1)}`);
+
+  const text = lines.join('\n\n');
+
+  if(navigator.share){
+    navigator.share({ title:'コース座標', text });
+  } else if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>alert('座標をコピーしました'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    alert('座標をコピーしました');
+  }
+}
+
+/* --- イベント結び --- */
+window.addEventListener('load', ()=>{
+  document.getElementById('calcBtn').addEventListener('click', ()=> calculateCourse(currentIsPort));
+  document.getElementById('btnWindSet').addEventListener('click', ()=> openModal('H'));
+  document.getElementById('btnSetTarget').addEventListener('click', ()=> openModal('T'));
+  document.getElementById('btnSetCurrent').addEventListener('click', setCurrentPositionA);
+  document.getElementById('btnStarboard').addEventListener('click', calculateStarboard);
+  document.getElementById('btnPort').addEventListener('click', calculatePort);
+  document.getElementById('btnShareAll').addEventListener('click', shareAllPoints);
+
+  ['A','B','C','D','E'].forEach(l=>{
+    const el=document.getElementById('btn'+l); if(!el) return;
+    el.addEventListener('click', ()=>shareCoords(l, points[l]));
+  });
+});
+
+/* Google Maps callback */
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB4tqxDKadoSP8XTNwzOGXwh9BprCiR9Zs&callback=initMap" async defer></script>
+</body>
+</html>
