@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>風向補正テスト</title>
+</head>
+<body>
+<h2>スマホコンパス補正テスト</h2>
+
+<p>目標物方向(スマホ): <span id="devTarget">--</span>°</p>
+<p>地図上のA→T方位: <span id="mapTarget">--</span>°</p>
+<p>誤差: <span id="error">--</span>°</p>
+<p>風向(スマホ): <span id="devWind">--</span>°</p>
+<p><b>補正後の風向: <span id="windCorr">--</span>°</span></b></p>
+
+<script>
+// --- 0～360°に収める ---
+function normalize(deg){
+  return (deg % 360 + 360) % 360;
+}
+
+// --- A→Tの地図上方位計算 ---
+function bearingMap(lat1, lon1, lat2, lon2){
+  const r1 = lat1 * Math.PI / 180;
+  const r2 = lat2 * Math.PI / 180;
+  const diff = (lon2 - lon1) * Math.PI / 180;
+  const y = Math.sin(diff) * Math.cos(r2);
+  const x = Math.cos(r1)*Math.sin(r2) - Math.sin(r1)*Math.cos(r2)*Math.cos(diff);
+  return normalize(Math.atan2(y, x) * 180 / Math.PI);
+}
+
+// ---- 以下 変数格納 ----
+let bearingDeviceToTarget = null;
+let bearingDeviceWind = null;
+let bearingMapToTarget = null;
+
+// ---- コンパス取得イベント ----
+window.addEventListener("deviceorientationabsolute", (e)=>{
+  const heading = normalize(360 - e.alpha); // iPhone系
+  if (setMode === "target"){
+    bearingDeviceToTarget = heading;
+    document.getElementById("devTarget").textContent = heading.toFixed(1);
+  }
+  if (setMode === "wind"){
+    bearingDeviceWind = heading;
+    document.getElementById("devWind").textContent = heading.toFixed(1);
+  }
+  calc();
+});
+
+// ---- 計算 ----
+function calc(){
+  if(bearingDeviceToTarget === null || bearingMapToTarget === null || bearingDeviceWind === null) return;
+
+  const error = normalize(bearingDeviceToTarget - bearingMapToTarget);
+  const windCorr = normalize(bearingDeviceWind - error);
+
+  document.getElementById("error").textContent = error.toFixed(1);
+  document.getElementById("windCorr").textContent = windCorr.toFixed(1);
+}
+
+// ---- テスト値 ----
+// A現在地（例）
+const A = {lat: 26.3481, lng: 127.8916};
+// 目標物T（例）
+const T = {lat: 26.3505, lng: 127.8928};
+
+// 地図上 bearing
+bearingMapToTarget = bearingMap(A.lat, A.lng, T.lat, T.lng);
+document.getElementById("mapTarget").textContent = bearingMapToTarget.toFixed(1);
+
+// 記録モード切替
+let setMode = "target"; // "target"測定 → "wind"測定 など切り替える想定
+</script>
+</body>
+</html>
