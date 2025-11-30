@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>風向補正 v3.6.3</title>
+<style>
+ body { font-family: sans-serif; padding: 20px; }
+ button { padding: 10px 20px; margin: 8px 0; font-size: 18px; }
+ .result { font-size: 20px; font-weight: bold; margin-top: 10px; }
+</style>
+</head>
+<body>
+<h2>スマホコンパス誤差補正</h2>
+
+<h3>目標物Tを選択</h3>
+<select id="targetSelect" onchange="changeTarget()">
+  <option value="Gushikawa">① 具志川火力発電所</option>
+  <option value="Kin">② 金武火力発電所</option>
+  <option value="Whale">③ くじらのしっぽ</option>
+  <option value="Ayahashi">④ 海の駅あやはし</option>
+  <option value="Bridge">⑤ 平安座海中大橋</option>
+</select>
+
+<button onclick="setCurrentPosition()">現在地をA点にセット</button>
+<p>現在位置A: <span id="posA">取得中...</span></p>
+
+<h3>1. 目標物 T に向けて測定</h3>
+<button onclick="setMode='target'">T 方位を測定</button>
+<p>目標物方向(スマホ): <span id="devTarget">--</span>°</p>
+<p>地図上の A→T 方位: <span id="mapTarget">--</span>°</p>
+<p>誤差: <span id="error">--</span>°</p>
+
+<h3>2. 風向に向けて測定</h3>
+<button onclick="setMode='wind'">風向を測定</button>
+<p>風向(スマホ): <span id="devWind">--</span>°</p>
+<p class="result">補正後の風向: <span id="windCorr">--</span>°</p>
+
+<script>
+function normalize(d){ return (d % 360 + 360) % 360; }
+function bearingMap(lat1, lon1, lat2, lon2){
+  const r1 = lat1 * Math.PI / 180;
+  const r2 = lat2 * Math.PI / 180;
+  const diff = (lon2 - lon1) * Math.PI / 180;
+  const y = Math.sin(diff) * Math.cos(r2);
+  const x = Math.cos(r1)*Math.sin(r2) - Math.sin(r1)*Math.cos(r2)*Math.cos(diff);
+  return normalize(Math.atan2(y, x) * 180 / Math.PI);
+}
+
+let bearingDeviceToTarget=null, bearingDeviceWind=null, bearingMapToTarget=null;
+let setMode="target";
+let A={lat:null,lng:null};
+let T={lat:null,lng:null};
+
+const targets={
+  Gushikawa:{lat:26.3604,lng:127.8717},
+  Kin:{lat:26.4553,lng:127.9223},
+  Whale:{lat:26.3329,lng:127.8794},
+  Ayahashi:{lat:26.3426,lng:127.9043},
+  Bridge:{lat:26.3463,lng:127.9136}
+};
+
+function changeTarget(){
+  const key=document.getElementById("targetSelect").value;
+  T = targets[key];
+  calculateMapBearing();
+}
+
+function calculateMapBearing(){
+  if(A.lat && T.lat){
+    bearingMapToTarget=bearingMap(A.lat,A.lng,T.lat,T.lng);
+    document.getElementById("mapTarget").textContent=bearingMapToTarget.toFixed(1);
+  }
+}
+
+function setCurrentPosition(){
+  navigator.geolocation.getCurrentPosition((pos)=>{
+    A.lat=pos.coords.latitude;
+    A.lng=pos.coords.longitude;
+    document.getElementById("posA").textContent=A.lat.toFixed(5)+", "+A.lng.toFixed(5);
+    calculateMapBearing();
+  });
+}
+
+navigator.geolocation.getCurrentPosition((pos)=>{
+  A.lat=pos.coords.latitude;
+  A.lng=pos.coords.longitude;
+  document.getElementById("posA").textContent=A.lat.toFixed(5)+", "+A.lng.toFixed(5);
+  calculateMapBearing();
+});
+
+window.addEventListener("deviceorientationabsolute",(e)=>{
+  const heading = normalize(360 - e.alpha);
+  if(setMode==="target"){
+    bearingDeviceToTarget = heading;
+    document.getElementById("devTarget").textContent = heading.toFixed(1);
+  }
+  if(setMode==="wind"){
+    bearingDeviceWind = heading;
+    document.getElementById("devWind").textContent = heading.toFixed(1);
+  }
+  calc();
+});
+
+function calc(){
+  if(bearingDeviceToTarget===null||bearingDeviceWind===null||bearingMapToTarget===null) return;
+  const error = normalize(bearingDeviceToTarget - bearingMapToTarget);
+  const windCorr = normalize(bearingDeviceWind - error);
+  document.getElementById("error").textContent=error.toFixed(1);
+  document.getElementById("windCorr").textContent=windCorr.toFixed(1);
+}
+</script>
+</body>
+</html>
