@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>風向セットモーダル</title>
+<style>
+  body { font-family: sans-serif; padding: 20px; }
+  #wind-display { margin-top: 20px; font-size: 1.2em; }
+
+  /* モーダルスタイル */
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    justify-content: center; align-items: center;
+  }
+  .modal-content {
+    background: white; padding: 20px; border-radius: 8px; text-align: center;
+    min-width: 250px;
+  }
+  .modal button { margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h2>風向セットモーダルテスト</h2>
+<button id="open-modal-btn">風向セット</button>
+<div id="wind-display">現在の風向: 未設定</div>
+
+<!-- モーダル -->
+<div id="wind-modal" class="modal">
+  <div class="modal-content">
+    <h3>端末を動かして風向をセット</h3>
+    <div>方位: <span id="compass-value">0°</span></div>
+    <button id="set-wind-btn">設定</button>
+    <button id="close-modal-btn">閉じる</button>
+  </div>
+</div>
+
+<script>
+let currentWind = null;
+let liveHeading = 0;
+
+// モーダル要素
+const modal = document.getElementById('wind-modal');
+const compassSpan = document.getElementById('compass-value');
+
+// モーダル表示
+document.getElementById('open-modal-btn').addEventListener('click', () => {
+  modal.style.display = 'flex';
+  startCompass();
+});
+
+// モーダル閉じる
+document.getElementById('close-modal-btn').addEventListener('click', () => {
+  modal.style.display = 'none';
+  stopCompass();
+});
+
+// 設定ボタンで風向を確定
+document.getElementById('set-wind-btn').addEventListener('click', () => {
+  currentWind = liveHeading + '°';
+  document.getElementById('wind-display').textContent = '現在の風向: ' + currentWind;
+  modal.style.display = 'none';
+  stopCompass();
+  console.log('風向確定:', currentWind);
+});
+
+// コンパス取得
+let orientationHandler = null;
+
+function startCompass() {
+  orientationHandler = (event) => {
+    let alpha = event.alpha;
+
+    // iOSの場合のwebkitCompassHeading対応
+    if (typeof event.webkitCompassHeading === 'number') {
+      alpha = event.webkitCompassHeading;
+    }
+
+    if (alpha != null) {
+      liveHeading = Math.round(alpha);
+      compassSpan.textContent = liveHeading + '°';
+    }
+  };
+
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    // iOS 13+
+    DeviceOrientationEvent.requestPermission()
+      .then(permissionState => {
+        if (permissionState === 'granted') {
+          window.addEventListener('deviceorientation', orientationHandler);
+        } else {
+          alert('コンパスの使用が許可されませんでした');
+        }
+      })
+      .catch(console.error);
+  } else {
+    // Androidなど
+    window.addEventListener('deviceorientation', orientationHandler);
+  }
+}
+
+function stopCompass() {
+  if (orientationHandler) {
+    window.removeEventListener('deviceorientation', orientationHandler);
+    orientationHandler = null;
+  }
+}
+</script>
+
+</body>
+</html>
