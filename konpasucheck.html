@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>コンパス Permission チェック</title>
+</head>
+<body>
+<h2>コンパス Permission チェック</h2>
+<button onclick="checkCompass()">コンパス許可確認</button>
+<p id="status">未チェック</p>
+<script>
+function normalize(d){ return (d % 360 + 360) % 360; }
+function handleCompass(e){
+  const heading = normalize(360 - (e.alpha || 0));
+  document.getElementById("status").textContent = "コンパス取得成功: " + heading.toFixed(1) + "°";
+}
+
+function checkCompass(){
+  const ua = navigator.userAgent;
+  document.getElementById("status").textContent = "チェック中...";
+  if(typeof(DeviceOrientationEvent) !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function"){
+    DeviceOrientationEvent.requestPermission().then(permissionState => {
+      if(permissionState === 'granted'){
+        window.addEventListener('deviceorientation', handleCompass);
+        window.addEventListener('deviceorientationabsolute', handleCompass);
+        document.getElementById("status").textContent = "Permission granted。コンパス取得可能。";
+      } else {
+        document.getElementById("status").textContent = "Permission denied。ブラウザ設定を確認してください。";
+      }
+    }).catch(err => {
+      document.getElementById("status").textContent = "Error: " + err;
+    });
+  } else {
+    // iOS 13未満やChromeなど
+    window.addEventListener('deviceorientation', handleCompass);
+    window.addEventListener('deviceorientationabsolute', handleCompass);
+    document.getElementById("status").textContent = "Permission API未対応。センサーが取得できるか試します。";
+  }
+}
+</script>
+</body>
+</html>
