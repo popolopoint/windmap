@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コンパス風向セット</title>
+<style>
+  body { font-family: sans-serif; padding: 20px; }
+  #wind-display { margin-top: 20px; font-size: 1.2em; }
+</style>
+</head>
+<body>
+
+<h2>コンパス風向セット</h2>
+<button id="set-wind-btn">風向をセットする</button>
+<div id="wind-display">現在の風向: 未設定</div>
+
+<script>
+let currentWind = null;
+
+// デバイス方位を取得して風向をセット
+function setWindFromCompass() {
+  function handleOrientation(event) {
+    let alpha = event.alpha;
+
+    if (typeof alpha !== 'number') {
+      alert('方位情報を取得できませんでした');
+      return;
+    }
+
+    // iOSではalphaが0=北でない場合があるので補正（簡易的）
+    const windDeg = Math.round(alpha);
+    
+    currentWind = windDeg + '°';
+    document.getElementById('wind-display').textContent = '現在の風向: ' + currentWind;
+    console.log('風向セット:', currentWind);
+
+    // イベントは一度だけ使う
+    window.removeEventListener('deviceorientation', handleOrientation);
+  }
+
+  // iOS 13+ 以降は許可が必要
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(permissionState => {
+        if (permissionState === 'granted') {
+          window.addEventListener('deviceorientation', handleOrientation);
+        } else {
+          alert('コンパスの使用が許可されませんでした');
+        }
+      })
+      .catch(console.error);
+  } else {
+    // Androidなど
+    window.addEventListener('deviceorientation', handleOrientation);
+  }
+}
+
+document.getElementById('set-wind-btn').addEventListener('click', setWindFromCompass);
+</script>
+
+</body>
+</html>
