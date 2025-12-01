@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コース作成 + 補正風向統合版 (v3.7.5i)</title>
+<style>
+  body { font-family: sans-serif; margin:0; padding:0; }
+  header {
+    background:#1976d2; color:white; padding:10px;
+    text-align:center; font-size:24px; font-weight:bold;
+  }
+  section {
+    padding:12px; border-bottom:2px solid #ccc; background:#f2f2f2;
+  }
+  button, select {
+    font-size:22px; padding:14px 18px; margin:6px 0;
+    border-radius:10px; border:1px solid #444;
+  }
+  #output p { font-size:22px; }
+  iframe {
+    width:100%; height:70vh; border:none;
+  }
+  .modal {
+    display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+    background:rgba(0,0,0,0.6); justify-content:center; align-items:center;
+  }
+  .modal-content {
+    background:white; padding:18px; border-radius:8px; text-align:center;
+    min-width: 280px; font-size:22px;
+  }
+</style>
+</head>
+<body>
+
+<header>コース作成 + 補正風向測定 (v3.7.5i)</header>
+
+<section>
+  <button id="set-target-btn">目標方位Tをセット</button>
+  <button id="set-wind-btn-main">風向Hをセット</button>
+  <button id="calc-btn">補正風向を計算</button>
+
+  <div id="output">
+    <p>T（目標物方位）: <span id="t-value">未設定</span></p>
+    <p>H（風向）: <span id="h-value">未設定</span></p>
+    <p>補正風向: <span id="corrected">未計算</span></p>
+  </div>
+
+  <button id="send-to-map-btn">補正風向をコース作成アプリへ送信</button>
+</section>
+
+<!-- iframeでwindmap_v3.3.1kを読み込み -->
+<iframe id="course-iframe" src="https://popolopoint.github.io/windmap/windmap_v3.3.1k.html"></iframe>
+
+<!-- コンパス測定モーダル -->
+<div id="compass-modal" class="modal">
+  <div class="modal-content">
+    <h3>端末を向けてセット</h3>
+    <p style="font-size:32px;">方位: <span id="compass-value">0°</span></p>
+    <button id="confirm-btn">設定</button>
+    <button id="close-modal-btn">閉じる</button>
+  </div>
+</div>
+
+<script>
+// ----- コンパス制御 -----
+let liveHeading = 0, orientationHandler = null, confirmCallback = null;
+
+const modal = document.getElementById('compass-modal');
+const compassSpan = document.getElementById('compass-value');
+
+function openCompassModal(callback){
+  confirmCallback = callback;
+  modal.style.display = "flex";
+  startCompass();
+}
+
+document.getElementById("close-modal-btn").addEventListener("click", () => {
+  modal.style.display = "none";
+  stopCompass();
+});
+
+document.getElementById("confirm-btn").addEventListener("click", () => {
+  if (confirmCallback) confirmCallback(liveHeading);
+  modal.style.display = "none"; stopCompass();
+});
+
+function startCompass() {
+  orientationHandler = (event)=>{
+    let alpha = event.alpha;
+    if (typeof event.webkitCompassHeading === "number") alpha = event.webkitCompassHeading;
+    if (alpha != null) liveHeading = Math.round(alpha);
+    compassSpan.textContent = liveHeading + "°";
+  };
+
+  if (typeof DeviceOrientationEvent !== "undefined"
+      && typeof DeviceOrientationEvent.requestPermission === "function") {
+    DeviceOrientationEvent.requestPermission().then((state)=>{
+      if (state === "granted") window.addEventListener("deviceorientation", orientationHandler);
+    });
+  } else {
+    window.addEventListener("deviceorientation", orientationHandler);
+  }
+}
+
+function stopCompass(){ window.removeEventListener("deviceorientation", orientationHandler); }
+
+// ---------------------------------------------------
+let targetHeading = null, windHeading = null;
+
+document.getElementById("set-target-btn").addEventListener("click", () => {
+  openCompassModal((h)=>{
+    targetHeading = h;
+    document.getElementById("t-value").textContent = h + "°";
+  });
+});
+
+document.getElementById("set-wind-btn-main").addEventListener("click", () => {
+  openCompassModal((h)=>{
+    windHeading = h;
+    document.getElementById("h-value").textContent = h + "°";
+  });
+});
+
+document.getElementById("calc-btn").addEventListener("click", () => {
+  if(targetHeading == null || windHeading == null){
+    alert("目標方位Tと風向Hを設定してください");
+    return;
+  }
+  const corrected = (windHeading - targetHeading + 360) % 360;
+  document.getElementById("corrected").textContent = corrected + "°";
+});
+
+// ----- iframeへ送信 -----
+document.getElementById("send-to-map-btn").addEventListener("click", () => {
+  const val = document.getElementById("corrected").textContent.replace("°","");
+  const iframe = document.getElementById("course-iframe").contentWindow;
+  iframe.postMessage({ windDirection: val }, "*");
+  alert("補正風向を送信しました: " + val + "°");
+});
+</script>
+
+</body>
+</html>
