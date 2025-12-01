@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WindMap + 補正風向アプリ v3.7.1</title>
+<style>
+body { font-family: sans-serif; padding: 20px; font-size: 18px; }
+
+button {
+  margin: 8px 0;
+  font-size: 20px;      
+  padding: 14px 20px;   
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+select {
+  font-size: 20px;       
+  padding: 10px 12px;    
+  border-radius: 8px;
+}
+
+#output p { margin: 6px 0; font-size: 18px; }
+
+.modal {
+  display: none;
+  position: fixed;
+  top:0; left:0; width:100%; height:100%;
+  background: rgba(0,0,0,0.5);
+  justify-content: center; align-items: center;
+}
+
+.modal-content {
+  background:white;
+  padding:25px;
+  border-radius:10px;
+  text-align:center;
+  min-width: 280px;
+}
+
+.modal-content h3 { font-size: 22px; margin-bottom: 15px; }
+.modal-content div { font-size: 20px; margin-bottom: 15px; }
+#compass-value { font-weight: bold; font-size: 28px; }
+</style>
+</head>
+<body>
+
+<h2>WindMap + 補正風向アプリ v3.7.1</h2>
+
+<div>
+  <p>現在地A点: <span id="current-pos">未設定</span></p>
+  <button id="set-current-btn">現在地Aを設定</button>
+</div>
+
+<div>
+  <label>目標物選択:</label>
+  <select id="target-select">
+    <option value="gushikawa">具志川火力発電所</option>
+    <option value="kin">金武火力発電所</option>
+    <option value="kujira">くじらのしっぽ</option>
+    <option value="ayashi">海の駅あやはし</option>
+    <option value="heianza">平安座海中大橋</option>
+    <option value="north">地図上の北</option>
+  </select>
+</div>
+
+<button id="set-target-btn">目標物方位Tをセット</button>
+<button id="set-wind-btn-main">風向Hをセット</button>
+<button id="calc-btn">補正風向を計算</button>
+
+<div id="output">
+  <p>目標物方位T: <span id="t-value">未設定</span></p>
+  <p>風向H: <span id="h-value">未設定</span></p>
+  <p>補正風向: <span id="corrected">未計算</span></p>
+  <p>目標物方位誤差: <span id="t-error">未計算</span></p>
+</div>
+
+<!-- コンパスモーダル -->
+<div id="compass-modal" class="modal">
+  <div class="modal-content">
+    <h3>端末を向けて設定</h3>
+    <div>方位: <span id="compass-value">0°</span></div>
+    <button id="confirm-btn">設定</button>
+    <button id="close-modal-btn">閉じる</button>
+  </div>
+</div>
+
+<script>
+// ----- 現在地A取得 -----
+let currentPos = null;
+const currentPosSpan = document.getElementById('current-pos');
+
+function getCurrentPosition(callback) {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition((pos) => {
+      callback({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+    }, (err) => { alert('GPS取得エラー: ' + err.message); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 });
+  } else alert('GPS非対応');
+}
+
+document.getElementById('set-current-btn').addEventListener('click', () => {
+  getCurrentPosition((pos) => {
+    currentPos = pos;
+    currentPosSpan.textContent = `緯度: ${currentPos.lat.toFixed(5)}, 経度: ${currentPos.lng.toFixed(5)}`;
+    console.log('現在地A:', currentPos);
+  });
+});
+
+// ----- 目標物座標 -----
+const targets = {
+  gushikawa: { lat: 26.34500, lng: 127.87300 },
+  kin: { lat: 26.45000, lng: 127.87000 },
+  kujira: { lat: 26.38000, lng: 127.90000 },
+  ayashi: { lat: 26.38000, lng: 127.96000 },
+  heianza: { lat: 26.39500, lng: 127.97000 }
+};
+
+// ----- コンパスモーダル -----
+let liveHeading = 0;
+let orientationHandler = null;
+let confirmCallback = null;
+const modal = document.getElementById('compass-modal');
+const compassSpan = document.getElementById('compass-value');
+
+function openCompassModal(callback) {
+  confirmCallback = callback;
+  modal.style.display = 'flex';
+  startCompass();
+}
+
+document.getElementById('close-modal-btn').addEventListener('click', () => { modal.style.display = 'none'; stopCompass(); });
+document.getElementById('confirm-btn').addEventListener('click', () => { if (confirmCallback) confirmCallback(liveHeading); modal.style.display='none'; stopCompass(); });
+
+function startCompass() {
+  orientationHandler = (event) => {
+    let alpha = event.alpha;
+    if (typeof event.webkitCompassHeading === 'number') alpha = event.webkitCompassHeading;
+    if (alpha != null) { liveHeading = Math.round(alpha); compassSpan.textContent = liveHeading + '°'; }
+  }
+
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(state => { if(state==='granted') window.addEventListener('deviceorientation', orientationHandler); }).catch(console.error);
+  } else window.addEventListener('deviceorientation', orientationHandler);
+}
+
+function stopCompass() { if (orientationHandler) { window.removeEventListener('deviceorientation', orientationHandler); orientationHandler = null; } }
+
+// ----- 方位と風向 -----
+let targetHeading = null;
+let windHeading = null;
+
+document.getElementById('set-target-btn').addEventListener('click', () => {
+  if (!currentPos) { alert('まず現在地Aを設定してください'); return; }
+  openCompassModal((heading) => {
+    targetHeading = heading;
+    document.getElementById('t-value').textContent = targetHeading + '°';
+    const targetKey = document.getElementById('target-select').value;
+    let mapBearing = targetKey==="north"?0:calcBearing(currentPos, targets[targetKey]);
+    const error = ((targetHeading - mapBearing + 540) % 360) - 180;
+    document.getElementById('t-error').textContent = error.toFixed(0) + '°';
+    console.log('目標物方位T:', targetHeading, '地図上方位:', mapBearing, '誤差:', error);
+  });
+});
+
+document.getElementById('set-wind-btn-main').addEventListener('click', () => {
+  if (!currentPos) { alert('まず現在地Aを設定してください'); return; }
+  openCompassModal((heading) => {
+    windHeading = heading;
+    document.getElementById('h-value').textContent = windHeading + '°';
+    console.log('風向H:', windHeading);
+  });
+});
+
+// ----- 補正計算 -----
+function calcBearing(from, to) {
+  const φ1 = from.lat*Math.PI/180, φ2 = to.lat*Math.PI/180;
+  const λ1 = from.lng*Math.PI/180, λ2 = to.lng*Math.PI/180;
+  const y = Math.sin(λ2-λ1)*Math.cos(φ2);
+  const x = Math.cos(φ1)*Math.sin(φ2)-Math.sin(φ1)*Math.cos(φ2)*Math.cos(λ2-λ1);
+  let θ = Math.atan2(y,x)*180/Math.PI;
+  return (θ+360)%360;
+}
+
+document.getElementById('calc-btn').addEventListener('click', () => {
+  if(!currentPos || targetHeading==null || windHeading==null){ alert('現在地A・目標物方位・風向をすべて設定してください'); return; }
+  const targetKey = document.getElementById('target-select').value;
+  const mapBearing = targetKey==="north"?0:calcBearing(currentPos, targets[targetKey]);
+  const corrected = (windHeading - (targetHeading - mapBearing) + 360)%360;
+  document.getElementById('corrected').textContent = corrected.toFixed(0)+'°';
+  console.log('地図上方位:', mapBearing, '補正風向:', corrected);
+  
+  // ここで windmap の風向変数に反映可能（例: windHeadingMap = corrected;）
+});
+</script>
+
+</body>
+</html>
