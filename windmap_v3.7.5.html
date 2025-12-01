@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WindMap 統合 v3.7.5</title>
+<style>
+  body { font-family: sans-serif; padding: 12px; font-size: 18px; -webkit-font-smoothing:antialiased; background:#f6f8fb; color:#222 }
+  h1 { font-size:20px; margin:0 0 8px; }
+  .panel { background:#fff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.06); margin-bottom:12px; }
+  .row{ margin-bottom:10px; }
+  label { font-weight:600; margin-right:6px; }
+  button {
+    display:inline-block;
+    margin:6px 6px 6px 0;
+    font-size:18px;
+    padding:10px 16px;
+    border-radius:8px;
+    cursor:pointer;
+    background:#1976d2; color:#fff; border:0;
+  }
+  .secondary { background:#eee; color:#111; }
+  select, input[type="number"], input[type="text"] {
+    font-size:18px;
+    padding:8px 10px;
+    border-radius:8px;
+    border:1px solid #ddd;
+  }
+  #map { width:100%; height:480px; border-radius:10px; overflow:hidden; margin-top:8px; }
+  #output p { margin:6px 0; font-size:16px; }
+  .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:9999; }
+  .modal .content { background:#fff; padding:18px; border-radius:10px; text-align:center; min-width:260px; }
+  .modal h3 { font-size:20px; margin-bottom:8px; }
+  #compass-value { font-weight:700; font-size:28px; display:block; margin:6px 0 12px; }
+  .smallhint { font-size:13px; color:#666; margin-top:4px; }
+  table.info { width:100%; border-collapse:collapse; margin-top:8px; }
+  table.info td { padding:6px; border-bottom:1px solid #f0f0f0; font-size:16px; }
+  .full { width:100%; box-sizing:border-box; text-align:center; }
+  .btn-danger { background:#d32f2f; }
+  .inline { display:inline-block; vertical-align:middle; }
+</style>
+</head>
+<body>
+<h1>WindMap 統合 v3.7.5</h1>
+
+<div class="panel" id="controls">
+  <div class="row">
+    <div>現在地A: <span id="current-pos">未設定</span></div>
+    <button id="set-current-btn" class="full">現在地Aを設定</button>
+    <div class="smallhint">ボタン押下でその瞬間のGPSをA点に設定します。地図上の点はA,B,C…をタップで追加します。</div>
+  </div>
+
+  <div class="row">
+    <label>目標物:</label>
+    <select id="target-select">
+      <option value="gushikawa">具志川火力発電所</option>
+      <option value="kin">金武火力発電所</option>
+      <option value="kujira">くじらのしっぽ</option>
+      <option value="ayashi">海の駅あやはし</option>
+      <option value="heianza">平安座海中大橋</option>
+      <option value="maptap">地図上をタップして選択</option>
+      <option value="north">地図上の北（真北）</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <button id="set-target-btn">目標物方位Tをセット（コンパス）</button>
+    <button id="set-wind-btn-main">風向Hをセット（コンパス）</button>
+    <button id="calc-btn">補正風向を計算＆反映</button>
+    <button id="set-wind-from-corrected" class="secondary">WindMap に補正風向をセット</button>
+  </div>
+
+  <div id="output" class="row">
+    <p>目標物方位T: <strong id="t-value">未設定</strong></p>
+    <p>風向H: <strong id="h-value">未設定</strong></p>
+    <p>補正風向（地図基準）: <strong id="corrected">未計算</strong></p>
+    <p>目標物方位誤差: <strong id="t-error">未計算</strong></p>
+    <p>windmap 風向変数: <strong id="windmap-var">未設定</strong></p>
+  </div>
+
+  <div class="row">
+    <div class="smallhint">マップ上でクリック（タップ）するとコース点が追加されます。目標物選択で「地図上をタップして選択」を選ぶと、タップした地点が目標になります。</div>
+  </div>
+</div>
+
+<!-- モーダル（コンパス） -->
+<div id="compass-modal" class="modal" aria-hidden="true">
+  <div class="content">
+    <h3>端末を向けて設定</h3>
+    <div>方位: <span id="compass-value">0°</span></div>
+    <div style="margin-top:10px;">
+      <button id="confirm-btn">設定</button>
+      <button id="close-modal-btn" class="secondary">閉じる</button>
+    </div>
+    <div class="smallhint">スマホの場合は許可ダイアログが出ます。許可してください。</div>
+  </div>
+</div>
+
+<!-- マップ -->
+<div id="map">読み込み中…</div>
+
+<!-- Google Maps API （既存キーをそのまま使ってください） -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB4tqxDKadoSP8XTNwzOGXwh9BprCiR9Zs"></script>
+
+<script>
+/*
+  WindMap 統合 v3.7.5
+  - windmap_v3.3.1k の機能を踏襲しつつ、補正風向を統合しました
+  - windmapWindHeading に補正風向が入ります（deg）
+  - マップ上で A/B/C/D/E を追加、距離・方位を表示、コースを描画します
+*/
+
+/* ---------- プリセット目標 ---------- */
+const targets = {
+  gushikawa: { lat: 26.34500, lng: 127.87300, name:'具志川火力発電所' },
+  kin: { lat: 26.45000, lng: 127.87000, name:'金武火力発電所' },
+  kujira: { lat: 26.38000, lng: 127.90000, name:'くじらのしっぽ' },
+  ayashi: { lat: 26.38000, lng: 127.96000, name:'海の駅あやはし' },
+  heianza: { lat: 26.39500, lng: 127.97000, name:'平安座海中大橋' }
+};
+
+/* ---------- 状態 ---------- */
+let currentPos = null;      // A点
+let targetPos = null;       // 目標物位置（プリセットか地図タップ）
+let targetHeading = null;   // スマホで測ったT（deg）
+let windHeading = null;     // スマホで測ったH（deg）
+let correctedHeading = null;// 補正風向（deg）
+let windmapWindHeading = null; // windmap 用風向（deg）
+
+/* ---------- DOM ---------- */
+const currentPosSpan = document.getElementById('current-pos');
+const tValueSpan = document.getElementById('t-value');
+const hValueSpan = document.getElementById('h-value');
+const correctedSpan = document.getElementById('corrected');
+const terrorSpan = document.getElementById('t-error');
+const windmapVarSpan = document.getElementById('windmap-var');
+
+const targetSelect = document.getElementById('target-select');
+const setCurrentBtn = document.getElementById('set-current-btn');
+const setTargetBtn = document.getElementById('set-target-btn');
+const setWindBtn = document.getElementById('set-wind-btn-main');
+const calcBtn = document.getElementById('calc-btn');
+const setWindFromCorrectedBtn = document.getElementById('set-wind-from-corrected');
+
+/* ---------- マップ関連 ---------- */
+let map, currentMarker = null, targetMarker = null;
+let courseMarkers = []; // A..E マーカー群（任意の数に対応）
+let coursePath = null;
+let windArrowMarker = null;
+
+function initMap() {
+  map = new google.maps.Map(document.getElementById('map'), {
+    center: { lat: 26.38, lng: 127.93 },
+    zoom: 12,
+    mapTypeId: 'hybrid',
+    streetViewControl: false
+  });
+
+  coursePath = new google.maps.Polyline({
+    path: [],
+    geodesic: true,
+    strokeColor: '#1976d2',
+    strokeOpacity: 0.9,
+    strokeWeight: 3,
+  });
+  coursePath.setMap(map);
+
+  map.addListener('click', (e) => {
+    const sel = targetSelect.value;
+    if (sel === 'maptap') {
+      setTargetPositionFromMap(e.latLng);
+    } else {
+      addCoursePoint(e.latLng);
+    }
+  });
+}
+
+function setTargetPositionFromMap(latLng) {
+  targetPos = { lat: latLng.lat(), lng: latLng.lng() };
+  if (!targetMarker) {
+    targetMarker = new google.maps.Marker({ position: latLng, map: map, title: '目標物(T)', icon: { path: google.maps.SymbolPath.BACKWARD_OPEN_ARROW, scale:6, fillColor:'#f00', fillOpacity:1, strokeWeight:1 }});
+  } else {
+    targetMarker.setPosition(latLng);
+  }
+  map.panTo(latLng);
+  alert('地図上で目標を設定しました');
+}
+
+/* コース点追加 */
+function addCoursePoint(latLng) {
+  const marker = new google.maps.Marker({
+    position: latLng,
+    map: map,
+    draggable: true,
+    title: 'コース点',
+  });
+  marker.addListener('dragend', () => updateCoursePath());
+  courseMarkers.push(marker);
+  updateCoursePath();
+}
+
+/* コース経路を更新 */
+function updateCoursePath() {
+  const path = courseMarkers.map(m => m.getPosition());
+  coursePath.setPath(path);
+}
+
+/* 現在地マーカー */
+function placeCurrentMarker() {
+  if (!currentPos) return;
+  const pos = new google.maps.LatLng(currentPos.lat, currentPos.lng);
+  if (!currentMarker) {
+    currentMarker = new google.maps.Marker({ position: pos, map: map, title: '現在地A', icon:{ path: google.maps.SymbolPath.CIRCLE, scale:7, fillColor:'#0066cc', fillOpacity:1, strokeWeight:1 }});
+  } else {
+    currentMarker.setPosition(pos);
+  }
+}
+
+/* 風向矢印（マップ上） */
+function makeArrowIcon(angleDeg) {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="-40 -40 80 80">
+      <g transform="rotate(${angleDeg})">
+        <path d="M0,-28 L8,-12 L3,-12 L3,28 L-3,28 L-3,-12 L-8,-12 Z" fill="#ff5722" stroke="#b33" stroke-width="1"/>
+        <circle cx="0" cy="0" r="2" fill="#b33"/>
+      </g>
+    </svg>`;
+  return {
+    url: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg),
+    anchor: new google.maps.Point(40,40),
+    scaledSize: new google.maps.Size(40,40)
+  };
+}
+
+function showWindArrow(heading) {
+  if (!currentPos) return;
+  const pos = new google.maps.LatLng(currentPos.lat, currentPos.lng);
+  if (!windArrowMarker) {
+    windArrowMarker = new google.maps.Marker({
+      map: map,
+      position: pos,
+      icon: makeArrowIcon(-heading + 90),
+      zIndex: 9999
+    });
+  } else {
+    windArrowMarker.setPosition(pos);
+    windArrowMarker.setIcon(makeArrowIcon(-heading + 90));
+  }
+}
+
+/* ---------- 方位計算 ---------- */
+function calcBearing(from, to) {
+  const φ1 = from.lat * Math.PI / 180;
+  const φ2 = to.lat * Math.PI / 180;
+  const λ1 = from.lng * Math.PI / 180;
+  const λ2 = to.lng * Math.PI / 180;
+  const y = Math.sin(λ2 - λ1) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(λ2 - λ1);
+  let θ = Math.atan2(y, x) * 180 / Math.PI;
+  return (θ + 360) % 360;
+}
+
+/* ---------- コンパスモーダル（測定） ---------- */
+let liveHeading = 0;
+let orientationHandler = null;
+let confirmCallback = null;
+const modal = document.getElementById('compass-modal');
+const compassValue = document.getElementById('compass-value');
+
+function openCompassModal(callback) {
+  confirmCallback = callback;
+  modal.style.display = 'flex';
+  modal.setAttribute('aria-hidden', 'false');
+  startCompass();
+}
+
+document.getElementById('close-modal-btn').addEventListener('click', ()=>{ modal.style.display='none'; modal.setAttribute('aria-hidden','true'); stopCompass(); });
+document.getElementById('confirm-btn').addEventListener('click', ()=>{ if(confirmCallback) confirmCallback(liveHeading); modal.style.display='none'; modal.setAttribute('aria-hidden','true'); stopCompass(); });
+
+function startCompass() {
+  orientationHandler = (e) => {
+    let alpha = e.alpha;
+    if (typeof e.webkitCompassHeading === 'number') alpha = e.webkitCompassHeading;
+    if (alpha != null) {
+      liveHeading = Math.round(alpha);
+      compassValue.textContent = liveHeading + '°';
+    }
+  };
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(state => { if (state === 'granted') window.addEventListener('deviceorientation', orientationHandler); }).catch(err => { console.error(err); alert('コンパス許可が必要です'); });
+  } else {
+    window.addEventListener('deviceorientation', orientationHandler);
+  }
+}
+function stopCompass() {
+  if (orientationHandler) { window.removeEventListener('deviceorientation', orientationHandler); orientationHandler = null; }
+}
+
+/* ---------- GPS（現在地Aを1回取得） ---------- */
+function getCurrentPositionOnce(callback) {
+  if (!navigator.geolocation) { alert('GPS非対応'); return; }
+  navigator.geolocation.getCurrentPosition((pos) => {
+    callback({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+  }, (err) => { alert('GPS取得エラー: ' + err.message); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 });
+}
+
+setCurrentBtn.addEventListener('click', () => {
+  getCurrentPositionOnce((pos) => {
+    currentPos = pos;
+    currentPosSpan.textContent = `緯度:${currentPos.lat.toFixed(5)} 経度:${currentPos.lng.toFixed(5)}`;
+    placeCurrentMarker();
+    map.panTo(currentPos);
+  });
+});
+
+/* ---------- 目標方位T・風向Hの取得 ---------- */
+setTargetBtn.addEventListener('click', () => {
+  if (!currentPos) { alert('まず現在地Aを設定してください'); return; }
+
+  const sel = targetSelect.value;
+  if (sel === 'maptap') {
+    if (!targetPos) { alert('地図上をタップして目標位置を選択してください'); return; }
+    // show marker already set in setTargetPositionFromMap
+  } else if (sel === 'north') {
+    targetPos = null; // special: true north handled separately
+  } else {
+    targetPos = targets[sel];
+    // show or move target marker
+    const pos = new google.maps.LatLng(targetPos.lat, targetPos.lng);
+    if (!targetMarker) {
+      targetMarker = new google.maps.Marker({ position: pos, map: map, title: targets[sel].name });
+    } else {
+      targetMarker.setPosition(pos);
+    }
+    map.panTo(pos);
+  }
+
+  openCompassModal((heading) => {
+    targetHeading = heading;
+    tValueSpan.textContent = targetHeading + '°';
+
+    // compute map bearing
+    let mapBearing = null;
+    if (targetSelect.value === 'north') {
+      mapBearing = 0;
+    } else if (targetPos) {
+      mapBearing = calcBearing(currentPos, targetPos);
+    }
+    if (mapBearing != null) {
+      const error = ((targetHeading - mapBearing + 540) % 360) - 180;
+      terrorSpan.textContent = error.toFixed(0) + '°';
+    } else {
+      terrorSpan.textContent = '未設定';
+    }
+  });
+});
+
+setWindBtn.addEventListener('click', () => {
+  if (!currentPos) { alert('まず現在地Aを設定してください'); return; }
+  openCompassModal((heading) => {
+    windHeading = heading;
+    hValueSpan.textContent = windHeading + '°';
+  });
+});
+
+/* ---------- 補正計算と WindMap 反映 ---------- */
+calcBtn.addEventListener('click', () => {
+  if (!currentPos) { alert('現在地Aが未設定です'); return; }
+  if (targetHeading == null) { alert('目標方位Tを設定してください'); return; }
+  if (windHeading == null) { alert('風向Hを設定してください'); return; }
+
+  let mapBearing;
+  const sel = targetSelect.value;
+  if (sel === 'north') {
+    mapBearing = 0;
+  } else if (sel === 'maptap') {
+    if (!targetPos) { alert('地図上で目標をタップして設定してください'); return; }
+    mapBearing = calcBearing(currentPos, targetPos);
+  } else {
+    mapBearing = calcBearing(currentPos, targets[sel]);
+  }
+
+  correctedHeading = (windHeading - (targetHeading - mapBearing) + 360) % 360;
+  correctedSpan.textContent = correctedHeading.toFixed(0) + '°';
+  // update windmap var
+  windmapWindHeading = correctedHeading;
+  windmapVarSpan.textContent = windmapWindHeading.toFixed(0) + '°';
+  // show arrow
+  showWindArrow(windmapWindHeading);
+  alert('補正風向を WindMap に反映しました: ' + windmapWindHeading.toFixed(0) + '°');
+});
+
+/* ---------- WindMap 側に反映する（互換API） ---------- */
+/* 既存の windmap_v3.3.1k の関数や変数がある場合、このページに統合すれば
+   windmap の風向変数に windmapWindHeading を代入して使えます。
+   ここでは互換的に setWindDirectionOnWindmap を用意。 */
+window.setWindDirectionOnWindmap = function(h) {
+  if (typeof h !== 'number') return;
+  windmapWindHeading = (h + 360) % 360;
+  windmapVarSpan.textContent = windmapWindHeading.toFixed(0) + '°';
+  showWindArrow(windmapWindHeading);
+};
+
+/* 補助: WindMap に補正値を代入するボタン */
+setWindFromCorrectedBtn.addEventListener('click', () => {
+  if (correctedHeading == null) { alert('まず補正風向を計算してください'); return; }
+  window.setWindDirectionOnWindmap(correctedHeading);
+  alert('WindMap 風向を補正値に設定しました: ' + correctedHeading.toFixed(0) + '°');
+});
+
+/* ---------- 初期化 ---------- */
+window.addEventListener('load', () => {
+  initMap();
+});
+
+/* ---------- 外部参照用 API ---------- */
+window.getWindmapWindHeading = () => windmapWindHeading;
+window.getCorrectedHeading = () => correctedHeading;
+window.getTargetHeading = () => targetHeading;
+window.getWindHeading = () => windHeading;
+window.getCurrentPos = () => currentPos;
+
+</script>
+</body>
+</html>
