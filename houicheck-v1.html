@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>方位チェッカー（iPhone/Android対応）</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <style>
+    body{font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif; margin:0; padding:0}
+    header{padding:10px; background:#1976d2; color:white}
+    .wrap{display:grid; grid-template-columns:1fr; gap:8px; padding:10px}
+    #map{height:360px; border:1px solid #ccc}
+    .row{display:flex; gap:8px; flex-wrap:wrap}
+    button{padding:8px 12px; border-radius:6px; border:1px solid #ccc; background:white}
+    .info{background:#f6f6f6;padding:8px;border-radius:6px}
+    .big{font-weight:700}
+    label{display:block;font-size:0.9rem}
+    input[type=text]{padding:6px;border:1px solid #ccc;border-radius:6px;width:150px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1 style="margin:0;font-size:1.05rem">方位チェッカー（現在地A・目標T・スマホ方位・誤差）</h1>
+  </header>
+  <div class="wrap">
+    <div class="row">
+      <button id="btnSetA">① 現在位置A をセット（Geolocation）</button>
+      <button id="btnPickT">目標 T を地図で選択</button>
+      <button id="btnMeasurePhone">② スマホを目標に向けて方位を取得（デバイス向け）</button>
+      <button id="btnCalcBearing">③ 現在地A→T の方位を計算（地図基準）</button>
+      <button id="btnReset">リセット</button>
+    </div>
+
+    <div class="row">
+      <label>プリセット目標T:</label>
+      <button onclick="setPresetT(26.45576,127.98870,'金武火力発電所')">① 金武火力発電所</button>
+      <button onclick="setPresetT(26.34855,127.85740,'具志川火力発電所')">② 具志川火力発電所</button>
+      <button onclick="setPresetT(26.31096,127.91566,'道の駅あやはし')">③ 道の駅あやはし</button>
+      <span style="opacity:0.9;margin-left:8px">または地図をタップして選択</span>
+    </div>
+
+    <div class="row">
+      <div class="info">
+        <div>現在地 A: <span id="posA">未設定</span></div>
+        <div>目標 T: <span id="posT">未設定</span></div>
+        <div>スマホ検出方位（②）: <span id="phoneHeading">—</span>°</div>
+        <div>地図計算方位（③）: <span id="mapBearing">—</span>°</div>
+        <div class="big">誤差（②−③の差）: <span id="error">—</span>°</div>
+      </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="info">
+      <p>使い方:</p>
+      <ol>
+        <li>「現在位置Aをセット」を押して現在位置の許可を与えてください。</li>
+        <li>プリセットを押すか、地図をタップして目標Tを選択してください（タップ後自動でマーカーが置けます）。</li>
+        <li>スマホを目標に向けて「スマホを...取得」を押すと、端末の方位（コンパス）を取得します。iOSでは追加許可を求められます。</li>
+        <li>「現在地→Tの方位を計算」を押すと地図基準の方位が出て、誤差を表示します。</li>
+      </ol>
+      <p style="color:#a00">注意: ブラウザ・端末によってデバイス方位APIの挙動が異なります。iOS Safari/Chromeは別途デバイスモーション許可が必要です。また、正確さは端末のセンサーに依存します。</p>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // ---------- ユーティリティ ----------
+    function toDeg(rad){ return (rad * 180/Math.PI); }
+    function toRad(deg){ return (deg * Math.PI/180); }
+    function bearingBetween(lat1, lon1, lat2, lon2){
+      const φ1 = toRad(lat1), φ2 = toRad(lat2);
+      const Δλ = toRad(lon2 - lon1);
+      const y = Math.sin(Δλ) * Math.cos(φ2);
+      const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+      let θ = Math.atan2(y, x);
+      θ = (toDeg(θ) + 360) % 360;
+      return Number(θ.toFixed(2));
+    }
+    function angleDiff(a, b){ let d = (a - b + 540) % 360 - 180; return Number(d.toFixed(2)); }
+
+    // ---------- 状態 ----------
+    let posA = null; let posT = null; let phoneHeading = null;
+    const el = id => document.getElementById(id);
+
+    // ---------- Leaflet map (初期: 沖縄 全域 zoom 10) ----------
+    const map = L.map('map').setView([26.5,127.9], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+    const markerA = L.marker([0,0],{opacity:0}).addTo(map);
+    const markerT = L.marker([0,0],{opacity:0}).addTo(map);
+
+    // 地図クリックで目標Tを設定
+    let pickingT = false;
+    document.getElementById('btnPickT').addEventListener('click', ()=>{ pickingT = true; alert('地図上をタップして目標Tを選択してください'); });
+    map.on('click', function(e){ if(!pickingT) return; pickingT = false; setT(e.latlng.lat, e.latlng.lng, '地図選択'); });
+
+    // プリセット設定関数
+    function setPresetT(lat,lng,name){ setT(lat,lng,name); map.setView([lat,lng], 14); }
+
+    function setT(lat,lng,name){ posT = {lat:lat, lng:lng, name:name}; markerT.setLatLng([lat,lng]).setOpacity(1).bindPopup(name).openPopup(); el('posT').textContent = name + ' ('+lat.toFixed(6)+', '+lng.toFixed(6)+')'; updateCalculations(); }
+
+    // 現在地Aをセット
+    document.getElementById('btnSetA').addEventListener('click', ()=>{
+      if(!navigator.geolocation){ alert('Geolocation が利用できません'); return; }
+      navigator.geolocation.getCurrentPosition(pos=>{
+        posA = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+        markerA.setLatLng([posA.lat,posA.lng]).setOpacity(1).bindPopup('現在地 A').openPopup();
+        el('posA').textContent = posA.lat.toFixed(6) + ', ' + posA.lng.toFixed(6);
+        map.setView([posA.lat,posA.lng], 15);
+        updateCalculations();
+      }, err=>{ alert('位置情報取得に失敗しました: ' + err.message); }, {enableHighAccuracy:true, maximumAge:10000});
+    });
+
+    // スマホ方位の取得（iOS 対応: requestPermission）
+    async function enableDeviceOrientation(){
+      if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+        try{ const p = await DeviceOrientationEvent.requestPermission(); if(p !== 'granted') throw new Error('permission denied'); }
+        catch(e){ alert('デバイス方位の許可が必要です。iOS の場合、許可を与えてください。'); throw e; }
+      }
+    }
+
+    let orientationHandler = null;
+    document.getElementById('btnMeasurePhone').addEventListener('click', async ()=>{
+      try{
+        await enableDeviceOrientation();
+      }catch(e){ return; }
+
+      if(orientationHandler) window.removeEventListener('deviceorientationabsolute', orientationHandler);
+      orientationHandler = function(ev){
+        // できるだけ absolute な値を使う
+        let heading = null;
+        if(ev.absolute === true && ev.alpha !== null){
+          // alpha is rotation around z axis (0..360) relative to device reference frame
+          // Many browsers give alpha relative to north when absolute=true
+          heading = 360 - ev.alpha; // convert to clockwise from north
+        } else if(ev.webkitCompassHeading){
+          heading = ev.webkitCompassHeading; // iOS Safari
+        } else if(ev.alpha !== null){
+          heading = 360 - ev.alpha; // fallback
+        }
+        if(heading !== null){
+          heading = (heading + 360) % 360;
+          phoneHeading = Number(heading.toFixed(2));
+          el('phoneHeading').textContent = phoneHeading;
+          updateCalculations();
+        }
+      };
+
+      // try deviceorientationabsolute first, then deviceorientation
+      window.addEventListener('deviceorientationabsolute', orientationHandler);
+      window.addEventListener('deviceorientation', orientationHandler);
+      alert('方位の取得を開始しました。スマホを目標に向けて実際の向きを保持してください。取得は数秒かかる場合があります。');
+    });
+
+    // 現在地->T 方位計算
+    document.getElementById('btnCalcBearing').addEventListener('click', ()=>{
+      if(!posA){ alert('現在地 A を先にセットしてください'); return; }
+      if(!posT){ alert('目標 T を先にセットしてください'); return; }
+      const b = bearingBetween(posA.lat,posA.lng,posT.lat,posT.lng);
+      el('mapBearing').textContent = b;
+      updateCalculations();
+    });
+
+    function updateCalculations(){
+      if(posA && posT){ const b = bearingBetween(posA.lat,posA.lng,posT.lat,posT.lng); el('mapBearing').textContent = b; }
+      if(phoneHeading !== null && el('mapBearing').textContent !== '—'){
+        const mb = Number(el('mapBearing').textContent);
+        const diff = angleDiff(phoneHeading, mb);
+        el('error').textContent = diff + '°';
+      }
+    }
+
+    // リセット
+    document.getElementById('btnReset').addEventListener('click', ()=>{
+      posA = posT = phoneHeading = null;
+      markerA.setOpacity(0); markerT.setOpacity(0);
+      el('posA').textContent = '未設定'; el('posT').textContent = '未設定'; el('phoneHeading').textContent = '—'; el('mapBearing').textContent = '—'; el('error').textContent = '—';
+      alert('リセットしました');
+    });
+
+    // ユーザーがページを離れた時はイベントを外す
+    window.addEventListener('beforeunload', ()=>{ if(orientationHandler) window.removeEventListener('deviceorientationabsolute', orientationHandler); });
+  </script>
+</body>
+</html>
