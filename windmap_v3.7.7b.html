@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WindMap v3.7.7 修正版</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.5/dist/leaflet.css"/>
+<style>
+body { font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue"; margin:0; padding:0; }
+section { padding:10px; background:#f2f2f2; }
+button, select { font-size:20px; padding:12px 18px; margin:6px 0; width:100%; border-radius:10px; border:1px solid #444;}
+#map { width:100%; height:400px; }
+.modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); justify-content:center; align-items:center; }
+.modal-content { background:white; padding:20px; border-radius:15px; text-align:center; font-size:22px; min-width:250px;}
+</style>
+</head>
+<body>
+
+<section>
+  <button id="setA">現在地Aをセット</button>
+
+  <label for="targetSelect">目標物選択:</label>
+  <select id="targetSelect">
+    <option value="">選択してください</option>
+    <option value="northMap">地図上の北</option>
+    <option value="northMag">磁北（コンパス）</option>
+    <option value="gushikawa">具志川火力発電所</option>
+    <option value="kin">金武火力発電所</option>
+    <option value="kujira">くじらのしっぽ</option>
+    <option value="ayashi">海の駅あやはし</option>
+    <option value="heianza">平安座海中大橋</option>
+  </select>
+
+  <button id="setTargetHeading">目標方位Tをセット</button>
+  <button id="setWindHeading">風向Hをセット</button>
+  <button id="calcHeading">補正風向を計算</button>
+
+  <h3 style="text-align:center;">目標方位T: <span id="tValue">--</span>°</h3>
+  <h3 style="text-align:center;">風向H: <span id="hValue">--</span>°</h3>
+  <h3 style="text-align:center;">補正風向: <span id="corrected">--</span>°</h3>
+</section>
+
+<div id="map"></div>
+
+<!-- モーダル -->
+<div id="compassModal" class="modal">
+  <div class="modal-content">
+    <h3>スマホをゆっくり動かしてください</h3>
+    <p>現在方位: <span id="compassValue">--</span>°</p>
+    <button id="lockHeading">この方位で設定</button>
+    <button id="closeModal">閉じる</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.5/dist/leaflet.js"></script>
+<script>
+// ===== GPS 現在地 =====
+let A = {lat:null, lng:null};
+document.getElementById("setA").onclick = () => {
+  navigator.geolocation.getCurrentPosition(pos=>{
+    A.lat = pos.coords.latitude;
+    A.lng = pos.coords.longitude;
+    alert("現在地Aをセットしました");
+  }, err=>alert("位置情報取得エラー:"+err.message), {enableHighAccuracy:true});
+};
+
+// ===== 目標物座標 =====
+const targets = {
+  gushikawa:{lat:26.345, lng:127.873},
+  kin:{lat:26.45, lng:127.87},
+  kujira:{lat:26.38, lng:127.9},
+  ayashi:{lat:26.38, lng:127.96},
+  heianza:{lat:26.395, lng:127.97}
+};
+
+// ===== マップ =====
+var map = L.map('map').setView([26.335,127.87],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18}).addTo(map);
+
+// ===== コンパスモーダル =====
+let modal = document.getElementById("compassModal");
+let currentHeading = 0;
+let orientationHandler=null;
+
+async function openCompass(setTargetFlag){
+  modal.style.display = "flex";
+  setTarget = setTargetFlag;
+
+  if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+    try{
+      const state = await DeviceOrientationEvent.requestPermission();
+      if(state!=='granted'){ alert("方位情報の取得が許可されませんでした"); return; }
+    }catch(e){ alert("方位取得エラー:"+e); return; }
+  }
+
+  orientationHandler = e=>{
+    let hdg = e.webkitCompassHeading || e.alpha;
+    if(hdg!=null){ 
+      currentHeading = Math.round(hdg);
+      document.getElementById("compassValue").innerText = currentHeading;
+    }
+  };
+  window.addEventListener("deviceorientation", orientationHandler);
+}
+
+document.getElementById("setTargetHeading").onclick = ()=>openCompass(true);
+document.getElementById("setWindHeading").onclick = ()=>openCompass(false);
+
+let targetHeading=null, windHeading=null, setTarget=false;
+
+document.getElementById("lockHeading").onclick = ()=>{
+  if(setTarget){ targetHeading=currentHeading; document.getElementById("tValue").innerText=targetHeading; }
+  else { windHeading=currentHeading; document.getElementById("hValue").innerText=windHeading; }
+  modal.style.display="none";
+  if(orientationHandler){ window.removeEventListener("deviceorientation", orientationHandler); orientationHandler=null; }
+};
+
+document.getElementById("closeModal").onclick = ()=>{
+  modal.style.display="none";
+  if(orientationHandler){ window.removeEventListener("deviceorientation", orientationHandler); orientationHandler=null; }
+};
+
+// ===== 補正計算 =====
+function calcBearing(from, to){
+  const φ1 = from.lat*Math.PI/180;
+  const φ2 = to.lat*Math.PI/180;
+  const λ1 = from.lng*Math.PI/180;
+  const λ2 = to.lng*Math.PI/180;
+  const y = Math.sin(λ2-λ1)*Math.cos(φ2);
+  const x = Math.cos(φ1)*Math.sin(φ2)-Math.sin(φ1)*Math.cos(φ2)*Math.cos(λ2-λ1);
+  let θ = Math.atan2(y,x)*180/Math.PI;
+  return (θ+360)%360;
+}
+
+document.getElementById("calcHeading").onclick = ()=>{
+  const tgtKey = document.getElementById("targetSelect").value;
+  if(!A.lat || !tgtKey){ alert("現在地Aと目標物を設定してください"); return; }
+  let mapBearing;
+  if(tgtKey==="northMap") mapBearing=0;
+  else if(tgtKey==="northMag") mapBearing=0;
+  else mapBearing=calcBearing(A, targets[tgtKey]);
+  if(targetHeading==null || windHeading==null){ alert("TとHを設定してください"); return; }
+  const corrected = (windHeading-(targetHeading-mapBearing)+360)%360;
+  document.getElementById("corrected").innerText = corrected.toFixed(0);
+};
+</script>
+</body>
+</html>
