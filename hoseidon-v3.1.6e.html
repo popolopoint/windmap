@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>hoseidon-v3.1.6e-真の風向補正どんH</title>
+    <style>
+        /* =======================================================
+           v3.1.6: ボタンとタイトル以外の文字サイズを約2倍に調整
+           ======================================================= */
+        body { 
+            font-size: 250%; /* 基準サイズをv3.1.4の250%に戻す */
+            margin: 10px;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        #map { height: 65vh; width: 100%; margin-top: 20px; }
+        
+        /* ★★★ 1. バージョン情報 (タイトル以外の文字を拡大) ★★★ */
+        .version-info {
+            font-size: 0.8em; /* 以前の 0.4em から2倍に拡大 */
+            font-weight: normal;
+            color: #666;
+            margin-left: 10px;
+        }
+        
+        /* ★★★ 2. B点選択のラベル文字 (拡大) ★★★ */
+        #bPointSelection {
+            font-size: 1.2em; /* 以前の 0.4em から2倍に拡大 */
+            margin-bottom: 30px;
+        }
+
+        /* -------------------------------------------------------
+           ボタンのスタイル (サイズ維持)
+           ------------------------------------------------------- */
+        /* ボタンの共通スタイル */
+        #setLocationButton, #captureHeadingButton, #startCompassButton, #captureWindHButton, #copyWindHButton, #sendWindHButton { 
+            padding: 20px 30px; 
+            font-size: 1.8em; /* サイズは維持 */
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            margin-bottom: 20px; 
+            
+            display: block; 
+            width: 90%;     
+            margin-left: auto; 
+            margin-right: auto;
+            text-align: center;
+        }
+
+
+
+
+
+/* ラジオボタンを含むラベル全体の設定 */
+#bPointSelection label {
+    display: flex;
+    align-items: center;    /* 縦方向の中央揃え */
+    font-size: 1.0em;       /* 文字サイズ */
+    margin-bottom: 30px;    /* 選択肢間の余白（重なり防止） */
+    cursor: pointer;
+    line-height: 1.2;       /* 行の高さを安定させる */
+}
+
+/* ラジオボタン（3倍サイズ）の調整 */
+#bPointSelection input[type="radio"] {
+    transform: scale(3.0);
+    transform-origin: center; /* 拡大の基準を中心に設定 */
+    margin-right: 35px;      /* 右側の文字との間隔 */
+    margin-left: 20px;       /* 左側の余白 */
+    
+    /* 下寄せを解消するための微調整 */
+    vertical-align: middle; 
+    position: relative;
+    top: -2px;               /* 拡大による見た目のズレを数ピクセル単位で微調整 */
+}
+
+
+        /* 個別ボタンのカラフルな色設定 (変更なし) */
+        #setLocationButton { background-color: #d9534f; color: white; } 
+        #startCompassButton { background-color: #ffc107; color: black; } 
+        #captureHeadingButton { background-color: #28a745; color: white; } 
+        #captureWindHButton { background-color: #5e2b97; color: white; } 
+        #copyWindHButton { background-color: #e83e8c; color: white; } 
+        #sendWindHButton { background-color: #6610f2; color: white; } 
+
+        /* -------------------------------------------------------
+           結果表示窓のスタイル (拡大)
+           ------------------------------------------------------- */
+        #result { 
+            margin-top: 20px; padding: 20px; border: 1px solid #007bff; 
+            background-color: #e9f5ff; border-radius: 5px; 
+            font-size: 0.8em; /* 以前の 0.4em から2倍に拡大 */
+            margin-bottom: 20px;
+        }
+        #result h3 { color: #007bff; font-size: 1.0em; } 
+        
+        /* センサー窓と風向H窓のコンテナ */
+        #sensorContainer { display: flex; gap: 20px; margin-top: 20px; margin-bottom: 20px; }
+
+        /* センサー窓のスタイル (拡大) */
+        #compassWindow {
+            flex: 1;
+            padding: 20px;
+            border: 2px solid #5cb85c;
+            background-color: #f0fff0;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 1.0em; /* 以前の 0.8em から2倍に拡大 */
+        }
+        
+        /* 風向H表示窓のスタイル (拡大) */
+        #windHWindow {
+            flex: 1;
+            padding: 20px;
+            border: 2px solid #000;
+            background-color: #f7f7f7;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 1.0em; /* 以前の 0.8em から2倍に拡大 */
+        }
+        
+        /* リアルタイム方位 (未補正) */
+        #headingRealtime { 
+            font-size: 1.5em;
+            color: #4CAF50; font-weight: bold; 
+        }
+        /* リアルタイム方位 (補正済み) */
+        #headingCorrected { 
+            font-size: 1.5em; 
+            color: #007bff; font-weight: bold; margin-top: 5px; 
+        }
+        #recordedErrorDisplay { font-weight: bold; color: #FF6347; }
+        
+        /* 風向Hの最終結果表示スタイル */
+        #windHResultDisplay {
+            font-size: 1.5em; 
+            color: #d9534f;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        /* ------------------------------------------------------- */
+
+
+
+/* 「A点とB点を設定後…」のテキストを2倍にする */
+.initial-prompt {
+    font-size: 1.5em;    /* 2倍の大きさ */
+    font-weight: bold;   /* 太字にする */
+    line-height: 1.5;    /* 行間を広げて読みやすくする */
+    color: #333;         /* 文字色を少し濃くする */
+    margin: 20px 0;      /* 上下に余白を作る */
+}
+
+/* 太字部分（**コンパス誤差を記録**）をさらに強調する場合 */
+.initial-prompt strong {
+    color: #ff0000;      /* ここだけ赤色にする */
+    text-decoration: underline; /* 下線を引く */
+}
+
+
+
+
+
+
+    </style>
+</head>
+<body>
+    <h1>
+        真の風向補正どんH
+        <span class="version-info">(hoseidon-v3.1.6e) by Popolo</span>
+    </h1>
+
+    <button id="setLocationButton">現在位置をA点に</button>
+    
+    <div id="bPointSelection">
+        <strong>B点 (目的地) の選択:</strong>
+
+
+
+        <label><input type="radio" name="b_option" value="kinjo" checked> 金武火力発電所</label>
+        <label><input type="radio" name="b_option" value="gushikawa"> 具志川火力発電所</label>
+        <label><input type="radio" name="b_option" value="tap"> 地図上でタップ</label>
+    </div>
+   
+
+
+<p id="bTapInstruction" style="display:none; color: red; font-weight: bold;">**地図をタップしてB点を設定してください**</p>
+
+    <div id="result">
+        <p class="initial-prompt">
+
+
+A点とB点を設定後、「方位決定」でコンパス誤差を記録</p>
+    </div>
+
+
+
+
+
+    <button id="startCompassButton">方位センサーを開始</button>
+    <button id="captureHeadingButton" disabled>B点にスマホを向けタップ</button>
+    
+    <button id="captureWindHButton" disabled>風向Hにスマホを向けタップ</button>
+    
+    <button id="copyWindHButton" disabled>真の風向Hをコピー</button>
+    <button id="sendWindHButton" disabled>真の風向Hを送る</button>
+    
+
+    <div id="sensorContainer">
+        <div id="compassWindow">
+            <strong>リアルタイム方位 (未補正 / 補正済み)</strong>
+            <p id="headingRealtime">--</p>
+            <p id="headingCorrected">---</p>
+            <p style="font-size: 1.0em; margin-top: 10px;">
+                **記録された誤差**: <span id="recordedErrorDisplay">未記録</span>
+            </p>
+            <p style="font-size: 1.0em;" id="compassStatus">センサーは停止中です。</p>
+        </div>
+
+        <div id="windHWindow">
+            <strong>🎯 補正済み 風向H (真方位)</strong>
+            <p id="windHResultDisplay">---</p>
+            <p style="font-size: 1.0em;">
+                （「風向Hを取得」ボタンを押すと表示されます）
+            </p>
+        </div>
+    </div>
+
+
+    <div id="map"></div>
+
+    <script>
+        const API_KEY = "AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk"; 
+
+        const B_POINTS = { kinjo: { lat: 26.4454055, lng: 127.9209787, name: "金武火力発電所 (B点)" },
+            gushikawa: { lat: 26.3803176, lng: 127.8751869, name: "具志川火力発電所 (B点)" }
+        };
+        
+        let map;
+        let currentOriginA = null; 
+        let currentDestinationB = null;
+        let mapTapMode = false;
+        
+        let markerA = null;
+        let markerB = null;
+        let polyline = null;
+
+        let lastReadHeading = null; 
+        let isCompassRunning = false; 
+        let recordedError = null; 
+        let correctedWindHeadingResult = null; 
+
+
+        // --- センサー関連の関数 ---
+        
+        function toggleCompass() {
+            const statusDiv = document.getElementById('compassStatus');
+            const startButton = document.getElementById('startCompassButton');
+            const captureButton = document.getElementById('captureHeadingButton');
+            const windHButton = document.getElementById('captureWindHButton'); 
+            const copyButton = document.getElementById('copyWindHButton'); 
+            const sendButton = document.getElementById('sendWindHButton'); 
+
+            if (isCompassRunning) {
+                window.removeEventListener('deviceorientation', handleOrientation);
+                isCompassRunning = false;
+                startButton.textContent = '方位センサーを開始';
+                statusDiv.textContent = 'センサーは停止中です。';
+                captureButton.disabled = true;
+                windHButton.disabled = true; 
+                copyButton.disabled = true; 
+                sendButton.disabled = true; 
+                document.getElementById('headingRealtime').textContent = '--';
+                document.getElementById('headingCorrected').textContent = '---';
+            } else {
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    DeviceOrientationEvent.requestPermission()
+                        .then(permissionState => {
+                            if (permissionState === 'granted') {
+                                startSensorLogic(startButton, statusDiv, captureButton, windHButton, copyButton, sendButton);
+                            } else {
+                                statusDiv.textContent = 'センサー利用が拒否されました。設定を確認してください。';
+                            }
+                        })
+                        .catch(console.error);
+                } else {
+                    startSensorLogic(startButton, statusDiv, captureButton, windHButton, copyButton, sendButton);
+                }
+            }
+        }
+        
+        function startSensorLogic(startButton, statusDiv, captureButton, windHButton, copyButton, sendButton) {
+            window.addEventListener('deviceorientation', handleOrientation);
+            isCompassRunning = true;
+            startButton.textContent = '方位センサーを停止';
+            statusDiv.textContent = 'センサー稼働中。';
+            captureButton.disabled = false;
+            windHButton.disabled = false; 
+            
+            if (correctedWindHeadingResult === null) {
+                 copyButton.disabled = true;
+                 sendButton.disabled = true; 
+            } else {
+                 copyButton.disabled = false; 
+                 sendButton.disabled = false; 
+            }
+        }
+
+        function handleOrientation(event) {
+            if (event.alpha === null) return;
+            lastReadHeading = (360 - event.alpha + 360) % 360; 
+            
+            document.getElementById('headingRealtime').textContent = `${lastReadHeading.toFixed(1)}°`;
+            
+            if (recordedError !== null) {
+                let correctedHeading = lastReadHeading - recordedError;
+                correctedHeading = (correctedHeading % 360 + 360) % 360; 
+
+                document.getElementById('headingCorrected').textContent = `${correctedHeading.toFixed(1)}°`;
+                document.getElementById('compassStatus').textContent = `センサー稼働中（誤差 ${recordedError.toFixed(2)}° 補正済み）`;
+            } else {
+                document.getElementById('headingCorrected').textContent = '---';
+                document.getElementById('compassStatus').textContent = 'センサー稼働中（誤差未記録のため補正なし）';
+            }
+        }
+        
+        function captureWindHeading() {
+            const windHDisplay = document.getElementById('windHResultDisplay');
+            const copyButton = document.getElementById('copyWindHButton');
+            const sendButton = document.getElementById('sendWindHButton'); 
+
+            if (lastReadHeading === null || !isCompassRunning) {
+                windHDisplay.textContent = 'センサーを起動し、値を読み取ってください。';
+                copyButton.disabled = true;
+                sendButton.disabled = true;
+                return;
+            }
+            
+            const rawWindHeading = lastReadHeading;
+            
+            if (recordedError === null) {
+                windHDisplay.innerHTML = `誤差未記録: ${rawWindHeading.toFixed(1)}°<br> (補正なし)`;
+                document.getElementById('windHWindow').style.borderColor = 'red';
+                copyButton.disabled = true;
+                sendButton.disabled = true;
+                return;
+            }
+
+            let correctedWindHeading = rawWindHeading - recordedError;
+            correctedWindHeading = (correctedWindHeading % 360 + 360) % 360;
+
+            correctedWindHeadingResult = correctedWindHeading;
+            copyButton.disabled = false;
+            sendButton.disabled = false; 
+
+            windHDisplay.innerHTML = `${correctedWindHeading.toFixed(1)}°`;
+            document.getElementById('windHWindow').style.borderColor = '#007bff'; 
+            
+            document.getElementById('result').innerHTML = `
+                <h3>✅ 風向Hの方位取得完了</h3>
+
+
+
+
+
+
+                <p>未補正値: ${rawWindHeading.toFixed(1)}°</p>
+                <p>記録された誤差: ${recordedError.toFixed(2)}°</p>
+                <p><strong>真の風向H (補正後):</strong> <span style="font-size: 1.0em; color: #d9534f;">${correctedWindHeading.toFixed(1)}°</span></p>
+            `;
+        }
+        
+        function copyWindH() {
+            if (correctedWindHeadingResult === null) {
+                alert('先に「風向Hを取得」ボタンを押して方位を決定してください。');
+                return;
+            }
+            
+            const textToCopy = correctedWindHeadingResult.toFixed(1);
+
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const copyButton = document.getElementById('copyWindHButton');
+                const originalText = '補正済み風向Hをコピー';
+                
+                copyButton.textContent = '✅ コピー完了!';
+                copyButton.style.backgroundColor = '#28a745';
+
+                setTimeout(() => {
+                    copyButton.textContent = originalText;
+                    copyButton.style.backgroundColor = '#5cb85c';
+                }, 1500);
+
+            }).catch(err => {
+                alert('コピーに失敗しました: ' + err);
+            });
+        }
+
+        /**
+         * 補正済み風向HとA点の緯度経度を、別アプリに送信・連携する (修正版)
+         */
+        function sendWindH() {
+            if (correctedWindHeadingResult === null) {
+                alert('先に「風向Hを取得」ボタンを押して方位を決定してください。');
+                return;
+            }
+            
+            // ★★★ A点チェックの強化 ★★★
+            if (currentOriginA === null) {
+                alert('先に「現在位置をA点に設定」ボタンを押して、A点の緯度経度を取得してください。');
+                // windH自体は送信できるが、連携先にA点がないと困るため、処理を停止する
+                return; 
+            }
+            // ★★★ 修正箇所 ★★★
+            const valueToSend = correctedWindHeadingResult.toFixed(1);
+            let targetUrl = `https://popolopoint.github.io/windmap/windmap_v5.1.3.html?heading=${valueToSend}`;
+
+            // A点の緯度経度を追加するロジックを修正
+            // currentOriginAはgoogle.maps.LatLngオブジェクト
+            try {
+                const lat = currentOriginA.lat().toFixed(6); 
+                const lng = currentOriginA.lng().toFixed(6); 
+                targetUrl += `&lat=${lat}&lng=${lng}`;
+                
+                console.log(`送信URL: ${targetUrl}`); 
+            } catch (e) {
+                alert('A点の緯度経度取得に失敗しました。A点の設定を確認してください。');
+                console.error("緯度経度取得エラー:", e);
+                return;
+            }
+
+            // 新しいウィンドウまたはタブで開く
+            window.open(targetUrl, '_blank');
+            
+            // ボタンのフィードバック
+            const sendButton = document.getElementById('sendWindHButton');
+            const originalText = '真の風向Hを送る';
+            
+            sendButton.textContent = '✅ 送信しました！';
+            sendButton.style.backgroundColor = '#4e08c8'; 
+
+            setTimeout(() => {
+                sendButton.textContent = originalText;
+                sendButton.style.backgroundColor = '#6610f2';
+            }, 1500);
+        }
+
+        /**
+         * B点にスマホを向けて方位をキャプチャし、誤差を計算・記録する
+         */
+        function captureHeading() {
+            if (lastReadHeading === null || !currentOriginA || !currentDestinationB) {
+                 document.getElementById('result').innerHTML = `<h3>❌ 記録失敗</h3><p style="color: red;">A点/B点の設定またはセンサー値を確認してください。</p>`;
+                 return;
+            }
+
+            const capturedValue = lastReadHeading;
+            const trueBearing = calculateBearing(currentOriginA.lat(), currentOriginA.lng(), currentDestinationB.lat(), currentDestinationB.lng());
+            
+            let error = capturedValue - trueBearing;
+            if (error > 180) { error -= 360; } else if (error < -180) { error += 360; }
+            
+            recordedError = error; 
+            document.getElementById('recordedErrorDisplay').textContent = `${recordedError.toFixed(2)}°`;
+            
+            let bName = markerB ? markerB.getTitle() : 'タップ位置';
+
+            document.getElementById('result').innerHTML = `
+                <h3>✅ キャリブレーション完了（誤差を記録）</h3>
+                <p><strong>A点から見たB点の方位 (真の方位):</strong> 
+                <span style="color: #337ab7; font-weight: bold;">${trueBearing.toFixed(2)}°</span></p>
+                <p><strong>記録された方位 (決定値):</strong> 
+                <span style="color:#d9534f">${capturedValue.toFixed(2)}°</span></p>
+                <p style="font-size: 1.5em; color: #FF6347; font-weight: bold;">
+                    🧭 記録されたコンパス誤差: ${error.toFixed(2)}°
+                </p>
+            `;
+            handleOrientation({ alpha: (360 - capturedValue) % 360 }); 
+        }
+
+        function calculateBearing(startLat, startLng, endLat, endLng) {
+            const R_startLat = startLat * (Math.PI / 180);
+            const R_endLat = endLat * (Math.PI / 180);
+            const deltaLng = (endLng - startLng) * (Math.PI / 180);
+
+            const y = Math.sin(deltaLng) * Math.cos(R_endLat);
+            const x = Math.cos(R_startLat) * Math.sin(R_endLat) - 
+                      Math.sin(R_startLat) * Math.cos(R_endLat) * Math.cos(deltaLng);
+
+            let bearingRad = Math.atan2(y, x);
+            let bearingDeg = bearingRad * (180 / Math.PI);
+
+            return (bearingDeg + 360) % 360;
+        }
+        
+        // --- マップ操作ロジック (変更なし) ---
+        
+        function initMap() {
+             map = new google.maps.Map(document.getElementById('map'), {
+                 zoom: 12, center: B_POINTS.kinjo,
+             });
+
+
+             document.getElementById('setLocationButton').addEventListener('click', findCurrentLocation);
+             document.getElementById('startCompassButton').addEventListener('click', toggleCompass);
+             document.getElementById('captureHeadingButton').addEventListener('click', captureHeading); 
+             document.getElementById('captureWindHButton').addEventListener('click', captureWindHeading); 
+             document.getElementById('copyWindHButton').addEventListener('click', copyWindH); 
+             document.getElementById('sendWindHButton').addEventListener('click', sendWindH); 
+             
+             document.getElementsByName('b_option').forEach(radio => {
+                 radio.addEventListener('change', handleBSelectionChange);
+             });
+             map.addListener('click', handleMapClick);
+
+             setDestinationB(B_POINTS.kinjo);
+        }
+        
+        function handleBSelectionChange(event) {
+            const selectedValue = event.target.value;
+            document.getElementById('bTapInstruction').style.display = 'none';
+            mapTapMode = false;
+            
+            if (selectedValue === 'tap') {
+                document.getElementById('bTapInstruction').style.display = 'block';
+                currentDestinationB = null;
+                mapTapMode = true;
+            } else {
+                setDestinationB(B_POINTS[selectedValue]);
+            }
+            if (currentOriginA) { displayCalculatedBearing(); }
+        }
+        
+        function handleMapClick(event) {
+            if (mapTapMode) {
+                setDestinationB({ lat: event.latLng.lat(), lng: event.latLng.lng(), name: "マップタップ位置 (B点)" });
+                mapTapMode = false;
+                document.querySelector('input[name="b_option"][value="tap"]').checked = true;
+                if (currentOriginA) { displayCalculatedBearing(); }
+            }
+        }
+        
+        function setDestinationB(coords) {
+            currentDestinationB = new google.maps.LatLng(coords.lat, coords.lng);
+            if (markerB) { markerB.setPosition(currentDestinationB); markerB.setTitle(coords.name); } 
+            else { markerB = new google.maps.Marker({ position: currentDestinationB, map: map, title: coords.name, label: 'B', }); }
+            if (currentOriginA) { updateMapDisplay(); } else { map.setCenter(currentDestinationB); }
+        }
+        
+        function findCurrentLocation() {
+            document.getElementById('result').innerHTML = '<p class="loading">現在地を検出中です...</p>';
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        currentOriginA = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+                        if (markerA) { markerA.setPosition(currentOriginA); } 
+                        else {
+                            markerA = new google.maps.Marker({
+                                position: currentOriginA, map: map, title: "現在位置 (A点)", label: 'A',
+                                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#007bff', fillOpacity: 1, strokeWeight: 0, }
+                            });
+                        }
+                        updateMapDisplay();
+                        document.getElementById('setLocationButton').textContent = '現在位置をA点に (更新)';
+                        document.getElementById('result').innerHTML = `<h3>✅ A点設定完了</h3><p>現在位置がA点として設定されました。</p>`;
+                        displayCalculatedBearing(); 
+
+                    },
+                    (error) => { document.getElementById('result').innerHTML = `<h3>❌ A点設定失敗</h3><p style="color: red;">位置情報取得エラー。</p>`; }
+                );
+            } else { document.getElementById('result').innerHTML = `<h3>❌ A点設定失敗</h3><p style="color: red;">ブラウザが位置情報APIをサポートしていません。</p>`; }
+        }
+        
+        function updateMapDisplay() {
+            if (!currentOriginA || !currentDestinationB) { return; }
+            if (polyline) { polyline.setMap(null); }
+            polyline = new google.maps.Polyline({
+                path: [currentOriginA, currentDestinationB], geodesic: true, strokeColor: '#FF0000',
+                strokeOpacity: 1.0, strokeWeight: 2, map: map,
+            });
+            const bounds = new google.maps.LatLngBounds();
+            bounds.extend(currentOriginA);
+            bounds.extend(currentDestinationB);
+            map.fitBounds(bounds);
+        }
+
+        function displayCalculatedBearing() {
+            if (!currentOriginA || !currentDestinationB) {
+                document.getElementById('result').innerHTML = `<h3>待機中...</h3><p>A点とB点を設定してください。</p>`;
+                return;
+            }
+            
+            const trueBearing = calculateBearing(currentOriginA.lat(), currentOriginA.lng(), currentDestinationB.lat(), currentDestinationB.lng());
+            let bName = markerB ? markerB.getTitle() : 'タップ位置';
+            const calibrationMessage = recordedError !== null ? 
+                `<span style="color: green; font-weight: bold;">誤差 ${recordedError.toFixed(2)}° 記録済み。</span>` : 
+                `**方位を決定**して誤差を記録してください。`;
+
+            document.getElementById('result').innerHTML = `
+                <h3>✅ 方位計算結果</h3>
+                <p><strong>A点から見たB点の方位 (真の方位):</strong> 
+                <span style="font-size: 1.5em; color: #337ab7; font-weight: bold;">${trueBearing.toFixed(2)}°</span></p>
+                <p>${calibrationMessage}</p>
+            `;
+        }
+
+    </script>
+
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap">
+    </script>
+</body>
+</html>
