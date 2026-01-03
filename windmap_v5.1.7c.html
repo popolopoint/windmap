@@ -301,7 +301,7 @@ function calculateCourse(isPort){
   document.getElementById('dAC').textContent = points.C ? 'A～C：' + distanceBetween(points.A, points.C).toFixed(1) + ' m' : 'A～C：- m';
   if(course === 'sausage') document.getElementById('dAE').textContent = points.D ? 'A～D：' + distanceBetween(points.A, points.D).toFixed(1) + ' m' : 'A～D：- m';
   else document.getElementById('dAE').textContent = points.E ? 'A～E：' + distanceBetween(points.A, points.E).toFixed(1) + ' m' : 'A～E：- m';
-  if(is5Jibe && points.G) document.getElementById('dAG').textContent = 'A～G直線：' + distanceBetween(points.A, points.G).toFixed(1) + ' m';
+  if(is5Jibe && points.G) document.getElementById('dAG').textContent = 'A～G：' + distanceBetween(points.A, points.G).toFixed(1) + ' m';
 }
 
 function shareCoords(label, pos) {
