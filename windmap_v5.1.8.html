@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>コース作るくん by Popolo (v5.1.8)</title>
+<style>
+:root{
+  --blue:#1976d2; --purple:#6a1b9a; --red:#d32f2f; --green:#2e7d32; --orange:#f57c00; --pink:#e91e63; --teal:#009688;
+}
+body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; }
+h2 { margin:0 0 8px 0; font-size:18px; }
+#version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
+
+#inputs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; }
+#inputs label { font-size:14px; }
+
+#latA, #lngA { font-size: 14px; padding: 6px; width: 70px; border-radius:6px; border:1px solid #ccc; }
+
+#wind, #dist, #theta, .jwsa-input {
+  font-size: 28px;
+  padding: 10px;
+  width: 120px;
+  border-radius:6px;
+  border:1px solid #ccc;
+}
+
+button { font-size: 22px; padding: 10px 16px; border-radius:6px; border:none; color:white; cursor:pointer; }
+#calcBtn { background: #1976d2; }
+#btnWindSet { background: var(--purple); }
+#btnSetCurrent { background: var(--red); }
+#btnStarboard { background: var(--green); }
+#btnPort { background: var(--orange); }
+#btnShareAll { background:#555; }
+
+#courseSelect { font-size: 28px; padding: 10px 14px; border-radius:6px; border:1px solid #ccc; }
+#courseSelect option { font-size: 28px; }
+
+#inputsMode { margin-bottom:10px; font-size: 28px; color:#333; }
+#inputsMode input[type="radio"] { transform: scale(1.8); margin-right: 10px; margin-left: 10px; }
+
+#map { width:100%; height:900px; border-radius:8px; margin-top:10px; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+
+#distances { margin-bottom:8px; font-weight:600; display:flex; gap:8px; flex-wrap:wrap; }
+.distanceBox { background:#eee; padding:6px 10px; border-radius:6px; margin-bottom:4px; font-weight:bold; font-size: 1.5em; }
+
+#coordsContainer { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.pointBox { border-radius:50%; width:48px; height:48px; display:flex; justify-content:center; align-items:center; color:white; font-weight:bold; cursor:pointer; margin-right:6px; margin-bottom:6px; font-size: 1.2em; }
+
+#sausageSettings, #jwsaSettings { display:none; align-items:center; gap:8px; margin-left:8px; }
+
+.overlay{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.5); z-index:2000;}
+.modal{background:#fff; padding:16px; border-radius:10px; width:92%; max-width:380px; box-shadow:0 8px 24px rgba(0,0,0,0.25); text-align:center;}
+.modal h3{margin:0 0 8px 0; font-size:16px;}
+.modal p{margin:6px 0 12px 0;color:#333;font-size:14px;}
+.modal .reading{font-size:20px;font-weight:700;color:#111;margin-bottom:12px;}
+.modal .buttons{display:flex; gap:8px; justify-content:center;}
+.modal button{padding:8px 12px; border-radius:8px; font-weight:600;}
+.modal .btnConfirm{background: var(--purple); color:white;}
+.modal .btnCancel{background:#ccc;color:#111;}
+
+@media (max-width:600px){
+  #map { height: 700px; }
+  input[type="number"] { width: 110px; }
+}
+</style>
+</head>
+<body>
+<h2>コース作るくん <span style="font-size:0.7em;">by Popolo v5.1.8</span></h2>
+<div id="version">v5.1.8</div>
+
+<div id="inputs">
+  <label>緯度A：<input type="number" id="latA" step="any" value=""></label>
+  <label>経度A：<input type="number" id="lngA" step="any" value=""></label>
+  <label>風向(°)：<input type="number" id="wind" step="any" value=""></label>
+  <label id="distLabel">距離(m)：<input type="number" id="dist" step="any" value="500"></label>
+  <label id="thetaLabel">角度(°)：<input type="number" id="theta" step="any" value="5"></label>
+
+  <label>コース：
+    <select id="courseSelect">
+      <option value="mcourse">Ｍコース</option>
+      <option value="figure8">フィギア８</option>
+      <option value="sausage">ソーセージ</option>
+      <option value="5jibe">５ジャイブ</option>
+      <option value="jwsa">JWSAアップ</option>
+    </select>
+  </label>
+
+  <div id="sausageSettings">
+    <label>上(m)：<input type="number" id="upDist" step="any" value="1000"></label>
+    <label>下(m)：<input type="number" id="downDist" step="any" value="50"></label>
+  </div>
+
+  <div id="jwsaSettings">
+    <label>AB(m)：<input type="number" id="distAB" class="jwsa-input" value="100"></label>
+    <label>BC(m)：<input type="number" id="distBC" class="jwsa-input" value="500"></label>
+    <label>CD(m)：<input type="number" id="distCD" class="jwsa-input" value="100"></label>
+    <label>角度2(°)：<input type="number" id="theta2" class="jwsa-input" value="5"></label>
+  </div>
+
+  <button id="btnWindSet">風向セット</button>
+  <button id="calcBtn">計算</button>
+  <button id="btnSetCurrent">現在地A</button>
+  <button id="btnStarboard">スタボー</button>
+  <button id="btnPort">ポート</button>
+  <button id="btnShareAll">データ送信</button>
+</div>
+
+<div id="inputsMode">
+  A点設定：
+  <label><input type="radio" name="aMode" value="current" checked> 現在地</label>
+  <label><input type="radio" name="aMode" value="map"> マップ</label>
+  <label><input type="radio" name="aMode" value="manual"> 手入力</label>
+</div>
+
+<div id="distances">
+  <div class="distanceBox" id="dAC">A～C：- m</div>
+  <div class="distanceBox" id="dAE">A～E：- m</div>
+  <div class="distanceBox" id="dAG" style="display:none;">A～G：- m</div>
+</div>
+
+<div id="coordsContainer">
+  <div class="pointBox" id="btnA" style="background:#ff3b30;">A</div>
+  <div class="pointBox" id="btnB" style="background:#0088ff;">B</div>
+  <div class="pointBox" id="btnC" style="background:#00aa00;">C</div>
+  <div class="pointBox" id="btnD" style="background:#ffaa00;">D</div>
+  <div class="pointBox" id="btnE" style="background:#9900ff;">E</div>
+  <div class="pointBox" id="btnF" style="background:var(--pink); display:none;">F</div>
+  <div class="pointBox" id="btnG" style="background:var(--teal); display:none;">G</div>
+</div>
+
+<div id="map"></div>
+
+<div id="windModal" style="display:none;" aria-hidden="true">
+  <div class="overlay" id="modalOverlay">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3>風向をセット</h3>
+      <p>風上に向けて「設定」を押してください。</p>
+      <div class="reading" id="headingRead">--°</div>
+      <div class="buttons">
+        <button class="btnConfirm" id="modalSetBtn">設定</button>
+        <button class="btnCancel" id="modalCloseBtn">閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let map, circles={}, markersLabel={}, polyline=null;
+let points = {A:null,B:null,C:null,D:null,E:null,F:null,G:null};
+let currentIsPort = true;
+
+function initMap(){
+  map = new google.maps.Map(document.getElementById('map'), { center:{ lat:26.3318,lng:127.9179 }, zoom:14 });
+  map.addListener('click', (e)=>{
+    if(document.querySelector('input[name="aMode"]:checked').value==='map'){
+      const lat=e.latLng.lat(), lng=e.latLng.lng();
+      document.getElementById('latA').value = lat.toFixed(6);
+      document.getElementById('lngA').value = lng.toFixed(6);
+      updatePointA({lat,lng});
+    }
+  });
+  processUrlParameters();
+}
+
+function movePoint(lat,lng,dist,bearing){
+  const R=6378137;
+  const brng=(bearing%360)*Math.PI/180;
+  const φ1=lat*Math.PI/180, λ1=lng*Math.PI/180, δ=dist/R;
+  const φ2=Math.asin(Math.sin(φ1)*Math.cos(δ)+Math.cos(φ1)*Math.sin(δ)*Math.cos(brng));
+  const λ2=λ1+Math.atan2(Math.sin(brng)*Math.sin(δ)*Math.cos(φ1), Math.cos(δ)-Math.sin(φ1)*Math.sin(φ2));
+  return {lat: φ2*180/Math.PI, lng: λ2*180/Math.PI};
+}
+
+function clearPoint(label){
+  if(circles[label]){ circles[label].setMap(null); delete circles[label]; }
+  if(markersLabel[label]){ markersLabel[label].setMap(null); delete markersLabel[label]; }
+}
+
+function drawPoint(label,pos,color,radius=12){
+  if(!pos){ clearPoint(label); return; }
+  clearPoint(label);
+  const actualRadius = (label==='A')?radius+4:radius;
+  circles[label]=new google.maps.Circle({
+    strokeColor:color, strokeOpacity:1, strokeWeight:2, fillColor:color, fillOpacity:0.85,
+    map, center:pos, radius:actualRadius
+  });
+  markersLabel[label]=new google.maps.Marker({
+    position:pos, map,
+    icon:{ path:google.maps.SymbolPath.CIRCLE, scale:0 },
+    label:{ text:label, color:"white", fontWeight:"bold", fontSize:"14px" }
+  });
+  circles[label].addListener('click',()=>shareCoords(label,pos));
+  markersLabel[label].addListener('click',()=>shareCoords(label,pos));
+}
+
+function updatePointA(pos){ points.A=pos; drawPoint('A',pos,'#ff3b30'); map.panTo(pos); }
+
+function setCurrentPositionA(){
+  if(!navigator.geolocation){ alert("位置情報が利用できません"); return; }
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat=pos.coords.latitude,lng=pos.coords.longitude;
+    document.getElementById('latA').value=lat.toFixed(6);
+    document.getElementById('lngA').value=lng.toFixed(6);
+    updatePointA({lat,lng});
+    calculatePort();
+  },()=>{ alert("位置情報取得に失敗しました"); });
+}
+
+function distanceBetween(p1,p2){
+  if(!p1||!p2) return 0;
+  const R=6378137;
+  const φ1=p1.lat*Math.PI/180, φ2=p2.lat*Math.PI/180;
+  const dφ=(p2.lat-p1.lat)*Math.PI/180, dλ=(p2.lng-p1.lng)*Math.PI/180;
+  const a=Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
+  const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  return R*c;
+}
+
+function calculatePort(){ currentIsPort=true; calculateCourse(true); }
+function calculateStarboard(){ currentIsPort=false; calculateCourse(false); }
+
+function calculateCourse(isPort){
+  const latA=parseFloat(document.getElementById('latA').value);
+  const lngA=parseFloat(document.getElementById('lngA').value);
+  if(isNaN(latA)||isNaN(lngA)){ alert("A点を設定してください"); return; }
+  
+  const wind=parseFloat(document.getElementById('wind').value)||0;
+  const dist=parseFloat(document.getElementById('dist').value)||0;
+  const theta = parseFloat(document.getElementById('theta').value)||0;
+  const course=document.getElementById('courseSelect').value;
+
+  points.A = { lat: latA, lng: lngA };
+  const is5Jibe = (course === '5jibe');
+  const isJWSA = (course === 'jwsa');
+
+  // 表示リセット
+  document.getElementById('btnF').style.display = is5Jibe ? 'flex' : 'none';
+  document.getElementById('btnG').style.display = is5Jibe ? 'flex' : 'none';
+  document.getElementById('dAG').style.display = is5Jibe ? 'block' : 'none';
+  ['B','C','D','E','F','G'].forEach(l => points[l] = null);
+
+  if(isJWSA){
+    const dAB = parseFloat(document.getElementById('distAB').value)||0;
+    const dBC = parseFloat(document.getElementById('distBC').value)||0;
+    const dCD = parseFloat(document.getElementById('distCD').value)||0;
+    const theta2 = parseFloat(document.getElementById('theta2').value)||0;
+
+    if(isPort){
+      // ポート: A->B(風向+角度+90), B->C(風向), C->D(風向+270-角度2)
+      points.B = movePoint(points.A.lat, points.A.lng, dAB, wind + theta + 90);
+      points.C = movePoint(points.B.lat, points.B.lng, dBC, wind);
+      points.D = movePoint(points.C.lat, points.C.lng, dCD, wind + 270 - theta2);
+    } else {
+      // スタボー: A->B(風向-角度+270), B->C(風向), C->D(風向+90+角度2)
+      points.B = movePoint(points.A.lat, points.A.lng, dAB, wind - theta + 270);
+      points.C = movePoint(points.B.lat, points.B.lng, dBC, wind);
+      points.D = movePoint(points.C.lat, points.C.lng, dCD, wind + 90 + theta2);
+    }
+  } else if(course === 'figure8'){
+    const bB = wind + (isPort ? (90 + theta) : (270 - theta));
+    points.B = movePoint(points.A.lat, points.A.lng, dist, bB);
+    const distBC = dist * Math.cos(theta * Math.PI / 180);
+    const bC = isPort ? (wind + 270) : (wind + 90);
+    points.C = movePoint(points.B.lat, points.B.lng, distBC, bC);
+    points.E = movePoint(points.B.lat, points.B.lng, dist, wind + (isPort ? (270 - theta) : (90 + theta)));
+  } else if(course === 'sausage') {
+    const bB = wind - 90 + theta;
+    points.B = movePoint(points.A.lat, points.A.lng, dist, bB);
+    const midLat = (points.A.lat + points.B.lat) / 2;
+    const midLng = (points.A.lng + points.B.lng) / 2;
+    const upDist = parseFloat(document.getElementById('upDist').value) || 0;
+    const downDist = parseFloat(document.getElementById('downDist').value) || 0;
+    points.C = movePoint(midLat, midLng, upDist, wind);
+    points.D = movePoint(midLat, midLng, downDist, wind); 
+  } else {
+    // M / 5Jibe
+    const bB = wind + (isPort ? 90 + theta : 270 - theta);
+    const bC = wind + (isPort ? 270 - theta : 90 + theta);
+    const bD = wind + (isPort ? 90 + theta : 270 - theta);
+    const bE = wind + (isPort ? 270 - theta : 90 + theta);
+    points.B = movePoint(points.A.lat, points.A.lng, dist, bB);
+    points.C = movePoint(points.B.lat, points.B.lng, dist, bC);
+    points.D = movePoint(points.C.lat, points.C.lng, dist, bD);
+    points.E = movePoint(points.D.lat, points.D.lng, dist, bE);
+    if(is5Jibe){
+      const bF = isPort ? (wind + 90 + theta) : (wind + 270 - theta);
+      points.F = movePoint(points.E.lat, points.E.lng, dist, bF);
+      const bG = isPort ? (wind + 270 - theta) : (wind + 90 + theta);
+      points.G = movePoint(points.F.lat, points.F.lng, dist, bG);
+    }
+  }
+
+  // 描画
+  ['A','B','C','D','E','F','G'].forEach(l => {
+    const colors = {A:'#ff3b30',B:'#0088ff',C:'#00aa00',D:'#ffaa00',E:'#9900ff',F:'#e91e63',G:'#009688'};
+    if(points[l]) drawPoint(l, points[l], colors[l]); else clearPoint(l);
+  });
+
+  if(polyline) polyline.setMap(null);
+  const path = [];
+  ['A','B','C','D','E','F','G'].forEach(k => { if(points[k]) path.push(points[k]); });
+  if(path.length >= 2) polyline = new google.maps.Polyline({ path, geodesic:true, strokeColor:'#444', strokeOpacity:0.9, strokeWeight:2, map });
+
+  // 距離表示
+  document.getElementById('dAC').textContent = points.C ? 'A～C：' + distanceBetween(points.A, points.C).toFixed(1) + ' m' : 'A～C：- m';
+  if(course === 'sausage') document.getElementById('dAE').textContent = points.D ? 'A～D：' + distanceBetween(points.A, points.D).toFixed(1) + ' m' : 'A～D：- m';
+  else if(isJWSA) document.getElementById('dAE').textContent = points.D ? 'A～D：' + distanceBetween(points.A, points.D).toFixed(1) + ' m' : 'A～D：- m';
+  else document.getElementById('dAE').textContent = points.E ? 'A～E：' + distanceBetween(points.A, points.E).toFixed(1) + ' m' : 'A～E：- m';
+  if(is5Jibe && points.G) document.getElementById('dAG').textContent = 'A～G：' + distanceBetween(points.A, points.G).toFixed(1) + ' m';
+}
+
+function shareCoords(label, pos) {
+  if (!pos) return;
+  const latStr = pos.lat.toFixed(6), lngStr = pos.lng.toFixed(6);
+  const mapUrl = `https://www.google.com/maps?q=${latStr},${lngStr}`;
+  const text = `${label}点\n${latStr}N, ${lngStr}E\n${mapUrl}`;
+  if (navigator.share) navigator.share({ title: label + ' 座標', text });
+  else {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('コピーしました');
+  }
+}
+
+function shareAllPoints() {
+  const wind = document.getElementById('wind').value || 0;
+  let totalDistance = 0, lines = [];
+  const pointKeys = ['A','B','C','D','E','F','G'];
+  pointKeys.forEach((l, i) => {
+    const p = points[l]; if (!p) return;
+    if (i > 0 && points[pointKeys[i-1]]) totalDistance += distanceBetween(points[pointKeys[i-1]], p);
+    const latStr = p.lat.toFixed(6), lngStr = p.lng.toFixed(6);
+    lines.push(`${l}点: ${latStr},${lngStr}\nhttps://www.google.com/maps?q=${latStr},${lngStr}`);
+  });
+  lines.push(`風向: ${wind}°\n総走行距離: ${totalDistance.toFixed(1)}m`);
+  const text = lines.join('\n\n');
+  if (navigator.share) navigator.share({ title: 'コース座標一覧', text });
+  else alert('全座標をコピーしました');
+}
+
+let headingSamples=[], headingWatcher=null;
+const modalRoot=document.getElementById('windModal'), headingReadEl=document.getElementById('headingRead');
+function openWindModal(){ headingSamples=[]; modalRoot.style.display='block'; startOrientationListening(); }
+function closeWindModal(){ stopOrientationListening(); modalRoot.style.display='none'; }
+function startOrientationListening(){
+  if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+    DeviceOrientationEvent.requestPermission().then(r=>{ if(r==='granted') addOrientationListener(); });
+  }else addOrientationListener();
+}
+function addOrientationListener(){
+  headingWatcher = (e)=>{
+    let h = (e.webkitCompassHeading !== undefined) ? e.webkitCompassHeading : (360 - e.alpha);
+    if(h) { headingSamples.push(h); if(headingSamples.length>30) headingSamples.shift();
+    let x=0,y=0; headingSamples.forEach(d=>{ let r=d*Math.PI/180; x+=Math.cos(r); y+=Math.sin(r); });
+    headingReadEl.textContent = Math.round((Math.atan2(y,x)*180/Math.PI + 360)%360) + '°'; }
+  };
+  window.addEventListener('deviceorientation', headingWatcher, true);
+}
+function stopOrientationListening(){ window.removeEventListener('deviceorientation', headingWatcher, true); }
+
+function processUrlParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let lat = urlParams.get('lat'), lng = urlParams.get('lng'), h = urlParams.get('heading');
+    if (h) document.getElementById('wind').value = Math.round(parseFloat(h));
+    if (lat && lng) {
+      document.getElementById('latA').value = parseFloat(lat).toFixed(6);
+      document.getElementById('lngA').value = parseFloat(lng).toFixed(6);
+      updatePointA({ lat: parseFloat(lat), lng: parseFloat(lng) });
+    }
+}
+
+window.addEventListener('load', ()=>{
+  document.getElementById('calcBtn').onclick = ()=> calculateCourse(currentIsPort);
+  document.getElementById('btnWindSet').onclick = openWindModal;
+  document.getElementById('modalSetBtn').onclick = ()=>{ document.getElementById('wind').value = parseInt(headingReadEl.textContent); closeWindModal(); };
+  document.getElementById('modalCloseBtn').onclick = closeWindModal;
+  document.getElementById('btnSetCurrent').onclick = setCurrentPositionA;
+  document.getElementById('btnStarboard').onclick = calculateStarboard;
+  document.getElementById('btnPort').onclick = calculatePort;
+  document.getElementById('btnShareAll').onclick = shareAllPoints;
+  ['A','B','C','D','E','F','G'].forEach(l=>document.getElementById('btn'+l).onclick=()=>shareCoords(l, points[l]));
+  
+  document.getElementById('courseSelect').onchange = (e)=>{
+    const s = document.getElementById('sausageSettings'), j = document.getElementById('jwsaSettings');
+    const t = document.getElementById('theta'), d = document.getElementById('dist'), dl = document.getElementById('distLabel');
+    
+    // 表示切替
+    s.style.display = (e.target.value==='sausage') ? 'inline-flex' : 'none';
+    j.style.display = (e.target.value==='jwsa') ? 'inline-flex' : 'none';
+    
+    // パラメータ調整
+    if(e.target.value==='jwsa' || e.target.value==='sausage'){
+      dl.style.display = 'none';
+      if(e.target.value==='sausage') t.value='';
+    } else {
+      dl.style.display = 'inline-block';
+      if(!t.value) t.value='5';
+    }
+  };
+});
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
+</body>
+</html>
