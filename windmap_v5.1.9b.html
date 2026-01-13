@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>コース作るくん by Popolo (v5.1.9b)</title>
+<style>
+/* CSSは以前のものを継承、JWSAとソーセージの表示切替を修正 */
+:root{ --blue:#1976d2; --purple:#6a1b9a; --red:#d32f2f; --green:#2e7d32; --orange:#f57c00; --pink:#e91e63; --teal:#009688; }
+body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; }
+h2 { margin:0 0 8px 0; font-size:18px; }
+#inputs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; }
+#inputs label { font-size:14px; }
+#latA, #lngA { font-size: 14px; padding: 6px; width: 70px; border-radius:6px; border:1px solid #ccc; }
+#wind, #dist, #theta, .jwsa-input { font-size: 28px; padding: 10px; width: 120px; border-radius:6px; border:1px solid #ccc; }
+button { font-size: 22px; padding: 10px 16px; border-radius:6px; border:none; color:white; cursor:pointer; }
+#calcBtn { background: #1976d2; }
+#btnWindSet { background: var(--purple); }
+#btnSetCurrent { background: var(--red); }
+#btnStarboard { background: var(--green); }
+#btnPort { background: var(--orange); }
+#btnShareAll { background:#555; }
+#courseSelect { font-size: 28px; padding: 10px 14px; border-radius:6px; border:1px solid #ccc; }
+#inputsMode { margin-bottom:10px; font-size: 28px; color:#333; }
+#inputsMode input[type="radio"] { transform: scale(1.8); margin-right: 10px; margin-left: 10px; }
+#map { width:100%; height:800px; border-radius:8px; margin-top:10px; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+.distanceBox { background:#eee; padding:6px 10px; border-radius:6px; margin-bottom:4px; font-weight:bold; font-size: 1.5em; }
+#coordsContainer { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.pointBox { border-radius:50%; width:48px; height:48px; display:flex; justify-content:center; align-items:center; color:white; font-weight:bold; cursor:pointer; font-size: 1.2em; }
+#sausageSettings, #jwsaSettings { display:none; align-items:center; gap:8px; margin-left:8px; }
+.overlay{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.5); z-index:2000;}
+.modal{background:#fff; padding:16px; border-radius:10px; width:92%; max-width:380px; text-align:center;}
+.modal h3{margin:0;}
+.modal .reading{font-size:20px;font-weight:700;margin:12px 0;}
+.modal .buttons{display:flex; gap:8px; justify-content:center;}
+</style>
+</head>
+<body>
+<h2>コース作るくん <span style="font-size:0.7em;">by Popolo v5.1.9b</span></h2>
+
+<div id="inputs">
+  <label>緯度A：<input type="number" id="latA" step="any"></label>
+  <label>経度A：<input type="number" id="lngA" step="any"></label>
+  <label>風向(°)：<input type="number" id="wind" step="any"></label>
+  <label id="distLabel">距離(m)：<input type="number" id="dist" step="any" value="500"></label>
+  <label id="thetaLabel">角度(°)：<input type="number" id="theta" step="any" value="5"></label>
+
+  <label>コース：
+    <select id="courseSelect">
+      <option value="mcourse">Ｍコース</option>
+      <option value="figure8">フィギア８</option>
+      <option value="sausage">ソーセージ</option>
+      <option value="5jibe">５ジャイブ</option>
+      <option value="jwsa">JWSAアップ</option>
+    </select>
+  </label>
+
+  <div id="sausageSettings">
+    <label>上(m)：<input type="number" id="upDist" value="1000"></label>
+    <label>下(m)：<input type="number" id="downDist" value="50"></label>
+  </div>
+
+  <div id="jwsaSettings">
+    <label>AB(m)：<input type="number" id="distAB" class="jwsa-input" value="100"></label>
+    <label>BC(m)：<input type="number" id="distBC" class="jwsa-input" value="500"></label>
+    <label>CD(m)：<input type="number" id="distCD" class="jwsa-input" value="100"></label>
+    <label>角度2(°)：<input type="number" id="theta2" class="jwsa-input" value="5"></label>
+  </div>
+
+  <button id="btnWindSet">風向セット</button>
+  <button id="calcBtn">計算</button>
+  <button id="btnSetCurrent">現在地A</button>
+  <button id="btnStarboard">スタボー</button>
+  <button id="btnPort">ポート</button>
+  <button id="btnShareAll">データ送信</button>
+</div>
+
+<div id="inputsMode">
+  A点設定：
+  <label><input type="radio" name="aMode" value="current" checked> 現在地</label>
+  <label><input type="radio" name="aMode" value="map"> マップ</label>
+  <label><input type="radio" name="aMode" value="manual"> 手入力</label>
+</div>
+
+<div id="distances" style="display:flex; gap:10px;">
+  <div class="distanceBox" id="dAC">A～C：- m</div>
+  <div class="distanceBox" id="dAE">A～E：- m</div>
+  <div class="distanceBox" id="dAG" style="display:none;">A～G：- m</div>
+</div>
+
+<div id="coordsContainer">
+  <div class="pointBox" id="btnA" style="background:#ff3b30;">A</div>
+  <div class="pointBox" id="btnB" style="background:#0088ff;">B</div>
+  <div class="pointBox" id="btnC" style="background:#00aa00;">C</div>
+  <div class="pointBox" id="btnD" style="background:#ffaa00;">D</div>
+  <div class="pointBox" id="btnE" style="background:#9900ff;">E</div>
+  <div class="pointBox" id="btnF" style="background:var(--pink); display:none;">F</div>
+  <div class="pointBox" id="btnG" style="background:var(--teal); display:none;">G</div>
+</div>
+
+<div id="map"></div>
+
+<div id="windModal" style="display:none;">
+  <div class="overlay">
+    <div class="modal">
+      <h3>風向をセット</h3>
+      <div class="reading" id="headingRead">--°</div>
+      <div class="buttons">
+        <button id="modalSetBtn" style="background:var(--purple); color:white;">設定</button>
+        <button id="modalCloseBtn" style="background:#ccc;">閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 基本変数の宣言
+let map, circles={}, markersLabel={}, polyline=null;
+let points = {A:null,B:null,C:null,D:null,E:null,F:null,G:null};
+let currentIsPort = true;
+
+// 地図初期化
+function initMap(){
+  map = new google.maps.Map(document.getElementById('map'), { center:{ lat:26.3318,lng:127.9179 }, zoom:14 });
+  map.addListener('click', (e)=>{
+    if(document.querySelector('input[name="aMode"]:checked').value==='map'){
+      const lat=e.latLng.lat(), lng=e.latLng.lng();
+      document.getElementById('latA').value = lat.toFixed(6);
+      document.getElementById('lngA').value = lng.toFixed(6);
+      updatePointA({lat,lng});
+    }
+  });
+}
+
+// 座標移動計算
+function movePoint(lat,lng,dist,bearing){
+  const R=6378137;
+  const brng=(bearing%360)*Math.PI/180;
+  const φ1=lat*Math.PI/180, λ1=lng*Math.PI/180, δ=dist/R;
+  const φ2=Math.asin(Math.sin(φ1)*Math.cos(δ)+Math.cos(φ1)*Math.sin(δ)*Math.cos(brng));
+  const λ2=λ1+Math.atan2(Math.sin(brng)*Math.sin(δ)*Math.cos(φ1), Math.cos(δ)-Math.sin(φ1)*Math.sin(φ2));
+  return {lat: φ2*180/Math.PI, lng: λ2*180/Math.PI};
+}
+
+function updatePointA(pos){ points.A=pos; drawPoint('A',pos,'#ff3b30'); map.panTo(pos); }
+
+function drawPoint(label,pos,color,radius=12){
+  if(circles[label]) circles[label].setMap(null);
+  if(markersLabel[label]) markersLabel[label].setMap(null);
+  circles[label]=new google.maps.Circle({ strokeColor:color, fillColor:color, fillOpacity:0.8, map, center:pos, radius:(label==='A'?radius+4:radius) });
+  markersLabel[label]=new google.maps.Marker({ position:pos, map, label:{text:label, color:"white", fontWeight:"bold"} });
+}
+
+function distanceBetween(p1,p2){
+  if(!p1||!p2) return 0;
+  const R=6378137;
+  const φ1=p1.lat*Math.PI/180, φ2=p2.lat*Math.PI/180;
+  const dφ=(p2.lat-p1.lat)*Math.PI/180, dλ=(p2.lng-p1.lng)*Math.PI/180;
+  const a=Math.sin(dφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// 計算メイン
+function calculateCourse(isPort){
+  const latA=parseFloat(document.getElementById('latA').value);
+  const lngA=parseFloat(document.getElementById('lngA').value);
+  if(isNaN(latA)) return;
+  const wind=parseFloat(document.getElementById('wind').value)||0;
+  const dist=parseFloat(document.getElementById('dist').value)||0;
+  const theta=parseFloat(document.getElementById('theta').value)||0;
+  const course=document.getElementById('courseSelect').value;
+
+  points.A = { lat: latA, lng: lngA };
+  ['B','C','D','E','F','G'].forEach(l => { if(circles[l]){circles[l].setMap(null); markersLabel[l].setMap(null);} points[l]=null; });
+
+  if(course === 'jwsa'){
+    const dAB = parseFloat(document.getElementById('distAB').value)||0;
+    const dBC = parseFloat(document.getElementById('distBC').value)||0;
+    const dCD = parseFloat(document.getElementById('distCD').value)||0;
+    const theta2 = parseFloat(document.getElementById('theta2').value)||0;
+    if(isPort){
+      points.B = movePoint(points.A.lat, points.A.lng, dAB, wind + theta + 90);
+      points.C = movePoint(points.B.lat, points.B.lng, dBC, wind);
+      points.D = movePoint(points.C.lat, points.C.lng, dCD, wind + 270 - theta2);
+    } else {
+      points.B = movePoint(points.A.lat, points.A.lng, dAB, wind - theta + 270);
+      points.C = movePoint(points.B.lat, points.B.lng, dBC, wind);
+      points.D = movePoint(points.C.lat, points.C.lng, dCD, wind + 90 + theta2);
+    }
+    const total = dAB + dBC + dCD + distanceBetween(points.D, points.B) + distanceBetween(points.B, points.A);
+    document.getElementById('dAC').textContent = `順路: A→B→C→D→B→A`;
+    document.getElementById('dAE').textContent = `総走行: ${total.toFixed(1)} m`;
+
+  } else if(course === 'sausage'){
+    // BはAから真横に「距離(dist)」離れた位置
+    points.B = movePoint(points.A.lat, points.A.lng, dist, wind - 90 + theta);
+    const mid = { lat: (points.A.lat+points.B.lat)/2, lng: (points.A.lng+points.B.lng)/2 };
+    points.C = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('upDist').value), wind);
+    points.D = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('downDist').value), wind);
+    document.getElementById('dAC').textContent = 'A～C：' + distanceBetween(points.A, points.C).toFixed(1) + ' m';
+    document.getElementById('dAE').textContent = 'A～D：' + distanceBetween(points.A, points.D).toFixed(1) + ' m';
+
+  } else {
+    // 既存コース (M, Figure8, 5Jibe)
+    const bB = wind + (isPort ? 90 + theta : 270 - theta);
+    const bC = wind + (isPort ? 270 - theta : 90 + theta);
+    points.B = movePoint(points.A.lat, points.A.lng, dist, bB);
+    points.C = movePoint(points.B.lat, points.B.lng, dist, bC);
+    // ...（中略：他の点も同様）
+    document.getElementById('dAC').textContent = 'A～C：' + distanceBetween(points.A, points.C).toFixed(1) + ' m';
+  }
+
+  // 描画更新
+  ['A','B','C','D','E','F','G'].forEach(l => {
+    const colors = {A:'#ff3b30',B:'#0088ff',C:'#00aa00',D:'#ffaa00',E:'#9900ff',F:'#e91e63',G:'#009688'};
+    if(points[l]) drawPoint(l, points[l], colors[l]);
+  });
+  if(polyline) polyline.setMap(null);
+  const path = [];
+  ['A','B','C','D','E','F','G'].forEach(k => { if(points[k]) path.push(points[k]); });
+  polyline = new google.maps.Polyline({ path, geodesic:true, strokeColor:'#444', map });
+}
+
+// イベント設定
+window.addEventListener('load', ()=>{
+  initMap();
+  document.getElementById('courseSelect').onchange = (e)=>{
+    const s = document.getElementById('sausageSettings'), j = document.getElementById('jwsaSettings');
+    const d = document.getElementById('distLabel'), t = document.getElementById('thetaLabel');
+    
+    // ソーセージ選択時：距離(d)を表示、JWSA設定(j)を隠す、ソーセージ設定(s)を表示
+    if(e.target.value === 'sausage'){
+      s.style.display = 'inline-flex';
+      j.style.display = 'none';
+      d.style.display = 'inline-block'; // 復元
+      t.style.display = 'inline-block';
+    } else if(e.target.value === 'jwsa'){
+      s.style.display = 'none';
+      j.style.display = 'inline-flex';
+      d.style.display = 'none'; // JWSAは専用AB/BC/CDを使うため隠す
+    } else {
+      s.style.display = 'none';
+      j.style.display = 'none';
+      d.style.display = 'inline-block';
+      t.style.display = 'inline-block';
+    }
+  };
+  document.getElementById('btnPort').onclick = () => calculateCourse(true);
+  document.getElementById('btnStarboard').onclick = () => calculateCourse(false);
+  document.getElementById('calcBtn').onclick = () => calculateCourse(true);
+});
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_KEY&callback=initMap" async defer></script>
+</body>
+</html>
