@@ -432,41 +432,42 @@ A点とB点を設定後、「方位決定」でコンパス誤差を記録</p>
 
 
 
-/**
-         * 補正済み風向HとA点の緯度経度を、別アプリ(v5.2.3c)に送信・連携する
-         */
-        function sendWindH() {
-            if (correctedWindHeadingResult === null) {
-                alert('先に「風向Hを取得」ボタンを押して方位を決定してください。');
-                return;
-            }
-            
-            if (currentOriginA === null) {
-                alert('先に「現在位置をA点に設定」ボタンを押して、A点の緯度経度を取得してください。');
-                return; 
-            }
+        
+         /**
+ * 補正済み風向HとA点の緯度経度を、別アプリ(windmap_latest.html=最新版)に送信・連携する
+ */
+function sendWindH() {
+    if (correctedWindHeadingResult === null) {
+        alert('先に「風向Hを取得」ボタンを押して方位を決定してください。');
+        return;
+    }
+    
+    if (currentOriginA === null) {
+        alert('先に「現在位置をA点に設定」ボタンを押して、A点の緯度経度を取得してください。');
+        return; 
+    }
 
-            const valueToSend = correctedWindHeadingResult.toFixed(1);
-            
-            // ★送信先のファイル名を指定。同じフォルダにあるならこれで動きます。
-            let targetUrl = `windmap_v5.2.3c.html?heading=${valueToSend}`;
+    const valueToSend = correctedWindHeadingResult.toFixed(1);
+    
+    // ★送信先を固定名「windmap_latest.html」にします
+    let targetUrl = `windmap_latest.html?heading=${valueToSend}`;
 
-            try {
-                const lat = currentOriginA.lat().toFixed(6); 
-                const lng = currentOriginA.lng().toFixed(6); 
-                targetUrl += `&lat=${lat}&lng=${lng}`;
-            } catch (e) {
-                alert('A点の緯度経度取得に失敗しました。');
-                return;
-            }
+    try {
+        const lat = currentOriginA.lat().toFixed(6); 
+        const lng = currentOriginA.lng().toFixed(6); 
+        targetUrl += `&lat=${lat}&lng=${lng}`;
+    } catch (e) {
+        alert('A点の緯度経度取得に失敗しました。');
+        return;
+    }
 
-            // 新しいウィンドウまたはタブで v5.2.3c を開く
-            window.open(targetUrl, '_blank');
-            
-            const sendButton = document.getElementById('sendWindHButton');
-            sendButton.textContent = '✅ 送信しました！';
-            setTimeout(() => { sendButton.textContent = '真の風向Hを送る'; }, 1500);
-        }
+    // 最新版として保存されている windmap_latest.html を開く
+    window.open(targetUrl, '_blank');
+    
+    const sendButton = document.getElementById('sendWindHButton');
+    sendButton.textContent = '✅ 送信しました！';
+    setTimeout(() => { sendButton.textContent = '真の風向Hを送る'; }, 1500);
+}
 
 
 
