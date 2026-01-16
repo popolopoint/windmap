@@ -449,7 +449,7 @@ A点とB点を設定後、「方位決定」でコンパス誤差を記録</p>
             const valueToSend = correctedWindHeadingResult.toFixed(1);
             
             // ★送信先のファイル名を指定。同じフォルダにあるならこれで動きます。
-            let targetUrl = `course_v523c.html?heading=${valueToSend}`;
+            let targetUrl = `windmap_v5.2.3c.html?heading=${valueToSend}`;
 
             try {
                 const lat = currentOriginA.lat().toFixed(6); 
