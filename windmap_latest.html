@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.2.3b by Popolo App.com</title>
+<title>コース作るくん v6.2.3c by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -41,8 +41,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.2.3b by Popolo App.com</span></h2>
-<div id="version">v6.2.3b</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.2.3c by Popolo App.com</span></h2>
+<div id="version">v6.2.3c</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -180,7 +180,7 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
     
     // C点修正: ポート/スタボーを入れ替え (ポート時+, スタボー時-)
-    const brngC = isPort ? (wind + 90 + th3) : (wind + 270 - th3);
+    const brngC = isPort ? (wind + 270 + th3) : (wind + 90 - th3);
     p.C = movePoint(p.B.lat, p.B.lng, dBC, brngC);
     
     p.D = movePoint(p.C.lat, p.C.lng, dCD, wind); 
