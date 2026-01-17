@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.2.7b by Popolo App.com</title>
+<title>コース作るくん v6.2.8 by Popolo App.com</title>
 <style>
-:root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --pink:#ff2d55; --teal:#5ac8fa; }
+:root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
 h2 { margin:0 0 8px 0; font-size:18px; }
 #version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
@@ -36,13 +36,13 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 #distances { margin:10px 0; display:flex; gap:8px; flex-wrap:wrap; }
 .distanceBox { background:#eee; padding:8px 12px; border-radius:6px; font-weight:bold; font-size: 1.0em; border: 1px solid #ddd; flex: 1; min-width: 140px; }
 #coordsContainer { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; justify-content: space-between; }
-.pointBox { border-radius:50%; width:55px; height:55px; display:flex; justify-content:center; align-items:center; color:white; font-weight:bold; cursor:pointer; font-size: 1.3em; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.pointBox { border-radius:50%; width:42px; height:42px; display:flex; justify-content:center; align-items:center; color:white; font-weight:bold; cursor:pointer; font-size: 1.0em; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 </style>
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.2.7b by Popolo App.com</span></h2>
-<div id="version">v6.2.7b</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.2.8 by Popolo App.com</span></h2>
+<div id="version">v6.2.8</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -89,7 +89,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
   <strong>基準点：</strong>
   <select id="basePointSelect">
     <option value="A" selected>A点</option><option value="B">B点</option><option value="C">C点</option>
-    <option value="D">D点</option><option value="E">E点</option><option value="S">S点</option>
+    <option value="D">D点</option><option value="E">E点</option><option value="F">F点</option><option value="G">G点</option><option value="S">S点</option>
   </select>
   <div class="radio-group">
     <label><input type="radio" name="aMode" value="gps" checked> 現在地をセット</label>
@@ -99,8 +99,9 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </div>
 
 <div id="distances">
-  <div class="distanceBox" id="dist1">- m</div>
-  <div class="distanceBox" id="dist2">- m</div>
+  <div class="distanceBox" id="dist1">A～C：- m</div>
+  <div class="distanceBox" id="dist2">A～E：- m</div>
+  <div class="distanceBox" id="dist3" style="display:none;">A～G総距離：- m</div>
 </div>
 
 <div id="coordsContainer">
@@ -109,6 +110,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
   <div class="pointBox" id="btnC" style="background:var(--yellow); color:#000; text-shadow:none;">C</div>
   <div class="pointBox" id="btnD" style="background:var(--green);">D</div>
   <div class="pointBox" id="btnE" style="background:var(--purple);">E</div>
+  <div class="pointBox" id="btnF" style="background:var(--pink); display:none;">F</div>
+  <div class="pointBox" id="btnG" style="background:var(--navy); display:none;">G</div>
   <div class="pointBox" id="btnS" style="background:var(--blue); display:none;">S</div>
 </div>
 
@@ -121,8 +124,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 
 <script>
 let map, circles={}, markersLabel={}, polylines=[];
-let points = {A:null,B:null,C:null,D:null,E:null,S:null};
-const COLORS = { A:'#ff3b30', B:'#0000ff', C:'#ffff00', D:'#28a745', E:'#6a1b9a', S:'#0000ff' };
+let points = {A:null,B:null,C:null,D:null,E:null,F:null,G:null,S:null};
+const COLORS = { A:'#ff3b30', B:'#0000ff', C:'#ffff00', D:'#28a745', E:'#6a1b9a', F:'#ff2d55', G:'#000080', S:'#0000ff' };
 let currentIsPort = true;
 
 function checkUrlParams() {
@@ -155,7 +158,7 @@ function movePoint(lat,lng,dist,bearing){
 
 function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
   let p = {A: baseA};
-  const isS = (course==='sausage'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2'), isF8 = (course==='figure8');
+  const isS = (course==='sausage'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2'), isF8 = (course==='figure8'), is5J = (course==='5jibe');
   
   if(isS){
     const bS = wind + (isPort?90+theta:270-theta);
@@ -169,13 +172,7 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
     p.C = movePoint(p.B.lat, p.B.lng, dBC, wind);
     p.D = movePoint(p.C.lat, p.C.lng, dCD, isPort?wind+270-thD:wind+90+thD);
   } else if(isJW2){
-    const dAB=parseFloat(document.getElementById('distAB2').value)||0, 
-          dBC=parseFloat(document.getElementById('distBC2').value)||0, 
-          dCD=parseFloat(document.getElementById('distCD2').value)||0,
-          dDE=parseFloat(document.getElementById('distDE').value)||0,
-          thD=parseFloat(document.getElementById('theta2_2').value)||0, 
-          thB=parseFloat(document.getElementById('theta3').value)||0;
-    
+    const dAB=parseFloat(document.getElementById('distAB2').value)||0, dBC=parseFloat(document.getElementById('distBC2').value)||0, dCD=parseFloat(document.getElementById('distCD2').value)||0, dDE=parseFloat(document.getElementById('distDE').value)||0, thD=parseFloat(document.getElementById('theta2_2').value)||0, thB=parseFloat(document.getElementById('theta3').value)||0;
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
     const brngC = isPort ? (wind + 270 + thB) : (wind + 90 - thB);
     p.C = movePoint(p.B.lat, p.B.lng, dBC, brngC);
@@ -191,6 +188,12 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
       p.C = movePoint(p.B.lat, p.B.lng, dist, isPort?wind+270-theta:wind+90+theta);
       p.D = movePoint(p.C.lat, p.C.lng, dist, isPort?wind+90+theta:wind+270-theta);
       p.E = movePoint(p.D.lat, p.D.lng, dist, isPort?wind+270-theta:wind+90+theta);
+      if(is5J){
+        const brngF = isPort ? (wind + 90 + theta) : (wind + 270 - theta);
+        p.F = movePoint(p.D.lat, p.D.lng, dist, brngF);
+        const brngG = isPort ? (wind + 270 - theta) : (wind + 90 + theta);
+        p.G = movePoint(p.F.lat, p.F.lng, dist, brngG);
+      }
     }
   }
   return p;
@@ -201,7 +204,6 @@ function setBasePosition(pos) {
   const wind=parseFloat(document.getElementById('wind').value)||0, dist=parseFloat(document.getElementById('dist').value)||0, theta=parseFloat(document.getElementById('theta').value)||0, course=document.getElementById('courseSelect').value;
   const tempStructure = getPointsStructure({lat:0,lng:0}, wind, dist, theta, course, currentIsPort);
   const targetRel = tempStructure[baseLabel];
-  
   if(!targetRel || (targetRel.lat === 0 && targetRel.lng === 0)) { 
     updateAPos(pos.lat, pos.lng); 
   } else {
@@ -229,10 +231,13 @@ function calculateCourse(isPort){
   Object.keys(points).forEach(k => { if(circles[k])circles[k].setMap(null); if(markersLabel[k])markersLabel[k].setMap(null); points[k]=null; });
   points = getPointsStructure({lat:latA, lng:lngA}, wind, dist, theta, course, isPort);
   
-  const isS=(course==='sausage'), isJW=(course==='jwsa'), isJW2=(course==='jwsa2');
+  const isS=(course==='sausage'), isJW=(course==='jwsa'), isJW2=(course==='jwsa2'), is5J=(course==='5jibe');
   document.getElementById('btnS').style.display=isS?'flex':'none'; 
   document.getElementById('btnD').style.display=isS?'none':'flex'; 
   document.getElementById('btnE').style.display=(isS||isJW)?'none':'flex';
+  document.getElementById('btnF').style.display=is5J?'flex':'none';
+  document.getElementById('btnG').style.display=is5J?'flex':'none';
+  document.getElementById('dist3').style.display=is5J?'block':'none';
   
   let path = [];
   if(isS){
@@ -242,6 +247,8 @@ function calculateCourse(isPort){
     path = [points.A, points.B, points.C, points.D, points.B, points.A];
   } else if(isJW2){
     path = [points.A, points.B, points.C, points.D, points.E, points.B, points.A];
+  } else if(is5J){
+    path = [points.A, points.B, points.C, points.D, points.E, points.F, points.G];
   } else {
     path = [points.A, points.B, points.C, points.D, points.E].filter(v => v);
   }
@@ -251,6 +258,7 @@ function calculateCourse(isPort){
   
   const d1 = document.getElementById('dist1');
   const d2 = document.getElementById('dist2');
+  const d3 = document.getElementById('dist3');
   
   if(isJW){
     const dAB = distanceBetween(points.A, points.B);
@@ -258,10 +266,8 @@ function calculateCourse(isPort){
     const dCD = distanceBetween(points.C, points.D);
     const dDB = distanceBetween(points.D, points.B);
     const dBA = distanceBetween(points.B, points.A);
-    const totalToB = dAB + dBC + dCD + dDB;
-    const totalToA = totalToB + dBA;
-    d1.textContent = 'A→B→C→D→B：' + totalToB.toFixed(0) + ' m';
-    d2.textContent = 'A→B→C→D→B→A：' + totalToA.toFixed(0) + ' m';
+    d1.textContent = 'A→B→C→D→B：' + (dAB+dBC+dCD+dDB).toFixed(0) + ' m';
+    d2.textContent = 'A→B→C→D→B→A：' + (dAB+dBC+dCD+dDB+dBA).toFixed(0) + ' m';
   } else if(isJW2){
     const dAB = distanceBetween(points.A, points.B);
     const dBC = distanceBetween(points.B, points.C);
@@ -269,13 +275,15 @@ function calculateCourse(isPort){
     const dDE = distanceBetween(points.D, points.E);
     const dEB = distanceBetween(points.E, points.B);
     const dBA = distanceBetween(points.B, points.A);
-    const totalToB = dAB + dBC + dCD + dDE + dEB;
-    const totalToA = totalToB + dBA;
-    d1.textContent = 'A→B→C→D→E→B：' + totalToB.toFixed(0) + ' m';
-    d2.textContent = 'A→B→C→D→E→B→A：' + totalToA.toFixed(0) + ' m';
+    d1.textContent = 'A→B→C→D→E→B：' + (dAB+dBC+dCD+dDE+dEB).toFixed(0) + ' m';
+    d2.textContent = 'A→B→C→D→E→B→A：' + (dAB+dBC+dCD+dDE+dEB+dBA).toFixed(0) + ' m';
   } else {
     d1.textContent = 'A～C：' + distanceBetween(points.A, points.C).toFixed(1) + ' m';
     d2.textContent = 'A～E：' + (points.E ? distanceBetween(points.A, points.E).toFixed(1) : '-') + ' m';
+    if(is5J){
+      const totalAG = distanceBetween(points.A, points.B) + distanceBetween(points.B, points.C) + distanceBetween(points.C, points.D) + distanceBetween(points.D, points.E) + distanceBetween(points.E, points.F) + distanceBetween(points.F, points.G);
+      d3.textContent = 'A→G総距離：' + totalAG.toFixed(0) + ' m';
+    }
   }
   if(map) map.panTo(points.A);
 }
@@ -315,7 +323,10 @@ window.addEventListener('load', ()=>{
       alert("地図上をタップしてください");
     }
   };
-  ['A','B','C','D','E','S'].forEach(l=>{ document.getElementById('btn'+l).onclick=()=>shareCoords(l,points[l]); });
+  ['A','B','C','D','E','F','G','S'].forEach(l=>{ 
+    const btn = document.getElementById('btn'+l);
+    if(btn) btn.onclick=()=>shareCoords(l,points[l]); 
+  });
   
   document.getElementById('courseSelect').onchange = (e) => {
     const v = e.target.value;
