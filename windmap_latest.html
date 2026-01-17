@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.2.2b by Popolo App.com</title>
+<title>コース作るくん v6.2.3 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -29,6 +29,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 
 #inputsMode { margin:15px 0; padding:12px; background:#f0f7ff; border-radius:8px; font-size: 16px; color:#333; border:1px solid #d0e0f0; }
 #inputsMode select { font-size: 22px; padding: 5px; margin: 0 5px; }
+.radio-group { margin: 10px 0; display: flex; gap: 15px; align-items: center; }
 #btnSetCurrent { background: var(--red); color:white; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; margin-top:10px; width:100%; font-size:18px; }
 
 #map { width:100%; height:450px; border-radius:8px; margin-top:10px; box-shadow:0 1px 4px rgba(0,0,0,0.2); }
@@ -40,8 +41,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.2.2b by Popolo App.com</span></h2>
-<div id="version">v6.2.2b</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.2.3 by Popolo App.com</span></h2>
+<div id="version">v6.2.3</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -74,7 +75,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
   <label>CD<br><input type="number" id="distCD2" class="compact-input" value="500"></label>
   <label>DE<br><input type="number" id="distDE" class="compact-input" value="500"></label>
   <label>θ2<br><input type="number" id="theta2_2" class="compact-input" value="5"></label>
-  <label>θ3<br><input type="number" id="theta3" class="compact-input" value="15"></label>
+  <label>θ3<br><input type="number" id="theta3" class="compact-input" value="5"></label>
 </div>
 
 <div class="main-buttons">
@@ -90,6 +91,10 @@ h2 { margin:0 0 8px 0; font-size:18px; }
     <option value="A" selected>A点</option><option value="B">B点</option><option value="C">C点</option>
     <option value="D">D点</option><option value="E">E点</option><option value="S">S点</option>
   </select>
+  <div class="radio-group">
+    <label><input type="radio" name="aMode" value="gps" checked> 現在地をセット</label>
+    <label><input type="radio" name="aMode" value="map"> マップ指定</label>
+  </div>
   <button id="btnSetCurrent">反映</button>
 </div>
 
@@ -136,6 +141,8 @@ function checkUrlParams() {
 
 function initMap(){
   map = new google.maps.Map(document.getElementById('map'), { center:{ lat:26.3318,lng:127.9179 }, zoom:14, gestureHandling: 'greedy', disableDefaultUI: true, zoomControl: true });
+  // マップ指定機能の追加
+  map.addListener('click', (e)=>{ if(document.querySelector('input[name="aMode"]:checked').value==='map'){ setBasePosition({lat:e.latLng.lat(), lng:e.latLng.lng()}); } });
   checkUrlParams();
 }
 
@@ -163,7 +170,6 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
     p.C = movePoint(p.B.lat, p.B.lng, dBC, wind);
     p.D = movePoint(p.C.lat, p.C.lng, dCD, isPort?wind+270-th2:wind+90+th2);
   } else if(isJW2){
-    // ★JWSA2 v6.2.2 新ロジック
     const dAB=parseFloat(document.getElementById('distAB2').value)||0, 
           dBC=parseFloat(document.getElementById('distBC2').value)||0, 
           dCD=parseFloat(document.getElementById('distCD2').value)||0,
@@ -171,17 +177,14 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
           th2=parseFloat(document.getElementById('theta2_2').value)||0, 
           th3=parseFloat(document.getElementById('theta3').value)||0;
     
-    // B点: A点から距離AB (JWSA1と同じ)
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
     
-    // C点: B点から (スタボー:風向+270+θ3 / ポート:風向+90-θ3) 距離BC
-    const brngC = isPort ? (wind + 270 + th3) : (wind + 90 - th3);
+    // C点修正: ポート/スタボーを入れ替え (ポート時+, スタボー時-)
+    const brngC = isPort ? (wind + 90 + th3) : (wind + 270 - th3);
     p.C = movePoint(p.B.lat, p.B.lng, dBC, brngC);
     
-    // D点: C点から 風向へ 距離CD
     p.D = movePoint(p.C.lat, p.C.lng, dCD, wind); 
     
-    // E点: D点から (スタボー:風向+90+θ2 / ポート:風向+270-θ2) 距離DE
     const brngE = isPort ? (wind + 270 - th2) : (wind + 90 + th2);
     p.E = movePoint(p.D.lat, p.D.lng, dDE, brngE);
   } else {
@@ -203,8 +206,10 @@ function setBasePosition(pos) {
   const wind=parseFloat(document.getElementById('wind').value)||0, dist=parseFloat(document.getElementById('dist').value)||0, theta=parseFloat(document.getElementById('theta').value)||0, course=document.getElementById('courseSelect').value;
   const tempStructure = getPointsStructure({lat:0,lng:0}, wind, dist, theta, course, currentIsPort);
   const targetRel = tempStructure[baseLabel];
-  if(!targetRel) { updateAPos(pos.lat, pos.lng); } 
-  else {
+  
+  if(!targetRel || (targetRel.lat === 0 && targetRel.lng === 0)) { 
+    updateAPos(pos.lat, pos.lng); 
+  } else {
     const R=6378137, dy=targetRel.lat*(Math.PI/180)*R, dx=targetRel.lng*(Math.PI/180)*R;
     const d=Math.sqrt(dx*dx+dy*dy), brng=(Math.atan2(dx,dy)*180/Math.PI+360)%360;
     const realA = movePoint(pos.lat, pos.lng, d, (brng+180)%360);
@@ -229,7 +234,7 @@ function calculateCourse(isPort){
   Object.keys(points).forEach(k => { if(circles[k])circles[k].setMap(null); if(markersLabel[k])markersLabel[k].setMap(null); points[k]=null; });
   points = getPointsStructure({lat:latA, lng:lngA}, wind, dist, theta, course, isPort);
   
-  const isS=(course==='sausage'), isJW=(course==='jwsa'), isJW2=(course==='jwsa2'), isF8=(course==='figure8');
+  const isS=(course==='sausage'), isJW=(course==='jwsa'), isJW2=(course==='jwsa2');
   document.getElementById('btnS').style.display=isS?'flex':'none'; 
   document.getElementById('btnD').style.display=isS?'none':'flex'; 
   document.getElementById('btnE').style.display=(isS||isJW)?'none':'flex';
@@ -282,7 +287,12 @@ window.addEventListener('load', ()=>{
     if(navigator.share) navigator.share({text:t}); else alert(t);
   };
   document.getElementById('btnSetCurrent').onclick = ()=>{
-    navigator.geolocation.getCurrentPosition(p=>{ setBasePosition({lat:p.coords.latitude, lng:p.coords.longitude}); }, e=>alert("取得失敗"));
+    const mode = document.querySelector('input[name="aMode"]:checked').value;
+    if(mode==='gps'){
+      navigator.geolocation.getCurrentPosition(p=>{ setBasePosition({lat:p.coords.latitude, lng:p.coords.longitude}); }, e=>alert("取得失敗"));
+    } else {
+      alert("地図上をタップしてください");
+    }
   };
   ['A','B','C','D','E','S'].forEach(l=>{ document.getElementById('btn'+l).onclick=()=>shareCoords(l,points[l]); });
   document.getElementById('courseSelect').onchange=(e)=>{
