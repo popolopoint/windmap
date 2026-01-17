@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.2.8 by Popolo App.com</title>
+<title>コース作るくん v6.2.9 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -41,8 +41,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.2.8 by Popolo App.com</span></h2>
-<div id="version">v6.2.8</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.2.9 by Popolo App.com</span></h2>
+<div id="version">v6.2.9</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -61,7 +61,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 
 <div id="sausageSettings">
   <label>上<br><input type="number" id="upDist" class="compact-input" value="1000"></label>
-  <label>下<br><input type="number" id="downDist" class="compact-input" value="50"></label>
+  <label>下<br><input type="number" id="downDist" class="compact-input" value="100"></label>
 </div>
 <div id="jwsaSettings">
   <label>AB<br><input type="number" id="distAB" class="compact-input" value="500"></label>
@@ -101,7 +101,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 <div id="distances">
   <div class="distanceBox" id="dist1">A～C：- m</div>
   <div class="distanceBox" id="dist2">A～E：- m</div>
-  <div class="distanceBox" id="dist3" style="display:none;">A～G総距離：- m</div>
+  <div class="distanceBox" id="dist3" style="display:none;">A→G総距離：- m</div>
 </div>
 
 <div id="coordsContainer">
@@ -189,8 +189,10 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
       p.D = movePoint(p.C.lat, p.C.lng, dist, isPort?wind+90+theta:wind+270-theta);
       p.E = movePoint(p.D.lat, p.D.lng, dist, isPort?wind+270-theta:wind+90+theta);
       if(is5J){
+        // E点からF点を算出
         const brngF = isPort ? (wind + 90 + theta) : (wind + 270 - theta);
-        p.F = movePoint(p.D.lat, p.D.lng, dist, brngF);
+        p.F = movePoint(p.E.lat, p.E.lng, dist, brngF);
+        // F点からG点を算出
         const brngG = isPort ? (wind + 270 - theta) : (wind + 90 + theta);
         p.G = movePoint(p.F.lat, p.F.lng, dist, brngG);
       }
