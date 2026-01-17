@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.2.6 by Popolo App.com</title>
+<title>コース作るくん v6.2.7 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -41,8 +41,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.2.6 by Popolo App.com</span></h2>
-<div id="version">v6.2.6</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.2.7 by Popolo App.com</span></h2>
+<div id="version">v6.2.7</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -99,8 +99,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </div>
 
 <div id="distances">
-  <div class="distanceBox" id="dist1">A→B→C→D→E→B：- m</div>
-  <div class="distanceBox" id="dist2">A→B→C→D→E→B→A：- m</div>
+  <div class="distanceBox" id="dist1">A～C：- m</div>
+  <div class="distanceBox" id="dist2">A～E：- m</div>
 </div>
 
 <div id="coordsContainer">
@@ -164,10 +164,10 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
     p.B = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('upDist').value)||0, wind);
     p.C = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('downDist').value)||0, wind);
   } else if(isJW){
-    const dAB=parseFloat(document.getElementById('distAB').value)||0, dBC=parseFloat(document.getElementById('distBC').value)||0, dCD=parseFloat(document.getElementById('distCD').value)||0, th2=parseFloat(document.getElementById('theta2').value)||0;
+    const dAB=parseFloat(document.getElementById('distAB').value)||0, dBC=parseFloat(document.getElementById('distBC').value)||0, dCD=parseFloat(document.getElementById('distCD').value)||0, thD=parseFloat(document.getElementById('theta2').value)||0;
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
     p.C = movePoint(p.B.lat, p.B.lng, dBC, wind);
-    p.D = movePoint(p.C.lat, p.C.lng, dCD, isPort?wind+270-th2:wind+90+th2);
+    p.D = movePoint(p.C.lat, p.C.lng, dCD, isPort?wind+270-thD:wind+90+thD);
   } else if(isJW2){
     const dAB=parseFloat(document.getElementById('distAB2').value)||0, 
           dBC=parseFloat(document.getElementById('distBC2').value)||0, 
@@ -177,11 +177,9 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
           thB=parseFloat(document.getElementById('theta3').value)||0;
     
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
-    // C点: ポート(風向+270+角B), スタボー(風向+90-角B)
     const brngC = isPort ? (wind + 270 + thB) : (wind + 90 - thB);
     p.C = movePoint(p.B.lat, p.B.lng, dBC, brngC);
     p.D = movePoint(p.C.lat, p.C.lng, dCD, wind); 
-    // E点: ポート(風向+270-角D), スタボー(風向+90+角D)
     const brngE = isPort ? (wind + 270 - thD) : (wind + 90 + thD);
     p.E = movePoint(p.D.lat, p.D.lng, dDE, brngE);
   } else {
@@ -308,14 +306,25 @@ window.addEventListener('load', ()=>{
     }
   };
   ['A','B','C','D','E','S'].forEach(l=>{ document.getElementById('btn'+l).onclick=()=>shareCoords(l,points[l]); });
-  document.getElementById('courseSelect').onchange=(e)=>{
-    const v=e.target.value;
+  
+  // コース選択変更時のイベント
+  document.getElementById('courseSelect').onchange = (e) => {
+    const v = e.target.value;
+    const distInput = document.getElementById('dist');
+    
+    // ソーセージ選択時のみデフォルトAS距離を100に
+    if (v === 'sausage') {
+      distInput.value = 100;
+    } else {
+      distInput.value = 500;
+    }
+    
     document.getElementById('sausageSettings').style.display = (v === 'sausage') ? 'flex' : 'none';
     document.getElementById('jwsaSettings').style.display = (v === 'jwsa') ? 'flex' : 'none';
     document.getElementById('jwsa2Settings').style.display = (v === 'jwsa2') ? 'flex' : 'none';
   };
 });
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script>
 </body>
 </html>
