@@ -175,7 +175,7 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
     
     // C点: B点から (スタボー:風向+270+θ3 / ポート:風向+90-θ3) 距離BC
-    const brngC = isPort ? (wind + 90 - th3) : (wind + 270 + th3);
+    const brngC = isPort ? (wind + 270 + th3) : (wind + 90 - th3);
     p.C = movePoint(p.B.lat, p.B.lng, dBC, brngC);
     
     // D点: C点から 風向へ 距離CD
