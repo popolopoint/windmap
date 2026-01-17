@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.1.14 by Popolo App.com</title>
+<title>コース作るくん v6.1.15 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -45,8 +45,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.1.14 by Popolo App.com</span></h2>
-<div id="version">v6.1.14</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.1.15 by Popolo App.com</span></h2>
+<div id="version">v6.1.15</div>
 
 <div id="inputs">
   <label>風向<br><input type="number" id="wind" step="any" placeholder="0"></label>
@@ -134,45 +134,44 @@ let points = {A:null,B:null,C:null,D:null,E:null,F:null,G:null,S:null};
 const COLORS = { A:'#ff3b30', B:'#0000ff', C:'#ffff00', D:'#28a745', E:'#6a1b9a', F:'#ff00ff', G:'#00ffff', S:'#0000ff' };
 let currentIsPort = true;
 
-// --- 最強のURL解析エンジン ---
-function getParam(key) {
-    // ? 以降と # 以降を両方結合して探す
-    const search = window.location.search + "&" + window.location.hash.substring(1);
-    const reg = new RegExp("[?&]" + key + "(=([^&#]*)|&|#|$)", "i");
-    const results = reg.exec(search);
-    if (!results || !results[2]) return null;
-    return decodeURIComponent(results[2].replace(/\+/g, " "));
+// --- 【超強力】URL全スキャンエンジン ---
+function findDataInUrl() {
+    const fullUrl = window.location.href;
+    const searchPart = window.location.search + window.location.hash;
+    
+    // 風向(H)の抽出：Hまたはhの直後にある数字（小数点含む）を拾う
+    const hMatch = fullUrl.match(/[Hh](?:=|\:)?(\d+(?:\.\d+)?)/);
+    if (hMatch) document.getElementById('wind').value = hMatch[1];
+
+    // 緯度・経度の抽出
+    const latMatch = fullUrl.match(/lat(?:=|\:)?(-?\d+(?:\.\d+)?)/i);
+    const lngMatch = fullUrl.match(/lng(?:=|\:)?(-?\d+(?:\.\d+)?)/i);
+    
+    if (latMatch && lngMatch) {
+        document.getElementById('basePointSelect').value = "A";
+        updateAPos(parseFloat(latMatch[1]), parseFloat(lngMatch[1]));
+    }
+    
+    // コースの抽出
+    const courseMatch = fullUrl.match(/course(?:=|\:)?([a-zA-Z0-9]+)/i);
+    if (courseMatch) {
+        document.getElementById('courseSelect').value = courseMatch[1];
+        updateUiForCourse(courseMatch[1]);
+    }
 }
 
-function preCheckData() {
-  const hVal = getParam('H') || getParam('h') || getParam('wind');
-  const lat = getParam('lat');
-  const lng = getParam('lng');
-  const course = getParam('course');
-
-  if(hVal) document.getElementById('wind').value = hVal;
-  if(course) {
-    document.getElementById('courseSelect').value = course;
-    updateUiForCourse(course);
-  }
-  if(lat && lng) {
-    document.getElementById('basePointSelect').value = "A";
-    updateAPos(parseFloat(lat), parseFloat(lng));
-  }
-}
-
-// ページ読み込み完了時に即実行
-document.addEventListener('DOMContentLoaded', preCheckData);
+// 読み込みの瞬間と、DOM構築後の両方でチェック
+findDataInUrl();
+document.addEventListener('DOMContentLoaded', findDataInUrl);
 
 function initMap(){
   map = new google.maps.Map(document.getElementById('map'), { center:{ lat:26.3318,lng:127.9179 }, zoom:14, gestureHandling: 'greedy', disableDefaultUI: true, zoomControl: true });
   map.addListener('click', (e)=>{ if(document.querySelector('input[name="aMode"]:checked').value==='map'){ setBasePosition({lat:e.latLng.lat(), lng:e.latLng.lng()}); } });
   
-  // マップ表示後にデータがあれば即描画
   const latA = parseFloat(document.getElementById('latA').value);
   const wind = document.getElementById('wind').value;
-  if(!isNaN(latA) && wind !== "") {
-    calculateCourse(currentIsPort);
+  if(!isNaN(latA)) {
+    if(wind !== "") calculateCourse(currentIsPort);
     map.setCenter({lat: parseFloat(document.getElementById('latA').value), lng: parseFloat(document.getElementById('lngA').value)});
   }
 }
