@@ -10,34 +10,16 @@ body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino 
 h2 { margin:0 0 8px 0; font-size:18px; }
 #version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
 
-/* ★入力エリア：風向・距離・角度を横一列に */
-.row-inputs {
-  display: flex;
-  justify-content: space-between;
-  gap: 5px;
-  margin-bottom: 10px;
-}
-.row-inputs label {
-  flex: 1;
-  font-size: 12px;
-  font-weight: bold;
-  text-align: center;
-}
-.row-inputs input {
-  font-size: 24px;
-  padding: 8px 0;
-  width: 100%;
-  text-align: center;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  box-sizing: border-box;
-}
+/* 入力エリア：風向・距離・角度を横一列に */
+.row-inputs { display: flex; justify-content: space-between; gap: 5px; margin-bottom: 10px; }
+.row-inputs label { flex: 1; font-size: 12px; font-weight: bold; text-align: center; }
+.row-inputs input { font-size: 24px; padding: 8px 0; width: 100%; text-align: center; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; }
 
 /* コース選択 */
 #courseSelect { font-size: 22px; padding: 8px; width: 100%; border-radius:6px; margin-bottom: 10px; border: 1px solid #ccc; }
 
 /* サブ設定エリア */
-.compact-input { font-size: 20px !important; padding: 8px 4px !important; width: 68px !important; text-align:center; border-radius:6px; border:1px solid #ccc; }
+.compact-input { font-size: 20px !important; padding: 8px 4px !important; width: 68px !important; text-align:center; border-radius:6px; border: 1px solid #ccc; }
 #sausageSettings, #jwsaSettings { display:none; flex-wrap:nowrap; align-items:center; justify-content: space-around; background:#f0f0f0; padding:8px; border-radius:8px; margin-bottom:10px; width: 100%; box-sizing: border-box; }
 
 /* 大型ボタン群（2x2） */
@@ -65,8 +47,6 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 .overlay{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.5); z-index:2000;}
 .modal{background:#fff; padding:20px; border-radius:12px; width:90%; max-width:350px; text-align:center;}
 .modal .reading{font-size:48px; font-weight:bold; margin: 20px 0; color:#111;}
-
-@media (max-width:360px){ .main-buttons button { font-size: 17px; } }
 </style>
 </head>
 <body>
@@ -80,7 +60,6 @@ h2 { margin:0 0 8px 0; font-size:18px; }
   <label id="thetaLabel">角度(°)<br><input type="number" id="theta" value="5"></label>
 </div>
 
-<label style="font-size:12px; font-weight:bold;">コース選択</label>
 <select id="courseSelect">
   <option value="mcourse">Ｍコース</option>
   <option value="figure8">フィギア８</option>
@@ -125,7 +104,6 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 <div id="distances">
   <div class="distanceBox" id="dAC">A～C：- m</div>
   <div class="distanceBox" id="dAE">A～E：- m</div>
-  <div class="distanceBox" id="dAG" style="display:none;">A～G：- m</div>
 </div>
 
 <div id="coordsContainer">
@@ -150,8 +128,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
   <div class="overlay"><div class="modal">
     <h3>風上に向けて設定</h3>
     <div class="reading" id="headingRead">--°</div>
-    <button id="modalSetBtn" style="background:var(--purple); width:100%; margin-bottom:10px; color:white; padding:15px; font-size:20px; border:none; border-radius:10px;">この向きで決定</button>
-    <button id="modalCloseBtn" style="background:#ccc; color:#000; width:100%; padding:10px; border:none; border-radius:10px;">閉じる</button>
+    <button id="modalSetBtn" style="background:var(--purple); width:100%; color:white; padding:15px; font-size:20px; border:none; border-radius:10px;">決定</button>
+    <button id="modalCloseBtn" style="margin-top:10px; background:#ccc; width:100%; padding:10px; border:none; border-radius:10px;">閉じる</button>
   </div></div>
 </div>
 
@@ -163,22 +141,40 @@ let currentIsPort = true;
 
 function initMap(){
   map = new google.maps.Map(document.getElementById('map'), { 
-    center:{ lat:26.3318,lng:127.9179 }, 
-    zoom:14, 
-    gestureHandling: 'greedy',
-    disableDefaultUI: true,
-    zoomControl: true
+    center:{ lat:26.3318,lng:127.9179 }, zoom:14, gestureHandling: 'greedy', disableDefaultUI: true, zoomControl: true
   });
   map.addListener('click', (e)=>{
     if(document.querySelector('input[name="aMode"]:checked').value==='map'){
       setBasePosition({lat:e.latLng.lat(), lng:e.latLng.lng()});
     }
   });
+  // マップ初期化後にデータ受信を確認
+  checkUrlParams();
+}
+
+// データ受信エンジン
+function checkUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  const wind = params.get('wind');
+  const lat = params.get('lat');
+  const lng = params.get('lng');
+  const course = params.get('course');
+
+  if(wind) document.getElementById('wind').value = wind;
+  if(course) {
+    document.getElementById('courseSelect').value = course;
+    updateUiForCourse(course);
+  }
+
+  if(lat && lng) {
+    // 送られてきた地点を「C点（本部船）」として扱うのが一般的
+    document.getElementById('basePointSelect').value = "C";
+    setBasePosition({lat: parseFloat(lat), lng: parseFloat(lng)});
+  }
 }
 
 function movePoint(lat,lng,dist,bearing){
-  const R=6378137, brng=(bearing%360)*Math.PI/180;
-  const φ1=lat*Math.PI/180, λ1=lng*Math.PI/180, δ=dist/R;
+  const R=6378137, brng=(bearing%360)*Math.PI/180, φ1=lat*Math.PI/180, λ1=lng*Math.PI/180, δ=dist/R;
   const φ2=Math.asin(Math.sin(φ1)*Math.cos(δ)+Math.cos(φ1)*Math.sin(δ)*Math.cos(brng));
   const λ2=λ1+Math.atan2(Math.sin(brng)*Math.sin(δ)*Math.cos(φ1), Math.cos(δ)-Math.sin(φ1)*Math.sin(φ2));
   return {lat: φ2*180/Math.PI, lng: λ2*180/Math.PI};
@@ -186,7 +182,7 @@ function movePoint(lat,lng,dist,bearing){
 
 function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
   let p = {A: baseA};
-  const isS = (course==='sausage'), isJW = (course==='jwsa'), isF8 = (course==='figure8'), is5J = (course==='5jibe');
+  const isS=(course==='sausage'), isJW=(course==='jwsa'), isF8=(course==='figure8'), is5J=(course==='5jibe');
   if(isS){
     const bS = wind + (isPort?90+theta:270-theta);
     p.S = movePoint(p.A.lat, p.A.lng, dist, bS);
@@ -218,9 +214,8 @@ function setBasePosition(pos) {
   const wind=parseFloat(document.getElementById('wind').value)||0, dist=parseFloat(document.getElementById('dist').value)||0, theta=parseFloat(document.getElementById('theta').value)||0, course=document.getElementById('courseSelect').value;
   const tempStructure = getPointsStructure({lat:0,lng:0}, wind, dist, theta, course, currentIsPort);
   const targetRel = tempStructure[baseLabel];
-  if(!targetRel) {
-    updateAPos(pos.lat, pos.lng);
-  } else {
+  if(!targetRel) { updateAPos(pos.lat, pos.lng); } 
+  else {
     const R=6378137, dy=targetRel.lat*(Math.PI/180)*R, dx=targetRel.lng*(Math.PI/180)*R;
     const d=Math.sqrt(dx*dx+dy*dy), brng=(Math.atan2(dx,dy)*180/Math.PI+360)%360;
     const realA = movePoint(pos.lat, pos.lng, d, (brng+180)%360);
@@ -244,8 +239,10 @@ function calculateCourse(isPort){
   polylines.forEach(p => p.setMap(null)); polylines = [];
   Object.keys(points).forEach(k => { if(circles[k])circles[k].setMap(null); if(markersLabel[k])markersLabel[k].setMap(null); points[k]=null; });
   points = getPointsStructure({lat:latA, lng:lngA}, wind, dist, theta, course, isPort);
+  
   const isS=(course==='sausage'), is5J=(course==='5jibe'), isJW=(course==='jwsa'), isF8=(course==='figure8');
-  document.getElementById('btnS').style.display=isS?'flex':'none'; document.getElementById('btnD').style.display=(isS||isF8)?'none':'flex'; document.getElementById('btnE').style.display=(isS||isJW)?'none':'flex'; document.getElementById('btnF').style.display=is5J?'flex':'none'; document.getElementById('btnG').style.display=is5J?'flex':'none'; document.getElementById('dAG').style.display=is5J?'block':'none';
+  document.getElementById('btnS').style.display=isS?'flex':'none'; document.getElementById('btnD').style.display=(isS||isF8)?'none':'flex'; document.getElementById('btnE').style.display=(isS||isJW)?'none':'flex'; document.getElementById('btnF').style.display=is5J?'flex':'none'; document.getElementById('btnG').style.display=is5J?'flex':'none';
+  
   let path = [];
   if(isS){
     polylines.push(new google.maps.Polyline({path:[points.A, points.S], strokeColor:'#f00', strokeWeight:3, map}));
@@ -256,7 +253,7 @@ function calculateCourse(isPort){
     document.getElementById('dAC').textContent=`AB:${document.getElementById('distAB').value} BC:${document.getElementById('distBC').value}`; document.getElementById('dAE').textContent=`CD:${document.getElementById('distCD').value}`;
   } else {
     path = [points.A, points.B, points.C, points.D, points.E].filter(v => v); if(is5J) path.push(points.F, points.G);
-    document.getElementById('dAC').textContent = 'A～C：' + distanceBetween(points.A, points.C).toFixed(1) + ' m'; document.getElementById('dAE').textContent = 'A～E：' + (points.E ? distanceBetween(points.A, points.E).toFixed(1) : '-') + ' m'; if(is5J) document.getElementById('dAG').textContent = 'A～G：' + distanceBetween(points.A, points.G).toFixed(1) + ' m';
+    document.getElementById('dAC').textContent = 'A～C：' + distanceBetween(points.A, points.C).toFixed(1) + ' m'; document.getElementById('dAE').textContent = 'A～E：' + (points.E ? distanceBetween(points.A, points.E).toFixed(1) : '-') + ' m';
   }
   polylines.push(new google.maps.Polyline({path:path, strokeColor:'#444', strokeWeight:2, map}));
   Object.keys(points).forEach(k => { if(points[k]) drawPoint(k, points[k], COLORS[k]); });
@@ -271,8 +268,7 @@ function drawPoint(label,pos,color){
 
 function distanceBetween(p1,p2){
   if(!p1||!p2) return 0;
-  const R=6378137, dφ=(p2.lat-p1.lat)*Math.PI/180, dλ=(p2.lng-p1.lng)*Math.PI/180;
-  const a=Math.sin(dφ/2)**2 + Math.cos(p1.lat*Math.PI/180)*Math.cos(p2.lat*Math.PI/180)*Math.sin(dλ/2)**2;
+  const R=6378137, dφ=(p2.lat-p1.lat)*Math.PI/180, dλ=(p2.lng-p1.lng)*Math.PI/180, a=Math.sin(dφ/2)**2 + Math.cos(p1.lat*Math.PI/180)*Math.cos(p2.lat*Math.PI/180)*Math.sin(dλ/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
@@ -282,11 +278,19 @@ function shareCoords(l,p){
   if(navigator.share) navigator.share({text:t}); else alert(t);
 }
 
+function updateUiForCourse(v) {
+  document.getElementById('sausageSettings').style.display = (v === 'sausage') ? 'flex' : 'none';
+  document.getElementById('jwsaSettings').style.display = (v === 'jwsa') ? 'flex' : 'none';
+  document.getElementById('distLabel').style.display = (v === 'jwsa') ? 'none' : 'inline-block';
+  document.getElementById('thetaLabel').style.display = (v === 'jwsa') ? 'none' : 'inline-block';
+  if(v === 'sausage') document.getElementById('dist').value = 100;
+  else if(v !== 'jwsa') document.getElementById('dist').value = 500;
+}
+
 // コンパス関連
-let headingSamples=[], headingWatcher=null;
-const modalRoot=document.getElementById('windModal'), headingReadEl=document.getElementById('headingRead');
-function openWindModal(){ headingSamples=[]; modalRoot.style.display='block'; startOrientationListening(); }
-function closeWindModal(){ stopOrientationListening(); modalRoot.style.display='none'; }
+let headingWatcher=null;
+function openWindModal(){ document.getElementById('windModal').style.display='block'; startOrientationListening(); }
+function closeWindModal(){ stopOrientationListening(); document.getElementById('windModal').style.display='none'; }
 function startOrientationListening(){
   if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
     DeviceOrientationEvent.requestPermission().then(r=>{ if(r==='granted') addOrientationListener(); });
@@ -295,9 +299,7 @@ function startOrientationListening(){
 function addOrientationListener(){
   headingWatcher = (e)=>{
     let h = (e.webkitCompassHeading !== undefined) ? e.webkitCompassHeading : (360 - e.alpha);
-    if(h) { headingSamples.push(h); if(headingSamples.length>20) headingSamples.shift();
-      let x=0,y=0; headingSamples.forEach(d=>{ let r=d*Math.PI/180; x+=Math.cos(r); y+=Math.sin(r); });
-      headingReadEl.textContent = Math.round((Math.atan2(y,x)*180/Math.PI + 360)%360) + '°'; }
+    if(h) document.getElementById('headingRead').textContent = Math.round(h) + '°';
   };
   window.addEventListener('deviceorientation', headingWatcher, true);
 }
@@ -305,7 +307,7 @@ function stopOrientationListening(){ window.removeEventListener('deviceorientati
 
 window.addEventListener('load', ()=>{
   document.getElementById('btnWindSet').onclick = openWindModal;
-  document.getElementById('modalSetBtn').onclick = () => { document.getElementById('wind').value = parseInt(headingReadEl.textContent); closeWindModal(); };
+  document.getElementById('modalSetBtn').onclick = () => { document.getElementById('wind').value = parseInt(document.getElementById('headingRead').textContent); closeWindModal(); };
   document.getElementById('modalCloseBtn').onclick = closeWindModal;
   document.getElementById('btnStarboard').onclick=()=>calculateCourse(false);
   document.getElementById('btnPort').onclick=()=>calculateCourse(true);
@@ -315,28 +317,11 @@ window.addEventListener('load', ()=>{
   };
   document.getElementById('btnSetCurrent').onclick = ()=>{
     if(document.querySelector('input[name="aMode"]:checked').value==='current'){
-      navigator.geolocation.getCurrentPosition(p=>{ setBasePosition({lat:p.coords.latitude, lng:p.coords.longitude}); }, e=>alert("位置情報が取得できません"));
-    } else {
-        alert("マップ上をクリックして地点を指定してください。");
-    }
+      navigator.geolocation.getCurrentPosition(p=>{ setBasePosition({lat:p.coords.latitude, lng:p.coords.longitude}); }, e=>alert("位置情報取得失敗"));
+    } else { alert("マップ上をクリックしてください"); }
   };
   ['A','B','C','D','E','F','G','S'].forEach(l=>{ document.getElementById('btn'+l).onclick=()=>shareCoords(l,points[l]); });
-  
-  // コース選択時のイベント
-  document.getElementById('courseSelect').onchange=(e)=>{
-    const v=e.target.value;
-    document.getElementById('sausageSettings').style.display = (v === 'sausage') ? 'flex' : 'none';
-    document.getElementById('jwsaSettings').style.display = (v === 'jwsa') ? 'flex' : 'none';
-    document.getElementById('distLabel').style.display = (v === 'jwsa') ? 'none' : 'inline-block';
-    document.getElementById('thetaLabel').style.display = (v === 'jwsa') ? 'none' : 'inline-block';
-
-    // ★ソーセージ選択時、デフォルト距離を100に変更
-    if(v === 'sausage') {
-      document.getElementById('dist').value = 100;
-    } else if(v !== 'jwsa') {
-      document.getElementById('dist').value = 500;
-    }
-  };
+  document.getElementById('courseSelect').onchange=(e)=>updateUiForCourse(e.target.value);
 });
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
