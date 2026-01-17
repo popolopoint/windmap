@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.1.9 by Popolo App.com</title>
+<title>コース作るくん v6.1.10 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -20,8 +20,6 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 
 .main-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin: 10px 0; }
 .main-buttons button { font-size: 22px; padding: 15px 10px; border-radius: 10px; border: none; color: white; cursor: pointer; font-weight: bold; box-shadow: 0 3px 6px rgba(0,0,0,0.16); display: flex; align-items: center; justify-content: center; }
-.main-buttons button:active { transform: translateY(2px); box-shadow: none; }
-
 #btnWindSet { background: var(--purple); }
 #btnShareAll { background: var(--gray); }
 #btnStarboard { background: var(--green); }
@@ -30,7 +28,6 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 #courseSelect { font-size: 24px; padding: 8px; width: 100%; border-radius:6px; margin-top:5px; }
 #inputsMode { margin:15px 0; padding:12px; background:#f0f7ff; border-radius:8px; font-size: 16px; color:#333; border:1px solid #d0e0f0; }
 #inputsMode select { font-size: 22px; padding: 5px; margin: 0 5px; }
-#inputsMode input[type="radio"] { transform: scale(1.4); margin: 0 5px 0 10px; }
 #btnSetCurrent { background: var(--red); color:white; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; margin-top:10px; width:100%; font-size:18px; }
 
 #map { width:100%; height:450px; border-radius:8px; margin-top:10px; box-shadow:0 1px 4px rgba(0,0,0,0.2); }
@@ -48,8 +45,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.1.9 by Popolo App.com</span></h2>
-<div id="version">v6.1.9</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.1.10 by Popolo App.com</span></h2>
+<div id="version">v6.1.10</div>
 
 <div id="inputs">
   <label>風向<br><input type="number" id="wind" step="any" placeholder="0"></label>
@@ -89,7 +86,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 <div id="inputsMode">
   <strong>基準点：</strong>
   <select id="basePointSelect">
-    <option value="A">A点</option><option value="B">B点</option><option value="C">C点</option>
+    <option value="A" selected>A点</option><option value="B">B点</option><option value="C">C点</option>
     <option value="D">D点</option><option value="E">E点</option><option value="F">F点</option>
     <option value="G">G点</option><option value="S">S点</option>
   </select>
@@ -141,16 +138,16 @@ function initMap(){
   map = new google.maps.Map(document.getElementById('map'), { center:{ lat:26.3318,lng:127.9179 }, zoom:14, gestureHandling: 'greedy', disableDefaultUI: true, zoomControl: true });
   map.addListener('click', (e)=>{ if(document.querySelector('input[name="aMode"]:checked').value==='map'){ setBasePosition({lat:e.latLng.lat(), lng:e.latLng.lng()}); } });
   
-  // マップ起動時にURLパラメータをチェック
+  // マップ作成後に受信データをチェック
   checkUrlParams();
 }
 
 function checkUrlParams() {
   const params = new URLSearchParams(window.location.search);
   const wind = params.get('wind');
-  const course = params.get('course');
   const lat = params.get('lat');
   const lng = params.get('lng');
+  const course = params.get('course');
 
   if(wind) document.getElementById('wind').value = wind;
   if(course) {
@@ -158,10 +155,16 @@ function checkUrlParams() {
     updateUiForCourse(course);
   }
   
+  // 緯度・経度が送られてきた場合
   if(lat && lng) {
-    // データ受信時は強制的に「A点」を基準にする
+    // 強制的にA点を基準にする
     document.getElementById('basePointSelect').value = "A";
-    setBasePosition({lat: parseFloat(lat), lng: parseFloat(lng)});
+    const pos = { lat: parseFloat(lat), lng: parseFloat(lng) };
+    
+    // UIを更新して描画
+    updateAPos(pos.lat, pos.lng);
+    calculateCourse(currentIsPort);
+    map.setCenter(pos);
   }
 }
 
@@ -277,7 +280,6 @@ function updateUiForCourse(v) {
   document.getElementById('thetaLabel').style.display = (v === 'jwsa') ? 'none' : 'inline-block';
 }
 
-// コンパス関連
 let headingSamples=[], headingWatcher=null;
 function openWindModal(){ headingSamples=[]; document.getElementById('windModal').style.display='block'; startOrientationListening(); }
 function closeWindModal(){ stopOrientationListening(); document.getElementById('windModal').style.display='none'; }
