@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.2.5 by Popolo App.com</title>
+<title>コース作るくん v6.2.6 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -41,8 +41,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.2.5 by Popolo App.com</span></h2>
-<div id="version">v6.2.5</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.2.6 by Popolo App.com</span></h2>
+<div id="version">v6.2.6</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -67,15 +67,15 @@ h2 { margin:0 0 8px 0; font-size:18px; }
   <label>AB<br><input type="number" id="distAB" class="compact-input" value="500"></label>
   <label>BC<br><input type="number" id="distBC" class="compact-input" value="500"></label>
   <label>CD<br><input type="number" id="distCD" class="compact-input" value="500"></label>
-  <label>θ2<br><input type="number" id="theta2" class="compact-input" value="5"></label>
+  <label>角D<br><input type="number" id="theta2" class="compact-input" value="30"></label>
 </div>
 <div id="jwsa2Settings">
   <label>AB<br><input type="number" id="distAB2" class="compact-input" value="500"></label>
   <label>BC<br><input type="number" id="distBC2" class="compact-input" value="200"></label>
   <label>CD<br><input type="number" id="distCD2" class="compact-input" value="500"></label>
   <label>DE<br><input type="number" id="distDE" class="compact-input" value="500"></label>
-  <label>θ2<br><input type="number" id="theta2_2" class="compact-input" value="5"></label>
-  <label>θ3<br><input type="number" id="theta3" class="compact-input" value="5"></label>
+  <label>角D<br><input type="number" id="theta2_2" class="compact-input" value="30"></label>
+  <label>角B<br><input type="number" id="theta3" class="compact-input" value="45"></label>
 </div>
 
 <div class="main-buttons">
@@ -173,15 +173,16 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
           dBC=parseFloat(document.getElementById('distBC2').value)||0, 
           dCD=parseFloat(document.getElementById('distCD2').value)||0,
           dDE=parseFloat(document.getElementById('distDE').value)||0,
-          th2=parseFloat(document.getElementById('theta2_2').value)||0, 
-          th3=parseFloat(document.getElementById('theta3').value)||0;
+          thD=parseFloat(document.getElementById('theta2_2').value)||0, 
+          thB=parseFloat(document.getElementById('theta3').value)||0;
     
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
-    // C点修正: ポート(風向+270+θ3), スタボー(風向+90-θ3)
-    const brngC = isPort ? (wind + 270 + th3) : (wind + 90 - th3);
+    // C点: ポート(風向+270+角B), スタボー(風向+90-角B)
+    const brngC = isPort ? (wind + 270 + thB) : (wind + 90 - thB);
     p.C = movePoint(p.B.lat, p.B.lng, dBC, brngC);
     p.D = movePoint(p.C.lat, p.C.lng, dCD, wind); 
-    const brngE = isPort ? (wind + 270 - th2) : (wind + 90 + th2);
+    // E点: ポート(風向+270-角D), スタボー(風向+90+角D)
+    const brngE = isPort ? (wind + 270 - thD) : (wind + 90 + thD);
     p.E = movePoint(p.D.lat, p.D.lng, dDE, brngE);
   } else {
     p.B = movePoint(p.A.lat, p.A.lng, dist, isPort?wind+90+theta:wind+270-theta);
@@ -315,6 +316,6 @@ window.addEventListener('load', ()=>{
   };
 });
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script>
 </body>
 </html>
