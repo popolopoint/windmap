@@ -3,39 +3,17 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.1.19 by Popolo App.com</title>
+<title>コース作るくん v6.1.20 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
 h2 { margin:0 0 8px 0; font-size:18px; }
 #version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
 
-/* ★ 3つを1行にまとめる設定 ★ */
-.input-row { 
-  display: flex; 
-  gap: 5px; 
-  width: 100%; 
-  margin-bottom: 10px; 
-}
-.input-group { 
-  flex: 1; /* 均等に広がる */
-  display: flex; 
-  flex-direction: column; 
-}
-.input-group label { 
-  font-size: 11px; 
-  font-weight: bold; 
-  margin-bottom: 2px; 
-}
-.input-group input { 
-  font-size: 24px; /* 少しだけ小さくして1行に収まりやすく */
-  padding: 8px 4px; 
-  width: 100%; 
-  box-sizing: border-box; 
-  border-radius: 6px; 
-  border: 1px solid #ccc; 
-  text-align: center;
-}
+.input-row { display: flex; gap: 5px; width: 100%; margin-bottom: 10px; }
+.input-group { flex: 1; display: flex; flex-direction: column; }
+.input-group label { font-size: 11px; font-weight: bold; margin-bottom: 2px; }
+.input-group input { font-size: 24px; padding: 8px 4px; width: 100%; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; text-align: center; }
 
 #courseSelect { font-size: 24px; padding: 8px; width: 100%; border-radius:6px; margin-bottom:10px; }
 
@@ -62,8 +40,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.1.19 by Popolo App.com</span></h2>
-<div id="version">v6.1.19</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.1.20 by Popolo App.com</span></h2>
+<div id="version">v6.1.20</div>
 
 <div class="input-row">
   <div class="input-group">
@@ -150,25 +128,18 @@ let points = {A:null,B:null,C:null,D:null,E:null,F:null,G:null,S:null};
 const COLORS = { A:'#ff3b30', B:'#0000ff', C:'#ffff00', D:'#28a745', E:'#6a1b9a', F:'#ff2d55', G:'#5ac8fa', S:'#0000ff' };
 let currentIsPort = true;
 
-// 補正どん連携ロジック（v6.1.18継承）
 function checkUrlParams() {
     const s = window.location.href;
     const hMatch = s.match(/[?&](heading|H|h)=([0-9.]+)/);
     const latMatch = s.match(/[?&]lat=([0-9.-]+)/);
     const lngMatch = s.match(/[?&]lng=([0-9.-]+)/);
-
-    if (hMatch) {
-        document.getElementById('wind').value = hMatch[2];
-    }
+    if (hMatch) document.getElementById('wind').value = hMatch[2];
     if (latMatch && lngMatch) {
-        const lat = parseFloat(latMatch[1]);
-        const lng = parseFloat(lngMatch[1]);
+        const lat = parseFloat(latMatch[1]), lng = parseFloat(lngMatch[2] || lngMatch[1]);
         updateAPos(lat, lng);
-        if (map) { map.setCenter({lat: lat, lng: lng}); }
+        if (map) map.setCenter({lat, lng});
     }
-    if (hMatch && latMatch && lngMatch) {
-        setTimeout(() => { calculateCourse(true); }, 800);
-    }
+    if (hMatch && latMatch && lngMatch) setTimeout(() => calculateCourse(true), 800);
 }
 
 function initMap(){
@@ -299,10 +270,17 @@ window.addEventListener('load', ()=>{
     } else { alert("マップをクリック"); }
   };
   ['A','B','C','D','E','F','G','S'].forEach(l=>{ document.getElementById('btn'+l).onclick=()=>shareCoords(l,points[l]); });
+
+  // ★ コース選択時の連動処理
   document.getElementById('courseSelect').onchange=(e)=>{
     const v=e.target.value;
     document.getElementById('sausageSettings').style.display = (v === 'sausage') ? 'flex' : 'none';
     document.getElementById('jwsaSettings').style.display = (v === 'jwsa') ? 'flex' : 'none';
+    
+    // ソーセージ選択時のみ距離を100にセット
+    if (v === 'sausage') {
+        document.getElementById('dist').value = 100;
+    }
   };
 });
 </script>
