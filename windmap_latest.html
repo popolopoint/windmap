@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.2.7 by Popolo App.com</title>
+<title>コース作るくん v6.2.7b by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -41,8 +41,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.2.7 by Popolo App.com</span></h2>
-<div id="version">v6.2.7</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.2.7b by Popolo App.com</span></h2>
+<div id="version">v6.2.7b</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -99,8 +99,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </div>
 
 <div id="distances">
-  <div class="distanceBox" id="dist1">A～C：- m</div>
-  <div class="distanceBox" id="dist2">A～E：- m</div>
+  <div class="distanceBox" id="dist1">- m</div>
+  <div class="distanceBox" id="dist2">- m</div>
 </div>
 
 <div id="coordsContainer">
@@ -252,7 +252,17 @@ function calculateCourse(isPort){
   const d1 = document.getElementById('dist1');
   const d2 = document.getElementById('dist2');
   
-  if(isJW2){
+  if(isJW){
+    const dAB = distanceBetween(points.A, points.B);
+    const dBC = distanceBetween(points.B, points.C);
+    const dCD = distanceBetween(points.C, points.D);
+    const dDB = distanceBetween(points.D, points.B);
+    const dBA = distanceBetween(points.B, points.A);
+    const totalToB = dAB + dBC + dCD + dDB;
+    const totalToA = totalToB + dBA;
+    d1.textContent = 'A→B→C→D→B：' + totalToB.toFixed(0) + ' m';
+    d2.textContent = 'A→B→C→D→B→A：' + totalToA.toFixed(0) + ' m';
+  } else if(isJW2){
     const dAB = distanceBetween(points.A, points.B);
     const dBC = distanceBetween(points.B, points.C);
     const dCD = distanceBetween(points.C, points.D);
@@ -307,18 +317,14 @@ window.addEventListener('load', ()=>{
   };
   ['A','B','C','D','E','S'].forEach(l=>{ document.getElementById('btn'+l).onclick=()=>shareCoords(l,points[l]); });
   
-  // コース選択変更時のイベント
   document.getElementById('courseSelect').onchange = (e) => {
     const v = e.target.value;
     const distInput = document.getElementById('dist');
-    
-    // ソーセージ選択時のみデフォルトAS距離を100に
     if (v === 'sausage') {
       distInput.value = 100;
     } else {
       distInput.value = 500;
     }
-    
     document.getElementById('sausageSettings').style.display = (v === 'sausage') ? 'flex' : 'none';
     document.getElementById('jwsaSettings').style.display = (v === 'jwsa') ? 'flex' : 'none';
     document.getElementById('jwsa2Settings').style.display = (v === 'jwsa2') ? 'flex' : 'none';
