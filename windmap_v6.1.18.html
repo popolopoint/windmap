@@ -3,44 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.1.19 by Popolo App.com</title>
+<title>コース作るくん v6.1.18 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
 h2 { margin:0 0 8px 0; font-size:18px; }
 #version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
 
-/* ★ 3つを1行にまとめる設定 ★ */
-.input-row { 
-  display: flex; 
-  gap: 5px; 
-  width: 100%; 
-  margin-bottom: 10px; 
-}
-.input-group { 
-  flex: 1; /* 均等に広がる */
-  display: flex; 
-  flex-direction: column; 
-}
-.input-group label { 
-  font-size: 11px; 
-  font-weight: bold; 
-  margin-bottom: 2px; 
-}
-.input-group input { 
-  font-size: 24px; /* 少しだけ小さくして1行に収まりやすく */
-  padding: 8px 4px; 
-  width: 100%; 
-  box-sizing: border-box; 
-  border-radius: 6px; 
-  border: 1px solid #ccc; 
-  text-align: center;
-}
-
-#courseSelect { font-size: 24px; padding: 8px; width: 100%; border-radius:6px; margin-bottom:10px; }
+#inputs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; }
+#inputs label { font-size:13px; font-weight:bold; }
+#wind, #dist, #theta { font-size: 28px; padding: 10px; width: 110px; border-radius:6px; border:1px solid #ccc; }
 
 .compact-input { font-size: 20px !important; padding: 8px 4px !important; width: 68px !important; text-align:center; border-radius:6px; border:1px solid #ccc; }
-#sausageSettings, #jwsaSettings { display:none; flex-wrap:nowrap; align-items:center; gap:4px; background:#f0f0f0; padding:5px; border-radius:8px; margin-bottom:10px; width: 100%; box-sizing: border-box; }
+#sausageSettings, #jwsaSettings { display:none; flex-wrap:nowrap; align-items:center; gap:4px; background:#f0f0f0; padding:5px; border-radius:8px; margin-top:5px; width: 100%; box-sizing: border-box; }
 
 .main-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin: 10px 0; }
 .main-buttons button { font-size: 22px; padding: 15px 10px; border-radius: 10px; border: none; color: white; cursor: pointer; font-weight: bold; box-shadow: 0 3px 6px rgba(0,0,0,0.16); display: flex; align-items: center; justify-content: center; }
@@ -49,6 +24,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 #btnStarboard { background: var(--green); }
 #btnPort { background: var(--orange); }
 
+#courseSelect { font-size: 24px; padding: 8px; width: 100%; border-radius:6px; margin-top:5px; }
 #inputsMode { margin:15px 0; padding:12px; background:#f0f7ff; border-radius:8px; font-size: 16px; color:#333; border:1px solid #d0e0f0; }
 #inputsMode select { font-size: 22px; padding: 5px; margin: 0 5px; }
 #btnSetCurrent { background: var(--red); color:white; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; margin-top:10px; width:100%; font-size:18px; }
@@ -62,42 +38,32 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.1.19 by Popolo App.com</span></h2>
-<div id="version">v6.1.19</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.1.18 by Popolo App.com</span></h2>
+<div id="version">v6.1.18</div>
 
-<div class="input-row">
-  <div class="input-group">
-    <label>風向</label>
-    <input type="number" id="wind" step="any" placeholder="0">
+<div id="inputs">
+  <label>風向<br><input type="number" id="wind" step="any" placeholder="0"></label>
+  <label id="distLabel">距離(m)<br><input type="number" id="dist" value="500"></label>
+  <label id="thetaLabel">角度(°)<br><input type="number" id="theta" value="5"></label>
+  <label style="width:100%">コース選択<br>
+    <select id="courseSelect">
+      <option value="mcourse">Ｍコース</option>
+      <option value="figure8">フィギア８</option>
+      <option value="sausage">ソーセージ</option>
+      <option value="5jibe">５ジャイブ</option>
+      <option value="jwsa">JWSAアップ</option>
+    </select>
+  </label>
+  <div id="sausageSettings">
+    <label>上<br><input type="number" id="upDist" class="compact-input" value="1000"></label>
+    <label>下<br><input type="number" id="downDist" class="compact-input" value="50"></label>
   </div>
-  <div class="input-group">
-    <label>距離(m)</label>
-    <input type="number" id="dist" value="500">
+  <div id="jwsaSettings">
+    <label>AB<br><input type="number" id="distAB" class="compact-input" value="500"></label>
+    <label>BC<br><input type="number" id="distBC" class="compact-input" value="500"></label>
+    <label>CD<br><input type="number" id="distCD" class="compact-input" value="500"></label>
+    <label>θ2<br><input type="number" id="theta2" class="compact-input" value="5"></label>
   </div>
-  <div class="input-group">
-    <label>角度(°)</label>
-    <input type="number" id="theta" value="5">
-  </div>
-</div>
-
-<label style="font-size:13px; font-weight:bold;">コース選択</label>
-<select id="courseSelect">
-  <option value="mcourse">Ｍコース</option>
-  <option value="figure8">フィギア８</option>
-  <option value="sausage">ソーセージ</option>
-  <option value="5jibe">５ジャイブ</option>
-  <option value="jwsa">JWSAアップ</option>
-</select>
-
-<div id="sausageSettings">
-  <label>上<br><input type="number" id="upDist" class="compact-input" value="1000"></label>
-  <label>下<br><input type="number" id="downDist" class="compact-input" value="50"></label>
-</div>
-<div id="jwsaSettings">
-  <label>AB<br><input type="number" id="distAB" class="compact-input" value="500"></label>
-  <label>BC<br><input type="number" id="distBC" class="compact-input" value="500"></label>
-  <label>CD<br><input type="number" id="distCD" class="compact-input" value="500"></label>
-  <label>θ2<br><input type="number" id="theta2" class="compact-input" value="5"></label>
 </div>
 
 <div class="main-buttons">
@@ -150,30 +116,43 @@ let points = {A:null,B:null,C:null,D:null,E:null,F:null,G:null,S:null};
 const COLORS = { A:'#ff3b30', B:'#0000ff', C:'#ffff00', D:'#28a745', E:'#6a1b9a', F:'#ff2d55', G:'#5ac8fa', S:'#0000ff' };
 let currentIsPort = true;
 
-// 補正どん連携ロジック（v6.1.18継承）
+// ==========================================================
+// ★ ここが「補正どん」からデータを受け取るための新しいコードです
+// ==========================================================
 function checkUrlParams() {
     const s = window.location.href;
+    
+    // 1. 風向を受け取る (heading または H/h に対応)
     const hMatch = s.match(/[?&](heading|H|h)=([0-9.]+)/);
+    // 2. 緯度・経度を受け取る (lat / lng)
     const latMatch = s.match(/[?&]lat=([0-9.-]+)/);
     const lngMatch = s.match(/[?&]lng=([0-9.-]+)/);
 
     if (hMatch) {
         document.getElementById('wind').value = hMatch[2];
+        console.log("風向を受け取りました: " + hMatch[2]);
     }
+
     if (latMatch && lngMatch) {
         const lat = parseFloat(latMatch[1]);
         const lng = parseFloat(lngMatch[1]);
         updateAPos(lat, lng);
         if (map) { map.setCenter({lat: lat, lng: lng}); }
+        console.log("位置情報を受け取りました: " + lat + ", " + lng);
     }
+    
+    // 全て揃っていたら自動でポート側の計算を実行
     if (hMatch && latMatch && lngMatch) {
         setTimeout(() => { calculateCourse(true); }, 800);
     }
 }
+// ==========================================================
 
 function initMap(){
   map = new google.maps.Map(document.getElementById('map'), { center:{ lat:26.3318,lng:127.9179 }, zoom:14, gestureHandling: 'greedy', disableDefaultUI: true, zoomControl: true });
   map.addListener('click', (e)=>{ if(document.querySelector('input[name="aMode"]:checked').value==='map'){ setBasePosition({lat:e.latLng.lat(), lng:e.latLng.lng()}); } });
+  
+  // マップ作成後にもう一度チェック
   checkUrlParams();
 }
 
@@ -285,8 +264,10 @@ function shareCoords(l,p){
 }
 
 window.addEventListener('load', ()=>{
+  // 初期チェック実行
   checkUrlParams();
-  document.getElementById('btnWindSet').onclick = () => alert("準備中");
+
+  document.getElementById('btnWindSet').onclick = () => alert("風向セット機能は準備中です");
   document.getElementById('btnStarboard').onclick=()=>calculateCourse(false);
   document.getElementById('btnPort').onclick=()=>calculateCourse(true);
   document.getElementById('btnShareAll').onclick = ()=>{
@@ -295,8 +276,8 @@ window.addEventListener('load', ()=>{
   };
   document.getElementById('btnSetCurrent').onclick = ()=>{
     if(document.querySelector('input[name="aMode"]:checked').value==='current'){
-      navigator.geolocation.getCurrentPosition(p=>{ setBasePosition({lat:p.coords.latitude, lng:p.coords.longitude}); }, e=>alert("取得失敗"));
-    } else { alert("マップをクリック"); }
+      navigator.geolocation.getCurrentPosition(p=>{ setBasePosition({lat:p.coords.latitude, lng:p.coords.longitude}); }, e=>alert("位置情報取得失敗"));
+    } else { alert("マップをクリックしてください"); }
   };
   ['A','B','C','D','E','F','G','S'].forEach(l=>{ document.getElementById('btn'+l).onclick=()=>shareCoords(l,points[l]); });
   document.getElementById('courseSelect').onchange=(e)=>{
