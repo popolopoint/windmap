@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.1.20 by Popolo App.com</title>
+<title>コース作るくん v6.1.21 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -40,8 +40,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.1.20 by Popolo App.com</span></h2>
-<div id="version">v6.1.20</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.1.21 by Popolo App.com</span></h2>
+<div id="version">v6.1.21</div>
 
 <div class="input-row">
   <div class="input-group">
@@ -112,7 +112,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
   <div class="pointBox" id="btnE" style="background:var(--purple);">E</div>
   <div class="pointBox" id="btnF" style="background:var(--pink); display:none;">F</div>
   <div class="pointBox" id="btnG" style="background:var(--teal); color:#000; text-shadow:none; display:none;">G</div>
-  <div class="pointBox" id="btnS" style="background:var(--blue); display:none;">S</div>
+  <div class="pointBox" id="btnS" style="background:var(--blue);">S</div>
 </div>
 
 <div style="font-size:11px; color:#999; margin-top:10px; text-align:right;">
@@ -164,7 +164,8 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
     p.S = movePoint(p.A.lat, p.A.lng, dist, bS);
     const mid = {lat:(p.A.lat+p.S.lat)/2, lng:(p.A.lng+p.S.lng)/2};
     p.B = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('upDist').value)||0, wind);
-    p.C = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('downDist').value)||0, (wind+180)%360);
+    // ★修正箇所: ASの中点から、風向(wind)へ「下」メートル移動
+    p.C = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('downDist').value)||0, wind);
   } else if(isJW){
     const dAB=parseFloat(document.getElementById('distAB').value)||0, dBC=parseFloat(document.getElementById('distBC').value)||0, dCD=parseFloat(document.getElementById('distCD').value)||0, th2=parseFloat(document.getElementById('theta2').value)||0;
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
@@ -270,17 +271,11 @@ window.addEventListener('load', ()=>{
     } else { alert("マップをクリック"); }
   };
   ['A','B','C','D','E','F','G','S'].forEach(l=>{ document.getElementById('btn'+l).onclick=()=>shareCoords(l,points[l]); });
-
-  // ★ コース選択時の連動処理
   document.getElementById('courseSelect').onchange=(e)=>{
     const v=e.target.value;
     document.getElementById('sausageSettings').style.display = (v === 'sausage') ? 'flex' : 'none';
     document.getElementById('jwsaSettings').style.display = (v === 'jwsa') ? 'flex' : 'none';
-    
-    // ソーセージ選択時のみ距離を100にセット
-    if (v === 'sausage') {
-        document.getElementById('dist').value = 100;
-    }
+    if (v === 'sausage') document.getElementById('dist').value = 100;
   };
 });
 </script>
