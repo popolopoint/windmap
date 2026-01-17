@@ -3,19 +3,18 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.1.15 by Popolo App.com</title>
+<title>コース作るくん v6.1.16 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
 h2 { margin:0 0 8px 0; font-size:18px; }
 #version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
 
-/* 入力エリア */
 #inputs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; }
 #inputs label { font-size:13px; font-weight:bold; }
 #wind, #dist, #theta { font-size: 28px; padding: 10px; width: 110px; border-radius:6px; border:1px solid #ccc; }
 
-.compact-input { font-size: 20px !important; padding: 8px 4px !important; width: 68px !important; text-align:center; border-radius:6px; border: 1px solid #ccc; }
+.compact-input { font-size: 20px !important; padding: 8px 4px !important; width: 68px !important; text-align:center; border-radius:6px; border:1px solid #ccc; }
 #sausageSettings, #jwsaSettings { display:none; flex-wrap:nowrap; align-items:center; gap:4px; background:#f0f0f0; padding:5px; border-radius:8px; margin-top:5px; width: 100%; box-sizing: border-box; }
 
 .main-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin: 10px 0; }
@@ -39,20 +38,17 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 .overlay{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.5); z-index:2000;}
 .modal{background:#fff; padding:20px; border-radius:12px; width:90%; max-width:350px; text-align:center;}
 .modal .reading{font-size:48px; font-weight:bold; margin: 20px 0; color:#111;}
-
-@media (max-width:400px){ #wind, #dist, #theta { width: 95px; font-size: 24px; } }
 </style>
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.1.15 by Popolo App.com</span></h2>
-<div id="version">v6.1.15</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.1.16 by Popolo App.com</span></h2>
+<div id="version">v6.1.16</div>
 
 <div id="inputs">
   <label>風向<br><input type="number" id="wind" step="any" placeholder="0"></label>
   <label id="distLabel">距離(m)<br><input type="number" id="dist" value="500"></label>
   <label id="thetaLabel">角度(°)<br><input type="number" id="theta" value="5"></label>
-  
   <label style="width:100%">コース選択<br>
     <select id="courseSelect">
       <option value="mcourse">Ｍコース</option>
@@ -62,12 +58,10 @@ h2 { margin:0 0 8px 0; font-size:18px; }
       <option value="jwsa">JWSAアップ</option>
     </select>
   </label>
-
   <div id="sausageSettings">
     <label>上<br><input type="number" id="upDist" class="compact-input" value="1000"></label>
     <label>下<br><input type="number" id="downDist" class="compact-input" value="50"></label>
   </div>
-
   <div id="jwsaSettings">
     <label>AB<br><input type="number" id="distAB" class="compact-input" value="500"></label>
     <label>BC<br><input type="number" id="distBC" class="compact-input" value="500"></label>
@@ -99,6 +93,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 <div id="distances">
   <div class="distanceBox" id="dAC">A～C：- m</div>
   <div class="distanceBox" id="dAE">A～E：- m</div>
+  <div class="distanceBox" id="dAG" style="display:none;">A～G：- m</div>
 </div>
 
 <div id="coordsContainer">
@@ -134,45 +129,28 @@ let points = {A:null,B:null,C:null,D:null,E:null,F:null,G:null,S:null};
 const COLORS = { A:'#ff3b30', B:'#0000ff', C:'#ffff00', D:'#28a745', E:'#6a1b9a', F:'#ff00ff', G:'#00ffff', S:'#0000ff' };
 let currentIsPort = true;
 
-// --- 【超強力】URL全スキャンエンジン ---
-function findDataInUrl() {
-    const fullUrl = window.location.href;
-    const searchPart = window.location.search + window.location.hash;
-    
-    // 風向(H)の抽出：Hまたはhの直後にある数字（小数点含む）を拾う
-    const hMatch = fullUrl.match(/[Hh](?:=|\:)?(\d+(?:\.\d+)?)/);
-    if (hMatch) document.getElementById('wind').value = hMatch[1];
-
-    // 緯度・経度の抽出
-    const latMatch = fullUrl.match(/lat(?:=|\:)?(-?\d+(?:\.\d+)?)/i);
-    const lngMatch = fullUrl.match(/lng(?:=|\:)?(-?\d+(?:\.\d+)?)/i);
-    
-    if (latMatch && lngMatch) {
-        document.getElementById('basePointSelect').value = "A";
-        updateAPos(parseFloat(latMatch[1]), parseFloat(lngMatch[1]));
-    }
-    
-    // コースの抽出
-    const courseMatch = fullUrl.match(/course(?:=|\:)?([a-zA-Z0-9]+)/i);
-    if (courseMatch) {
-        document.getElementById('courseSelect').value = courseMatch[1];
-        updateUiForCourse(courseMatch[1]);
+// URLからHを強制取得する関数
+function checkUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    const h = params.get('H') || params.get('h');
+    const lat = params.get('lat');
+    const lng = params.get('lng');
+    if(h) document.getElementById('wind').value = h;
+    if(lat && lng) {
+        document.getElementById('latA').value = lat;
+        document.getElementById('lngA').value = lng;
+        document.getElementById('latA_disp').textContent = lat;
+        document.getElementById('lngA_disp').textContent = lng;
     }
 }
-
-// 読み込みの瞬間と、DOM構築後の両方でチェック
-findDataInUrl();
-document.addEventListener('DOMContentLoaded', findDataInUrl);
 
 function initMap(){
   map = new google.maps.Map(document.getElementById('map'), { center:{ lat:26.3318,lng:127.9179 }, zoom:14, gestureHandling: 'greedy', disableDefaultUI: true, zoomControl: true });
   map.addListener('click', (e)=>{ if(document.querySelector('input[name="aMode"]:checked').value==='map'){ setBasePosition({lat:e.latLng.lat(), lng:e.latLng.lng()}); } });
   
-  const latA = parseFloat(document.getElementById('latA').value);
-  const wind = document.getElementById('wind').value;
-  if(!isNaN(latA)) {
-    if(wind !== "") calculateCourse(currentIsPort);
-    map.setCenter({lat: parseFloat(document.getElementById('latA').value), lng: parseFloat(document.getElementById('lngA').value)});
+  // マップ初期化時にデータがあれば描画
+  if(document.getElementById('latA').value && document.getElementById('wind').value) {
+      calculateCourse(currentIsPort);
   }
 }
 
@@ -244,7 +222,7 @@ function calculateCourse(isPort){
   Object.keys(points).forEach(k => { if(circles[k])circles[k].setMap(null); if(markersLabel[k])markersLabel[k].setMap(null); points[k]=null; });
   points = getPointsStructure({lat:latA, lng:lngA}, wind, dist, theta, course, isPort);
   const isS=(course==='sausage'), is5J=(course==='5jibe'), isJW=(course==='jwsa'), isF8=(course==='figure8');
-  document.getElementById('btnS').style.display=isS?'flex':'none'; document.getElementById('btnD').style.display=(isS||isF8)?'none':'flex'; document.getElementById('btnE').style.display=(isS||isJW)?'none':'flex'; document.getElementById('btnF').style.display=is5J?'flex':'none'; document.getElementById('btnG').style.display=is5J?'flex':'none';
+  document.getElementById('btnS').style.display=isS?'flex':'none'; document.getElementById('btnD').style.display=(isS||isF8)?'none':'flex'; document.getElementById('btnE').style.display=(isS||isJW)?'none':'flex'; document.getElementById('btnF').style.display=is5J?'flex':'none'; document.getElementById('btnG').style.display=is5J?'flex':'none'; document.getElementById('dAG').style.display=is5J?'block':'none';
   let path = [];
   if(isS){
     polylines.push(new google.maps.Polyline({path:[points.A, points.S], strokeColor:'#f00', strokeWeight:3, map}));
@@ -255,7 +233,9 @@ function calculateCourse(isPort){
     document.getElementById('dAC').textContent=`AB:${document.getElementById('distAB').value} BC:${document.getElementById('distBC').value}`; document.getElementById('dAE').textContent=`CD:${document.getElementById('distCD').value}`;
   } else {
     path = [points.A, points.B, points.C, points.D, points.E].filter(v => v); if(is5J) path.push(points.F, points.G);
-    document.getElementById('dAC').textContent = 'A～C：' + distanceBetween(points.A, points.C).toFixed(1) + ' m'; document.getElementById('dAE').textContent = 'A～E：' + (points.E ? distanceBetween(points.A, points.E).toFixed(1) : '-') + ' m';
+    document.getElementById('dAC').textContent = 'A～C：' + distanceBetween(points.A, points.C).toFixed(1) + ' m'; 
+    document.getElementById('dAE').textContent = 'A～E：' + (points.E ? distanceBetween(points.A, points.E).toFixed(1) : '-') + ' m';
+    if(is5J) document.getElementById('dAG').textContent = 'A～G：' + distanceBetween(points.A, points.G).toFixed(1) + ' m';
   }
   polylines.push(new google.maps.Polyline({path:path, strokeColor:'#444', strokeWeight:2, map}));
   Object.keys(points).forEach(k => { if(points[k]) drawPoint(k, points[k], COLORS[k]); });
@@ -281,13 +261,6 @@ function shareCoords(l,p){
   if(navigator.share) navigator.share({text:t}); else alert(t);
 }
 
-function updateUiForCourse(v) {
-  document.getElementById('sausageSettings').style.display = (v === 'sausage') ? 'flex' : 'none';
-  document.getElementById('jwsaSettings').style.display = (v === 'jwsa') ? 'flex' : 'none';
-  document.getElementById('distLabel').style.display = (v === 'jwsa') ? 'none' : 'inline-block';
-  document.getElementById('thetaLabel').style.display = (v === 'jwsa') ? 'none' : 'inline-block';
-}
-
 let headingSamples=[], headingWatcher=null;
 function openWindModal(){ headingSamples=[]; document.getElementById('windModal').style.display='block'; startOrientationListening(); }
 function closeWindModal(){ stopOrientationListening(); document.getElementById('windModal').style.display='none'; }
@@ -307,6 +280,9 @@ function addOrientationListener(){
 }
 function stopOrientationListening(){ window.removeEventListener('deviceorientation', headingWatcher, true); }
 
+// 実行のトリガー
+checkUrlParams();
+
 window.addEventListener('load', ()=>{
   document.getElementById('btnWindSet').onclick = openWindModal;
   document.getElementById('modalSetBtn').onclick = () => { document.getElementById('wind').value = parseInt(document.getElementById('headingRead').textContent); closeWindModal(); };
@@ -319,11 +295,17 @@ window.addEventListener('load', ()=>{
   };
   document.getElementById('btnSetCurrent').onclick = ()=>{
     if(document.querySelector('input[name="aMode"]:checked').value==='current'){
-      navigator.geolocation.getCurrentPosition(p=>{ setBasePosition({lat:p.coords.latitude, lng:p.coords.longitude}); }, e=>alert("位置情報取得失敗"));
-    } else { alert("マップをクリックしてください"); }
+      navigator.geolocation.getCurrentPosition(p=>{ setBasePosition({lat:p.coords.latitude, lng:p.coords.longitude}); }, e=>alert("位置情報が取得できません"));
+    } else { alert("マップ上をクリックして地点を指定してください。"); }
   };
   ['A','B','C','D','E','F','G','S'].forEach(l=>{ document.getElementById('btn'+l).onclick=()=>shareCoords(l,points[l]); });
-  document.getElementById('courseSelect').onchange=(e)=>updateUiForCourse(e.target.value);
+  document.getElementById('courseSelect').onchange=(e)=>{
+    const v=e.target.value;
+    document.getElementById('sausageSettings').style.display = (v === 'sausage') ? 'flex' : 'none';
+    document.getElementById('jwsaSettings').style.display = (v === 'jwsa') ? 'flex' : 'none';
+    document.getElementById('distLabel').style.display = (v === 'jwsa') ? 'none' : 'inline-block';
+    document.getElementById('thetaLabel').style.display = (v === 'jwsa') ? 'none' : 'inline-block';
+  };
 });
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
