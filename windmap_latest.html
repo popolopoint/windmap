@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.2.3c by Popolo App.com</title>
+<title>コース作るくん v6.2.4 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -34,15 +34,15 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 
 #map { width:100%; height:450px; border-radius:8px; margin-top:10px; box-shadow:0 1px 4px rgba(0,0,0,0.2); }
 #distances { margin:10px 0; display:flex; gap:8px; flex-wrap:wrap; }
-.distanceBox { background:#eee; padding:8px 12px; border-radius:6px; font-weight:bold; font-size: 1.1em; border: 1px solid #ddd; }
+.distanceBox { background:#eee; padding:8px 12px; border-radius:6px; font-weight:bold; font-size: 1.0em; border: 1px solid #ddd; flex: 1; min-width: 140px; }
 #coordsContainer { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; justify-content: space-between; }
 .pointBox { border-radius:50%; width:55px; height:55px; display:flex; justify-content:center; align-items:center; color:white; font-weight:bold; cursor:pointer; font-size: 1.3em; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 </style>
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.2.3c by Popolo App.com</span></h2>
-<div id="version">v6.2.3c</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.2.4 by Popolo App.com</span></h2>
+<div id="version">v6.2.4</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -74,8 +74,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
   <label>BC<br><input type="number" id="distBC2" class="compact-input" value="200"></label>
   <label>CD<br><input type="number" id="distCD2" class="compact-input" value="500"></label>
   <label>DE<br><input type="number" id="distDE" class="compact-input" value="500"></label>
-  <label>θ2<br><input type="number" id="theta2_2" class="compact-input" value="35"></label>
-  <label>θ3<br><input type="number" id="theta3" class="compact-input" value="45"></label>
+  <label>θ2<br><input type="number" id="theta2_2" class="compact-input" value="5"></label>
+  <label>θ3<br><input type="number" id="theta3" class="compact-input" value="5"></label>
 </div>
 
 <div class="main-buttons">
@@ -99,8 +99,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </div>
 
 <div id="distances">
-  <div class="distanceBox" id="dAC">A～C：- m</div>
-  <div class="distanceBox" id="dAE">A～E：- m</div>
+  <div class="distanceBox" id="dist1">合計距離1：- m</div>
+  <div class="distanceBox" id="dist2">合計距離2：- m</div>
 </div>
 
 <div id="coordsContainer">
@@ -141,7 +141,6 @@ function checkUrlParams() {
 
 function initMap(){
   map = new google.maps.Map(document.getElementById('map'), { center:{ lat:26.3318,lng:127.9179 }, zoom:14, gestureHandling: 'greedy', disableDefaultUI: true, zoomControl: true });
-  // マップ指定機能の追加
   map.addListener('click', (e)=>{ if(document.querySelector('input[name="aMode"]:checked').value==='map'){ setBasePosition({lat:e.latLng.lat(), lng:e.latLng.lng()}); } });
   checkUrlParams();
 }
@@ -178,13 +177,9 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
           th3=parseFloat(document.getElementById('theta3').value)||0;
     
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
-    
-    // C点修正: ポート/スタボーを入れ替え (ポート時+, スタボー時-)
-    const brngC = isPort ? (wind + 270 + th3) : (wind + 90 - th3);
+    const brngC = isPort ? (wind + 90 + th3) : (wind + 270 - th3);
     p.C = movePoint(p.B.lat, p.B.lng, dBC, brngC);
-    
     p.D = movePoint(p.C.lat, p.C.lng, dCD, wind); 
-    
     const brngE = isPort ? (wind + 270 - th2) : (wind + 90 + th2);
     p.E = movePoint(p.D.lat, p.D.lng, dDE, brngE);
   } else {
@@ -253,10 +248,30 @@ function calculateCourse(isPort){
   
   polylines.push(new google.maps.Polyline({path:path, strokeColor:'#444', strokeWeight:2, map}));
   Object.keys(points).forEach(k => { if(points[k]) drawPoint(k, points[k], COLORS[k]); });
-  if(map) map.panTo(points.A);
   
-  document.getElementById('dAC').textContent = 'A～C：' + distanceBetween(points.A, points.C).toFixed(1) + ' m';
-  document.getElementById('dAE').textContent = 'A～E：' + (points.E ? distanceBetween(points.A, points.E).toFixed(1) : '-') + ' m';
+  // 距離表示の更新
+  const d1 = document.getElementById('dist1');
+  const d2 = document.getElementById('dist2');
+  
+  if(isJW2){
+    const dAB = distanceBetween(points.A, points.B);
+    const dBC = distanceBetween(points.B, points.C);
+    const dCD = distanceBetween(points.C, points.D);
+    const dDE = distanceBetween(points.D, points.E);
+    const dEB = distanceBetween(points.E, points.B);
+    const dBA = distanceBetween(points.B, points.A);
+    
+    const totalToB = dAB + dBC + dCD + dDE + dEB;
+    const totalToA = totalToB + dBA;
+    
+    d1.textContent = 'A→E→B：' + totalToB.toFixed(0) + ' m';
+    d2.textContent = 'A→E→B→A：' + totalToA.toFixed(0) + ' m';
+  } else {
+    d1.textContent = 'A～C：' + distanceBetween(points.A, points.C).toFixed(1) + ' m';
+    d2.textContent = 'A～E：' + (points.E ? distanceBetween(points.A, points.E).toFixed(1) : '-') + ' m';
+  }
+
+  if(map) map.panTo(points.A);
 }
 
 function drawPoint(label,pos,color){
@@ -300,10 +315,9 @@ window.addEventListener('load', ()=>{
     document.getElementById('sausageSettings').style.display = (v === 'sausage') ? 'flex' : 'none';
     document.getElementById('jwsaSettings').style.display = (v === 'jwsa') ? 'flex' : 'none';
     document.getElementById('jwsa2Settings').style.display = (v === 'jwsa2') ? 'flex' : 'none';
-    if (v === 'sausage') document.getElementById('dist').value = 100;
   };
 });
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script>
 </body>
 </html>
