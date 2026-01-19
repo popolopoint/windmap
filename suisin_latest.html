@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>水深測っ太郎 v1.1.8 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.1.8b by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; }
         #map { flex-grow: 1; width: 100%; }
@@ -34,7 +34,7 @@
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
 <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwDaBreO962u6D1x490o8_OrOHhLeNdhu3_DHkeQHC7p3SNN0JYqOwcmD56Pom67K1WAA/exec"; // 新しいURLに貼り替えてください
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyJ2UwmUAM4Iw_cL9VNN_aBX9N4BTWeqwmVXLQqnmyDIRX7c5MwjiMF4A_iM_VeK2q-0A/exec"; // 新しいURLに貼り替えてください
     let map, markers = [], currentTide = null, adminPass = localStorage.getItem('popolo_pass') || "";
 
     async function initMap() {
