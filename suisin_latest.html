@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.2.1c by Popolo App.com</title>
+    <title>水深測っ太郎 v1.2.1d by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 12px; text-align: center; font-weight: bold; font-size: 1rem; z-index: 2000; flex-shrink: 0; }
@@ -37,7 +37,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.2.1c by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.2.1d by Popolo App.com</div>
 
 <div id="admin-modal" class="modal">
     <div class="modal-content">
@@ -175,6 +175,76 @@
     }
 
     function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
+
+
+
+
+    // ... (既存のコード) ...
+
+    // 削除機能を追加したマーカー作成関数
+    function createMarker(d) {
+        const marker = new google.maps.Marker({
+            position: {lat: Number(d.lat), lng: Number(d.lng)}, 
+            map: map,
+            icon: { 
+                path: google.maps.SymbolPath.CIRCLE, 
+                fillColor: getDepthColor(d.baseDepth), 
+                fillOpacity: 0.8, scale: 10, strokeColor: "#fff", strokeWeight: 2 
+            }
+        });
+
+        // 吹き出しに削除ボタンを設置
+        const contentStr = `
+            <div style="padding:10px; font-size:14px;">
+                <b>基準水深: ${Number(d.baseDepth).toFixed(1)}cm</b><br>
+                <small>日時: ${d.timestamp}</small><br><br>
+                <button onclick="deletePoint('${d.id}')" style="background:#e74c3c; color:white; border:none; padding:5px 10px; border-radius:4px; font-weight:bold; width:100%;">このデータを削除</button>
+            </div>
+        `;
+
+        const info = new google.maps.InfoWindow({ content: contentStr });
+        marker.addListener("click", () => info.open(map, marker));
+        
+        // 削除後に消せるよう、マーカーにIDを紐付け
+        marker.set("id", d.id);
+        markers.push(marker);
+    }
+
+    // 削除リクエストを送る関数
+    async function deletePoint(id) {
+        if (!confirm("本当にこの記録を削除しますか？")) return;
+        if (!adminPass) return openModal('admin-modal');
+
+        showLoading(true);
+        try {
+            const res = await fetch(WEB_APP_URL, { 
+                method: 'POST', 
+                body: JSON.stringify({ method: 'DELETE', password: adminPass, id: id }) 
+            });
+            const result = await res.text();
+            if (result.trim() === "success_delete") {
+                alert("削除しました");
+                syncData(); // 画面を再読み込みしてマーカーを更新
+            } else {
+                alert("削除に失敗しました。パスワードを確認してください。");
+            }
+        } catch (e) {
+            alert("通信エラーが発生しました");
+        }
+        showLoading(false);
+    }
+
+    // ... (残りのコード) ...
+
+
+
+
+
+
+
+
+
+
 </script>
 </body>
 </html>
