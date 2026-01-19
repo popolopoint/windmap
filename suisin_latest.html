@@ -3,33 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.2.1f by Popolo App.com</title>
+    <title>水深測っ太郎 v1.2.3 by Popolo App.com</title>
     <style>
+        /* 全体レイアウト：上から順に並べる */
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .app-header { background: #3498db; color: white; padding: 12px; text-align: center; font-weight: bold; font-size: 1rem; z-index: 2000; flex-shrink: 0; }
         
-        #map-container { position: relative; flex-grow: 1; width: 100%; min-height: 50vh; }
+        /* 1段目：タイトル */
+        .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
+        
+        /* 2段目：入力パネル（水深、記録、キー） */
+        .ui-panel { background: white; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 1000; flex-shrink: 0; }
+        .input-row { display: flex; gap: 8px; align-items: center; }
+        input { flex: 2; padding: 12px; border: 2px solid #3498db; border-radius: 6px; font-size: 1rem; -webkit-appearance: none; }
+        button { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn-record { background: #2ecc71; color: white; flex: 3; }
+        .btn-admin { background: #95a5a6; color: white; width: 50px; font-size: 1.1rem; }
+        
+        .status-bar { font-size: 0.75rem; color: #666; text-align: center; margin-top: 5px; }
+
+        /* 3段目：マップ */
+        #map-container { position: relative; flex-grow: 1; width: 100%; }
         #map { width: 100%; height: 100%; }
 
-        /* 「基準水深とは？」ボタン */
-        .btn-help { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); border: 2px solid #3498db; color: #3498db; border-radius: 50%; width: 35px; height: 35px; font-weight: bold; font-size: 1.2rem; cursor: pointer; z-index: 1500; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        /* ヘルプボタン（マップ上に配置） */
+        .btn-help { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); border: 2px solid #3498db; color: #3498db; border-radius: 50%; width: 32px; height: 32px; font-weight: bold; z-index: 1500; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
 
-        .ui-panel { background: white; padding: 15px; border-radius: 15px 15px 0 0; box-shadow: 0 -3px 10px rgba(0,0,0,0.1); z-index: 1000; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); }
-        .input-row { display: flex; gap: 8px; align-items: center; }
-        input { flex: 2; padding: 15px; border: 2px solid #3498db; border-radius: 8px; font-size: 1.1rem; }
-        button { padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .btn-record { background: #2ecc71; color: white; flex: 3; }
-        .btn-admin { background: #95a5a6; color: white; width: 55px; font-size: 1.2rem; }
-        .status-bar { font-size: 0.8rem; color: #555; text-align: center; margin-top: 10px; padding: 4px; background: #f9f9f9; border-radius: 4px; }
-        .footer { text-align: center; font-size: 0.65rem; color: #95a5a6; padding: 8px; background: #fff; flex-shrink: 0; }
-
-        /* モーダル共通スタイル */
+        /* モーダル */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 5000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 85%; max-width: 320px; text-align: center; max-height: 80vh; overflow-y: auto; }
-        
-        /* 基準水深説明用 */
-        .help-text { text-align: left; font-size: 0.9rem; line-height: 1.6; color: #333; }
-        .help-text b { color: #e67e22; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 85%; max-width: 300px; text-align: center; }
+        .modal-content input { width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; }
 
         #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 4000; font-weight: bold; color: #3498db; }
     </style>
@@ -37,35 +39,16 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.2.1f by Popolo App.com</div>
 
-<div id="admin-modal" class="modal">
-    <div class="modal-content">
-        <h3>管理者パスワード</h3>
-        <input type="password" id="pass-input" placeholder="パスワードを入力">
-        <button class="btn-record" onclick="saveAdminPass()">保存</button>
-        <button onclick="closeModal('admin-modal')" style="margin-top:10px; background:none; border:none; color:gray;">閉じる</button>
-    </div>
-</div>
+<div class="app-header">水深測っ太郎 v1.2.3 by Popolo App.com</div>
 
-<div id="help-modal" class="modal">
-    <div class="modal-content">
-        <h3>基準水深とは？</h3>
-        <div class="help-text">
-            
-            <p>潮の満ち引き（潮位）に左右されない、その場所の<b>「本来の深さ」</b>のことです。</p>
-            <ul>
-                <li><b>実測水深：</b>今、ボートから測った深さ</li>
-                <li><b>潮位：</b>今、潮が満ちている高さ</li>
-            </ul>
-            <p style="background:#fef9e7; padding:10px; border-radius:5px; border-left:4px solid #f1c40f;">
-                <b>計算式：</b><br>
-                実測水深 － 潮位 ＝ <b>基準水深</b>
-            </p>
-            <p><small>※このアプリでは、基準水深を記録することで、いつ行っても正確な海底地形を確認できます。</small></p>
-        </div>
-        <button class="btn-record" onclick="closeModal('help-modal')" style="width:100%; margin-top:15px;">分かった！</button>
+<div class="ui-panel">
+    <div class="input-row">
+        <input type="number" id="depth-input" placeholder="水深(cm)" inputmode="decimal">
+        <button class="btn-record" onclick="addCurrentLocationPoint()">記録</button>
+        <button class="btn-admin" onclick="openModal('admin-modal')">🔑</button>
     </div>
+    <div id="status-display" class="status-bar">同期中...</div>
 </div>
 
 <div id="map-container">
@@ -73,30 +56,31 @@
     <button class="btn-help" onclick="openModal('help-modal')">?</button>
 </div>
 
-<div class="ui-panel">
-    <div class="input-row">
-        <input type="number" id="depth-input" placeholder="実測水深(cm)" inputmode="decimal">
-        <button class="btn-record" onclick="addCurrentLocationPoint()">記録</button>
-        <button class="btn-admin" onclick="openModal('admin-modal')">🔑</button>
+<div id="admin-modal" class="modal">
+    <div class="modal-content">
+        <h3>管理者パスワード</h3>
+        <input type="password" id="pass-input" placeholder="パスワードを入力">
+        <button class="btn-record" onclick="saveAdminPass()" style="width:100%">保存</button>
+        <button onclick="closeModal('admin-modal')" style="margin-top:10px; background:none; border:none; color:gray;">閉じる</button>
     </div>
-    <div id="status-display" class="status-bar">同期中...</div>
 </div>
 
-<div class="footer">水深測っ太郎 v1.2.1 by Popolo App.com</div>
+<div id="help-modal" class="modal">
+    <div class="modal-content">
+        <h3>基準水深とは？</h3>
+        <p style="text-align:left; font-size:0.9rem;">実測した水深から、その時の潮位を引いた値です。潮の満ち引きに関係ない海底の深さを記録します。</p>
+        <button class="btn-record" onclick="closeModal('help-modal')" style="width:100%">了解</button>
+    </div>
+</div>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
 <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyAn71kDGdQ-4UjfPCObOAy_WfolCXn74_yZK8uiPF2H58yDbGzES3C-4SjnZjzHJmOaQ/exec"; 
-
-
-
-
     let map, markers = [], currentTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-    
     function saveAdminPass() {
         adminPass = document.getElementById('pass-input').value.trim();
         localStorage.setItem('popolo_pass', adminPass);
@@ -120,12 +104,10 @@
             const data = await res.json();
             if (data.todayTide) {
                 const now = new Date();
-                const h = now.getHours();
-                const m = now.getMinutes();
-                const t1 = data.todayTide[12 + h]; 
-                const t2 = (h < 23) ? data.todayTide[12 + h + 1] : t1;
+                const h = now.getHours(), m = now.getMinutes();
+                const t1 = data.todayTide[12 + h], t2 = (h < 23) ? data.todayTide[12 + h + 1] : t1;
                 currentTide = t1 + (t2 - t1) * (m / 60);
-                document.getElementById('status-display').textContent = `現在潮位: ${currentTide.toFixed(1)}cm | ${adminPass ? "🔑OK" : "🔑未設定"}`;
+                document.getElementById('status-display').textContent = `潮位: ${currentTide.toFixed(1)}cm | ${adminPass ? "🔑OK" : "🔑未設定"}`;
             }
             markers.forEach(m => m.setMap(null));
             if (data.points) data.points.forEach(p => createMarker({id:p[0], lat:p[1], lng:p[2], rawDepth:p[3], baseDepth:p[4], timestamp:p[5]}));
@@ -147,7 +129,7 @@
         if (!adminPass) return openModal('admin-modal');
 
         const baseDepth = parseFloat(raw) - currentTide;
-        const pointData = { method: 'POST', password: adminPass, id: Date.now(), lat: latLng.lat(), lng: latLng.lng(), rawDepth: raw, baseDepth: baseDepth, timestamp: new Date().toLocaleString() };
+        const pointData = { method: 'POST', password: adminPass, id: String(Date.now()), lat: latLng.lat(), lng: latLng.lng(), rawDepth: raw, baseDepth: baseDepth, timestamp: new Date().toLocaleString() };
 
         showLoading(true);
         try {
@@ -165,9 +147,25 @@
             position: {lat: Number(d.lat), lng: Number(d.lng)}, map: map,
             icon: { path: google.maps.SymbolPath.CIRCLE, fillColor: getDepthColor(d.baseDepth), fillOpacity: 0.8, scale: 10, strokeColor: "#fff", strokeWeight: 2 }
         });
-        const info = new google.maps.InfoWindow({ content: `基準水深: ${Number(d.baseDepth).toFixed(1)}cm` });
+        const content = `
+            <div style="padding:5px; font-size:12px;">
+                <b>基準: ${Number(d.baseDepth).toFixed(1)}cm</b><br>
+                <button onclick="deletePoint('${d.id}')" style="background:#e74c3c; color:white; border:none; border-radius:3px; padding:4px 8px; margin-top:5px; width:100%;">削除</button>
+            </div>`;
+        const info = new google.maps.InfoWindow({ content: content });
         marker.addListener("click", () => info.open(map, marker));
         markers.push(marker);
+    }
+
+    async function deletePoint(id) {
+        if (!confirm("削除しますか？")) return;
+        showLoading(true);
+        try {
+            const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ method: 'DELETE', password: adminPass, id: String(id) }) });
+            if ((await res.text()).trim() === "success_delete") { syncData(); } 
+            else { alert("削除失敗"); }
+        } catch (e) { alert("通信エラー"); }
+        showLoading(false);
     }
 
     function getDepthColor(b) {
@@ -175,76 +173,6 @@
     }
 
     function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
-
-
-
-
-    // ... (既存のコード) ...
-
-    // 削除機能を追加したマーカー作成関数
-    function createMarker(d) {
-        const marker = new google.maps.Marker({
-            position: {lat: Number(d.lat), lng: Number(d.lng)}, 
-            map: map,
-            icon: { 
-                path: google.maps.SymbolPath.CIRCLE, 
-                fillColor: getDepthColor(d.baseDepth), 
-                fillOpacity: 0.8, scale: 10, strokeColor: "#fff", strokeWeight: 2 
-            }
-        });
-
-        // 吹き出しに削除ボタンを設置
-        const contentStr = `
-            <div style="padding:10px; font-size:14px;">
-                <b>基準水深: ${Number(d.baseDepth).toFixed(1)}cm</b><br>
-                <small>日時: ${d.timestamp}</small><br><br>
-                <button onclick="deletePoint('${d.id}')" style="background:#e74c3c; color:white; border:none; padding:5px 10px; border-radius:4px; font-weight:bold; width:100%;">このデータを削除</button>
-            </div>
-        `;
-
-        const info = new google.maps.InfoWindow({ content: contentStr });
-        marker.addListener("click", () => info.open(map, marker));
-        
-        // 削除後に消せるよう、マーカーにIDを紐付け
-        marker.set("id", d.id);
-        markers.push(marker);
-    }
-
-    // 削除リクエストを送る関数
-    async function deletePoint(id) {
-        if (!confirm("本当にこの記録を削除しますか？")) return;
-        if (!adminPass) return openModal('admin-modal');
-
-        showLoading(true);
-        try {
-            const res = await fetch(WEB_APP_URL, { 
-                method: 'POST', 
-                body: JSON.stringify({ method: 'DELETE', password: adminPass, id: id }) 
-            });
-            const result = await res.text();
-            if (result.trim() === "success_delete") {
-                alert("削除しました");
-                syncData(); // 画面を再読み込みしてマーカーを更新
-            } else {
-                alert("削除に失敗しました。パスワードを確認してください。");
-            }
-        } catch (e) {
-            alert("通信エラーが発生しました");
-        }
-        showLoading(false);
-    }
-
-    // ... (残りのコード) ...
-
-
-
-
-
-
-
-
-
-
 </script>
 </body>
 </html>
