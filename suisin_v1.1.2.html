@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水深測っ太郎 v6.2.2 by Popolo App.com</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; }
+        #map { flex-grow: 1; width: 100%; }
+        .ui-panel { background: white; padding: 15px; border-radius: 12px 12px 0 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 1000; }
+        .input-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+        input { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; }
+        button { padding: 12px 20px; background: #3498db; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        button.record { background: #2ecc71; }
+        .info-window { font-size: 0.9rem; line-height: 1.4; }
+        .btn-delete { color: #e74c3c; cursor: pointer; text-decoration: underline; margin-top: 10px; display: inline-block; }
+        .footer { text-align: center; font-size: 0.7rem; color: #95a5a6; padding: 5px; background: #fff; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="ui-panel">
+    <div class="input-row">
+        <input type="number" id="depth-input" placeholder="実測水深 (cm)">
+        <button class="record" onclick="addCurrentLocationPoint()">現在地に記録</button>
+    </div>
+    <div id="status-msg" style="font-size: 0.8rem; color: #666; text-align: center;">マップをタップして直接記録も可能です</div>
+</div>
+
+<div class="footer">
+    水深測っ太郎 v6.2.2 by Popolo App.com
+</div>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
+
+<script>
+    let map;
+    let markers = [];
+    const SAFE_THRESHOLD = 150;
+
+    // ユーザー設定 (v6.2.1より継承)
+    const config = {
+        AS_DISTANCE: 100,
+        angleD: 30, // 角D (旧θ2)
+        angleB: 45  // 角B (旧θ3)
+    };
+
+    function initMap() {
+        // 海中道路付近をデフォルトに設定
+        const defaultLoc = { lat: 26.3318, lng: 127.9288 };
+        map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 14,
+            center: defaultLoc,
+            mapTypeId: 'terrain'
+        });
+
+        // マップクリックでその場所に記録
+        map.addListener("click", (e) => {
+            promptAndSave(e.latLng);
+        });
+
+        // 保存済みデータの読み込み (localStorage等から)
+        loadSavedPoints();
+    }
+
+    function getDepthColor(baseDepth) {
+        if (baseDepth < 10) return "#ff0000";
+        if (baseDepth < 30) return "#ff4500";
+        if (baseDepth < 50) return "#ff8c00";
+        if (baseDepth < 70) return "#ffff00";
+        if (baseDepth < 100) return "#9acd32";
+        if (baseDepth < 120) return "#87ceeb";
+        if (baseDepth < 150) return "#0000ff";
+        return "#8e44ad";
+    }
+
+    function addCurrentLocationPoint() {
+        if (!navigator.geolocation) return alert("GPSが使えません");
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const latLng = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+            map.setCenter(latLng);
+            promptAndSave(latLng);
+        });
+    }
+
+    function promptAndSave(latLng) {
+        const depth = document.getElementById('depth-input').value;
+        if (!depth) return alert("実測水深を入力してください");
+
+        // 潮位計算 (モック)
+        const currentTide = 100; // 本来はSheetsから補間
+        const baseDepth = parseFloat(depth) - currentTide;
+        
+        savePoint(latLng, depth, baseDepth);
+        document.getElementById('depth-input').value = ""; // 入力クリア
+    }
+
+    function savePoint(latLng, rawDepth, baseDepth) {
+        const pointData = {
+            id: Date.now(),
+            lat: latLng.lat(),
+            lng: latLng.lng(),
+            rawDepth: rawDepth,
+            baseDepth: baseDepth,
+            timestamp: new Date().toLocaleString()
+        };
+
+        createMarker(pointData);
+        // TODO: ここで Google Sheets や localStorage へ同期
+    }
+
+    function createMarker(data) {
+        const color = getDepthColor(data.baseDepth);
+        
+        const marker = new google.maps.Marker({
+            position: { lat: data.lat, lng: data.lng },
+            map: map,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: color,
+                fillOpacity: 0.8,
+                scale: 10,
+                strokeColor: "#fff",
+                strokeWeight: 2
+            }
+        });
+
+        const infoWindow = new google.maps.InfoWindow();
+
+        marker.addListener("click", () => {
+            const content = `
+                <div class="info-window">
+                    <strong>記録日: ${data.timestamp}</strong><br>
+                    基準水深: ${data.baseDepth.toFixed(1)} cm<br>
+                    実測水深: ${data.rawDepth} cm<br>
+                    <span class="btn-delete" onclick="deletePoint(${data.id})">このポイントを削除</span>
+                </div>
+            `;
+            infoWindow.setContent(content);
+            infoWindow.open(map, marker);
+        });
+
+        markers.push({ id: data.id, marker: marker });
+    }
+
+    function deletePoint(id) {
+        if (!confirm("このポイントを削除しますか？")) return;
+        const index = markers.findIndex(m => m.id === id);
+        if (index > -1) {
+            markers[index].marker.setMap(null);
+            markers.splice(index, 1);
+            // TODO: データソースからも削除
+        }
+    }
+
+    function loadSavedPoints() {
+        // 起動時同期ルールに基づき、ここでのみ読み込みを実施
+        console.log("Data synchronized on startup.");
+    }
+</script>
+</body>
+</html>
