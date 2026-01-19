@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>水深測っ太郎 v1.1.7 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.1.8 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; }
         #map { flex-grow: 1; width: 100%; }
         .ui-panel { background: white; padding: 15px; border-radius: 12px 12px 0 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 1000; }
-        .input-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+        .input-row { display: flex; gap: 8px; align-items: center; }
         input { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; }
         button { padding: 12px 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
         .btn-record { background: #2ecc71; color: white; flex-grow: 1; }
-        .btn-admin { background: #95a5a6; color: white; font-size: 0.7rem; width: 60px; }
-        .tide-status { font-size: 0.8rem; color: #666; text-align: center; margin-top: 5px; }
-        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.7); display: none; justify-content: center; align-items: center; z-index: 3000; }
+        .btn-admin { background: #95a5a6; color: white; font-size: 0.7rem; }
+        .status-bar { font-size: 0.75rem; color: #e67e22; text-align: center; margin-top: 8px; font-weight: bold; }
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 3000; }
     </style>
 </head>
 <body>
 
-<div id="loading">通信中...</div>
+<div id="loading">データ通信中...</div>
 <div id="map"></div>
 
 <div class="ui-panel">
@@ -28,58 +28,63 @@
         <button class="btn-record" onclick="addCurrentLocationPoint()">現在地に記録</button>
         <button class="btn-admin" onclick="setAdminPass()">鍵設定</button>
     </div>
-    <div id="tide-info" class="tide-status">潮位取得中...</div>
-</div>
-
-<div class="footer" style="text-align: center; font-size: 0.7rem; color: #95a5a6; padding: 5px; background: #fff;">
-    水深測っ太郎 v1.1.7 by Popolo App.com
+    <div id="status-display" class="status-bar">初期化中...</div>
 </div>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
 <script>
-    const WEB_APP_URL = "YOUR_GAS_URL"; // デプロイしたURL
-    let map, markers = [], currentTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwDaBreO962u6D1x490o8_OrOHhLeNdhu3_DHkeQHC7p3SNN0JYqOwcmD56Pom67K1WAA/exec"; // 新しいURLに貼り替えてください
+    let map, markers = [], currentTide = null, adminPass = localStorage.getItem('popolo_pass') || "";
 
     async function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
             zoom: 14, center: { lat: 26.3318, lng: 127.9288 }, mapTypeId: 'hybrid'
         });
-
-        // マップクリックで記録
         map.addListener("click", (e) => promptAndSave(e.latLng));
-
         await syncData();
     }
 
-    // データの読み込みと潮位の取得
     async function syncData() {
         showLoading(true);
+        const statusEl = document.getElementById('status-display');
         try {
             const res = await fetch(WEB_APP_URL);
             const data = await res.json();
             
-            // 潮位補間
-            if (data.todayTide) {
+            if (data.error) {
+                statusEl.textContent = "GASエラー: " + data.error;
+            } else if (data.todayTide) {
                 const now = new Date();
                 const h = now.getHours();
                 const m = now.getMinutes();
                 const t1 = data.todayTide[12 + h]; 
-                const t2 = data.todayTide[12 + h + 1] || t1;
+                const t2 = (h < 23) ? data.todayTide[12 + h + 1] : t1;
                 currentTide = t1 + (t2 - t1) * (m / 60);
-                document.getElementById('tide-info').textContent = `現在潮位(補間値): ${currentTide.toFixed(1)}cm / 基準水深で保存されます`;
+                statusEl.textContent = `潮位取得完了: ${currentTide.toFixed(1)}cm (準備OK)`;
+                statusEl.style.color = "#27ae60";
+            } else {
+                statusEl.textContent = "本日の潮位データが見つかりません";
             }
 
-            // ポイント表示
             markers.forEach(m => m.setMap(null));
-            data.points.forEach(p => createMarker({id:p[0], lat:p[1], lng:p[2], rawDepth:p[3], baseDepth:p[4], timestamp:p[5]}));
-        } catch (e) { console.error("Sync error", e); }
+            if (data.points) {
+                data.points.forEach(p => createMarker({id:p[0], lat:p[1], lng:p[2], rawDepth:p[3], baseDepth:p[4], timestamp:p[5]}));
+            }
+        } catch (e) { 
+            statusEl.textContent = "通信失敗。URLを確認してください。"; 
+        }
         showLoading(false);
     }
 
     function setAdminPass() {
-        const p = prompt("保存用パスワードを設定してください（一度設定するとブラウザに保存されます）");
-        if (p) { adminPass = p; localStorage.setItem('popolo_pass', p); alert("設定完了"); }
+        const p = prompt("パスワードを入力してください");
+        if (p) { 
+            adminPass = p.trim(); 
+            localStorage.setItem('popolo_pass', adminPass); 
+            alert("ブラウザに保存しました。");
+            syncData(); // 再同期
+        }
     }
 
     function addCurrentLocationPoint() {
@@ -92,9 +97,10 @@
     }
 
     async function promptAndSave(latLng) {
+        if (currentTide === null) return alert("潮位データ取得中につき、しばらくお待ちください");
         const raw = document.getElementById('depth-input').value;
         if (!raw) return alert("実測水深を入力してください");
-        if (!adminPass) return alert("「鍵設定」ボタンからパスワードを設定してください");
+        if (!adminPass) return alert("「鍵設定」でパスワードを入力してください");
 
         const baseDepth = parseFloat(raw) - currentTide;
         const pointData = {
@@ -107,11 +113,14 @@
         try {
             const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(pointData) });
             const result = await res.text();
-            if (result === "success") {
+            if (result.trim() === "success") {
                 createMarker(pointData);
                 document.getElementById('depth-input').value = "";
-            } else { alert("パスワードが違います"); }
-        } catch (e) { alert("保存失敗"); }
+                alert("保存成功！");
+            } else {
+                alert("認証失敗。パスワードが違います。\n(入力値: " + adminPass + ")");
+            }
+        } catch (e) { alert("保存エラー"); }
         showLoading(false);
     }
 
@@ -121,23 +130,13 @@
             icon: { path: google.maps.SymbolPath.CIRCLE, fillColor: getDepthColor(d.baseDepth), fillOpacity: 0.9, scale: 10, strokeColor: "#fff", strokeWeight: 2 }
         });
         marker.addListener("click", () => {
-            new google.maps.InfoWindow({ content: `基準水深: ${Number(d.baseDepth).toFixed(1)}cm<br>実測: ${d.rawDepth}cm<br><small>${d.timestamp}</small><br><a href="#" onclick="deletePoint(${d.id})">削除</a>` }).open(map, marker);
+            new google.maps.InfoWindow({ content: `基準水深: ${Number(d.baseDepth).toFixed(1)}cm<br>実測: ${d.rawDepth}cm<br><small>${d.timestamp}</small>` }).open(map, marker);
         });
-        markers.push({id: d.id, marker: marker});
+        markers.push(marker);
     }
 
     function getDepthColor(b) {
         if (b < 10) return "#ff0000"; if (b < 50) return "#ff8c00"; if (b < 100) return "#9acd32"; if (b < 150) return "#0000ff"; return "#8e44ad";
-    }
-
-    async function deletePoint(id) {
-        if (!confirm("削除しますか？")) return;
-        showLoading(true);
-        try {
-            const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({id: id, method: 'DELETE', password: adminPass}) });
-            if (await res.text() === "deleted") { location.reload(); } else { alert("失敗"); }
-        } catch (e) { alert("エラー"); }
-        showLoading(false);
     }
 
     function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
