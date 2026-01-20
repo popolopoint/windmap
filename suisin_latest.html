@@ -3,26 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.3.3 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.3.5 by Popolo App.com</title>
     <style>
-        
-
- /* 処理を早くするためにZ1に日付、AA1以降にデータ */
-
-
-        /* 全体レイアウト：上から順に並べる */
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
         /* 1段目：タイトル */
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
         
-        /* 2段目：入力パネル（水深、記録、キー） */
+        /* 2段目：入力パネル（種別・水深・記録・キー） */
         .ui-panel { background: white; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 1000; flex-shrink: 0; }
-        .input-row { display: flex; gap: 8px; align-items: center; }
-        input { flex: 2; padding: 12px; border: 2px solid #3498db; border-radius: 6px; font-size: 1rem; -webkit-appearance: none; }
-        button { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .btn-record { background: #2ecc71; color: white; flex: 3; }
-        .btn-admin { background: #95a5a6; color: white; width: 50px; font-size: 1.1rem; }
+        .input-row { display: flex; gap: 6px; align-items: center; }
+        
+        /* 種別セレクトボックスのスタイル */
+        #type-input { flex: 1.5; padding: 12px 5px; border: 2px solid #3498db; border-radius: 6px; background: white; font-size: 0.9rem; font-weight: bold; color: #2c3e50; }
+        
+        input#depth-input { flex: 2; padding: 12px; border: 2px solid #3498db; border-radius: 6px; font-size: 1rem; -webkit-appearance: none; }
+        
+        .btn-record { background: #2ecc71; color: white; flex: 2.5; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn-admin { background: #95a5a6; color: white; width: 44px; padding: 12px 0; border: none; border-radius: 6px; font-size: 1.1rem; cursor: pointer; }
         
         .status-bar { font-size: 0.75rem; color: #666; text-align: center; margin-top: 5px; }
 
@@ -30,7 +28,6 @@
         #map-container { position: relative; flex-grow: 1; width: 100%; }
         #map { width: 100%; height: 100%; }
 
-        /* ヘルプボタン（マップ上に配置） */
         .btn-help { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); border: 2px solid #3498db; color: #3498db; border-radius: 50%; width: 32px; height: 32px; font-weight: bold; z-index: 1500; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
 
         /* モーダル */
@@ -45,10 +42,15 @@
 
 <div id="loading">📡 通信中...</div>
 
-<div class="app-header">水深測っ太郎 v1.3.3 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.3.5 by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="input-row">
+        <select id="type-input">
+            <option value="平地" selected>平地</option>
+            <option value="岩">岩</option>
+            <option value="杭">杭</option>
+        </select>
         <input type="number" id="depth-input" placeholder="水深(cm)" inputmode="decimal">
         <button class="btn-record" onclick="addCurrentLocationPoint()">記録</button>
         <button class="btn-admin" onclick="openModal('admin-modal')">🔑</button>
@@ -103,7 +105,7 @@
     }
 
     async function syncData() {
-        showLoading(true);
+        if(currentTide === 0) showLoading(true);
         try {
             const res = await fetch(WEB_APP_URL);
             const data = await res.json();
@@ -115,7 +117,9 @@
                 document.getElementById('status-display').textContent = `潮位: ${currentTide.toFixed(1)}cm | ${adminPass ? "🔑OK" : "🔑未設定"}`;
             }
             markers.forEach(m => m.setMap(null));
-            if (data.points) data.points.forEach(p => createMarker({id:p[0], lat:p[1], lng:p[2], rawDepth:p[3], baseDepth:p[4], timestamp:p[5]}));
+            markers = [];
+            // G列(index 6)の「種別」を読み込むように変更
+            if (data.points) data.points.forEach(p => createMarker({id:p[0], lat:p[1], lng:p[2], rawDepth:p[3], baseDepth:p[4], timestamp:p[5], type:p[6] || "平地"}));
         } catch (e) { document.getElementById('status-display').textContent = "❌ 通信エラー"; }
         showLoading(false);
     }
@@ -130,17 +134,28 @@
 
     async function promptAndSave(latLng) {
         const raw = document.getElementById('depth-input').value;
+        const type = document.getElementById('type-input').value;
         if (!raw) return alert("水深を入力してください");
         if (!adminPass) return openModal('admin-modal');
 
         const baseDepth = parseFloat(raw) - currentTide;
-        const pointData = { method: 'POST', password: adminPass, id: String(Date.now()), lat: latLng.lat(), lng: latLng.lng(), rawDepth: raw, baseDepth: baseDepth, timestamp: new Date().toLocaleString() };
+        const pointData = { 
+            method: 'POST', 
+            password: adminPass, 
+            id: String(Date.now()), 
+            lat: latLng.lat(), 
+            lng: latLng.lng(), 
+            rawDepth: raw, 
+            baseDepth: baseDepth, 
+            timestamp: new Date().toLocaleString(),
+            type: type 
+        };
 
         showLoading(true);
         try {
             const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(pointData) });
             if ((await res.text()).trim() === "success") {
-                createMarker(pointData);
+                syncData(); // 描画更新のために再取得
                 document.getElementById('depth-input').value = "";
             } else { alert("保存失敗：パスワードを確認してください"); }
         } catch (e) { alert("エラー"); }
@@ -148,18 +163,39 @@
     }
 
     function createMarker(d) {
+        let sym = google.maps.SymbolPath.CIRCLE;
+        let color = getDepthColor(d.baseDepth);
+        let scale = 8;
+        
+        // 種別による見た目の変更
+        if(d.type === "岩") {
+            sym = google.maps.SymbolPath.FORWARD_CLOSED_ARROW; // 三角
+            color = "#795548"; // 茶色
+            scale = 10;
+        } else if(d.type === "杭") {
+            sym = google.maps.SymbolPath.BACKWARD_CLOSED_ARROW; // 逆三角（杭のイメージ）
+            color = "#2c3e50"; // 濃いグレー
+            scale = 10;
+        }
+
         const marker = new google.maps.Marker({
             position: {lat: Number(d.lat), lng: Number(d.lng)}, map: map,
-            icon: { path: google.maps.SymbolPath.CIRCLE, fillColor: getDepthColor(d.baseDepth), fillOpacity: 0.8, scale: 10, strokeColor: "#fff", strokeWeight: 2 }
+            icon: { path: sym, fillColor: color, fillOpacity: 0.8, scale: scale, strokeColor: "#fff", strokeWeight: 2 }
         });
+
         const content = `
             <div style="padding:5px; font-size:12px;">
-                <b>基準: ${Number(d.baseDepth).toFixed(1)}cm</b><br>
+                <b>${d.type}: ${Number(d.baseDepth).toFixed(1)}cm</b><br>
+                <small>${d.timestamp}</small><br>
                 <button onclick="deletePoint('${d.id}')" style="background:#e74c3c; color:white; border:none; border-radius:3px; padding:4px 8px; margin-top:5px; width:100%;">削除</button>
             </div>`;
         const info = new google.maps.InfoWindow({ content: content });
         marker.addListener("click", () => info.open(map, marker));
         markers.push(marker);
+    }
+
+    function getDepthColor(b) {
+        if (b < 10) return "#ff0000"; if (b < 50) return "#ff8c00"; if (b < 100) return "#9acd32"; if (b < 150) return "#0000ff"; return "#8e44ad";
     }
 
     async function deletePoint(id) {
@@ -171,10 +207,6 @@
             else { alert("削除失敗"); }
         } catch (e) { alert("通信エラー"); }
         showLoading(false);
-    }
-
-    function getDepthColor(b) {
-        if (b < 10) return "#ff0000"; if (b < 50) return "#ff8c00"; if (b < 100) return "#9acd32"; if (b < 150) return "#0000ff"; return "#8e44ad";
     }
 
     function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
