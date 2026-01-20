@@ -3,8 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.2.5 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.3.1 by Popolo App.com</title>
     <style>
+        
+
+ /* 処理を早くするためにZ1に日付、AA1以降にデータ */
+
+
         /* 全体レイアウト：上から順に並べる */
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -40,7 +45,7 @@
 
 <div id="loading">📡 通信中...</div>
 
-<div class="app-header">水深測っ太郎 v1.2.5 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.3.1 by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="input-row">
@@ -76,7 +81,7 @@
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
 <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz1ghasrT-ckauOdlW_YVq2JGdJdp-dfpM513PsGtZUX-9qEn0O3AqVgBxhRA7Ugnyahg/exec"; 
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxLhX_HapsBgSXlciaTael9OmaZr6d291S1eEjfIy0kjaCiPDyRxHH2cMgAqaffqdpOrw/exec"; 
     let map, markers = [], currentTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
