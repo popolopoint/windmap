@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.3.6 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.3.7 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -25,7 +25,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.3.6 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.3.7 by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="input-row">
@@ -111,7 +111,7 @@
             const latLng = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
             map.panTo(latLng);
             promptAndSave(latLng);
-        });
+        }, (err) => alert("位置情報が取得できませんでした"), {enableHighAccuracy: true});
     }
 
     async function promptAndSave(latLng) {
@@ -132,14 +132,14 @@
 
     function createMarker(d) {
         let sym = google.maps.SymbolPath.CIRCLE;
-        let scale = 7; // 全体的に少し小さめに調整
+        let scale = 7; 
         
         if(d.type === "岩") {
-            sym = google.maps.SymbolPath.FORWARD_CLOSED_ARROW; // 三角
-            scale = 7;
+            // 正三角形のパス
+            sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; 
         } else if(d.type === "杭") {
-            sym = "M 0,-1 L 1,0 L 0,1 L -1,0 Z"; // ひし形 (SVGパス)
-            scale = 7;
+            // ひし形のパス
+            sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z"; 
         }
 
         const marker = new google.maps.Marker({
@@ -147,10 +147,10 @@
             map: map,
             icon: { 
                 path: sym, 
-                fillColor: getDepthColor(d.baseDepth), // すべて共通の色分け
+                fillColor: getDepthColor(d.baseDepth), 
                 fillOpacity: 0.9, 
                 scale: scale, 
-                strokeColor: "#333", // 枠線を少し暗くして視認性向上
+                strokeColor: "#333", 
                 strokeWeight: 1.5 
             }
         });
