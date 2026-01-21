@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.6.1 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.6.2 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -25,11 +25,11 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.6.1 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.6.2 by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
-        <div style="font-size: 0.7rem; color: #2980b9; margin-bottom: 4px; font-weight: bold;">📅 日付を変えると潮位が自動で切り替わります</div>
+        <div style="font-size: 0.7rem; color: #2980b9; margin-bottom: 4px; font-weight: bold;">📅 未来の潮位シミュレーション対応</div>
         <div class="datetime-row">
             <input type="datetime-local" id="target-datetime">
             <button onclick="setNow()" style="padding: 10px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.8rem;">現在</button>
@@ -63,9 +63,9 @@
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
 <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyookzZlMgeH4vdaNC9Y0i5C0Yfe8yWZUjTISq4G47IY45-5U-WwUlPxem4slP40kwjJw/exec"; 
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby5DdCBfYlXr9Q_D7bdtKKboN2JN6vQ9Y7y82S6eLrZ4_Zp3KyACr4u7HFfMKfORoVYLQ/exec"; 
     let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
-    let fullTideMasterData = []; // 全日程の潮位データ
+    let fullTideMasterData = []; 
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -88,7 +88,14 @@
     async function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
             zoom: 15, center: { lat: 26.3318, lng: 127.9288 }, 
-            mapTypeId: 'roadmap', disableDefaultUI: true, zoomControl: true
+            mapTypeId: 'roadmap', 
+            disableDefaultUI: false,
+            zoomControl: true,
+            mapTypeControl: true,
+            mapTypeControlOptions: {
+                style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                position: google.maps.ControlPosition.TOP_RIGHT
+            }
         });
         map.addListener("click", (e) => promptAndSave(e.latLng));
         setNow();
@@ -118,24 +125,20 @@
         const h = selectedDate.getHours();
         const min = selectedDate.getMinutes();
 
-        // GASの日付形式と照合（A列を日付として検索）
         const targetRow = fullTideMasterData.find(row => {
             const rowDate = new Date(row[0]);
             return rowDate.getFullYear() === y && (rowDate.getMonth() + 1) === m && rowDate.getDate() === d;
         });
 
         if (targetRow) {
-            // A列が日付なので、B列(index 1)から24時間分のデータが始まっていると仮定
             const t1 = parseFloat(targetRow[1 + h]);
             const t2 = (h < 23) ? parseFloat(targetRow[1 + h + 1]) : t1;
-            
             currentSelectedTide = t1 + (t2 - t1) * (min / 60);
             document.getElementById('status-display').textContent = `潮位(${d}日 ${h}時): ${currentSelectedTide.toFixed(1)}cm`;
         } else {
-            document.getElementById('status-display').textContent = `⚠️ ${m}/${d}のデータが見つかりません`;
+            document.getElementById('status-display').textContent = `⚠️ ${m}/${d}のデータがありません`;
             currentSelectedTide = 0;
         }
-        
         refreshMarkersOnMap();
     }
 
@@ -166,7 +169,6 @@
                 strokeWeight: 1.5 
             }
         });
-        
         const info = new google.maps.InfoWindow({ content: `<div style="font-size:12px;"><b>${d.type}</b><br>予想水深: <b>${d.simulatedDepth.toFixed(1)}cm</b></div>` });
         marker.addListener("click", () => info.open(map, marker));
         markers.push(marker);
