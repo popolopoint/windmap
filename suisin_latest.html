@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.5.5 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.5.6 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -25,7 +25,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.5.5 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.5.6 by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
@@ -34,7 +34,7 @@
             <input type="datetime-local" id="target-datetime">
             <button onclick="setNow()" style="padding: 10px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.8rem;">現在</button>
         </div>
-        <div id="status-display" class="status-bar">データを読み込み中...</div>
+        <div id="status-display" class="status-bar">初期化中...</div>
     </div>
 
     <div class="input-row">
@@ -66,7 +66,6 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby5DdCBfYlXr9Q_D7bdtKKboN2JN6vQ9Y7y82S6eLrZ4_Zp3KyACr4u7HFfMKfORoVYLQ/exec"; 
     let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
     let tideDataGlobal = null;
-    let isDataLoaded = false;
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -98,44 +97,53 @@
 
     async function syncData() {
         showLoading(true);
+        document.getElementById('status-display').textContent = "📡 サーバーに接続中...";
         try {
             const res = await fetch(WEB_APP_URL);
             const data = await res.json();
-            tideDataGlobal = data.todayTide || null;
+            
+            if (data.todayTide && data.todayTide.length > 0) {
+                tideDataGlobal = data.todayTide;
+                console.log("潮位データ取得成功:", tideDataGlobal);
+            } else {
+                document.getElementById('status-display').textContent = "⚠️ 潮位データが空です";
+            }
+            
             allPointsData = data.points || [];
-            isDataLoaded = true;
             calculateTideAndRefresh();
         } catch (e) { 
-            document.getElementById('status-display').textContent = "❌ 通信エラー（再試行してください）"; 
+            document.getElementById('status-display').textContent = "❌ 通信エラー: GAS設定を確認してください"; 
         }
         showLoading(false);
     }
 
     function calculateTideAndRefresh() {
-        // データがまだ届いていない場合は計算をスキップ
-        if (!isDataLoaded || !tideDataGlobal) {
-            document.getElementById('status-display').textContent = "⏳ 潮位データ受信待ち...";
-            return;
-        }
-
         const val = document.getElementById('target-datetime').value;
         if (!val) return;
 
-        const selectedTime = new Date(val);
-        const h = selectedTime.getHours();
-        const m = selectedTime.getMinutes();
-        
-        // 潮位データの存在を厳密にチェック
-        const t1 = tideDataGlobal[12 + h];
-        const t2 = (h < 23) ? tideDataGlobal[12 + h + 1] : t1;
-        
-        // 数値でない場合は0を代入してNaNを回避
-        const numT1 = parseFloat(t1) || 0;
-        const numT2 = parseFloat(t2) || 0;
-        
-        currentSelectedTide = numT1 + (numT2 - numT1) * (m / 60);
-        document.getElementById('status-display').textContent = `潮位: ${currentSelectedTide.toFixed(1)}cm`;
-        
+        if (!tideDataGlobal) {
+            document.getElementById('status-display').textContent = "⏳ 潮位データなし(0cm固定中)";
+            currentSelectedTide = 0;
+        } else {
+            const selectedTime = new Date(val);
+            const h = selectedTime.getHours();
+            const m = selectedTime.getMinutes();
+            
+            // GAS側の配列構造（0-11:時刻, 12-35:潮位）を考慮
+            const idx1 = 12 + h;
+            const idx2 = (h < 23) ? 12 + h + 1 : idx1;
+            
+            const t1 = parseFloat(tideDataGlobal[idx1]);
+            const t2 = parseFloat(tideDataGlobal[idx2]);
+
+            if (isNaN(t1)) {
+                document.getElementById('status-display').textContent = `⚠️ データ異常(Idx:${idx1})`;
+                currentSelectedTide = 0;
+            } else {
+                currentSelectedTide = t1 + (t2 - t1) * (m / 60);
+                document.getElementById('status-display').textContent = `潮位: ${currentSelectedTide.toFixed(1)}cm`;
+            }
+        }
         refreshMarkersOnMap();
     }
 
@@ -166,8 +174,8 @@
                 strokeWeight: 1.5 
             }
         });
-
-        const content = `<div style="padding:5px; font-size:12px;"><b>${d.type}</b><br>予想水深: <b style="color:blue;">${d.simulatedDepth.toFixed(1)}cm</b><br><small>(基準: ${d.baseDepth.toFixed(1)}cm)</small><br><button onclick="deletePoint('${d.id}')" style="background:#e74c3c; color:white; border:none; border-radius:3px; padding:4px 8px; margin-top:5px; width:100%;">削除</button></div>`;
+        
+        const content = `<div style="padding:5px; font-size:12px;"><b>${d.type}</b><br>予想水深: <b style="color:blue;">${d.simulatedDepth.toFixed(1)}cm</b><br><small>(基準: ${d.baseDepth.toFixed(1)}cm)</small></div>`;
         const info = new google.maps.InfoWindow({ content: content });
         marker.addListener("click", () => info.open(map, marker));
         markers.push(marker);
@@ -207,13 +215,6 @@
             map.panTo(latLng);
             promptAndSave(latLng);
         }, (err) => alert("位置情報エラー"), {enableHighAccuracy: true});
-    }
-
-    async function deletePoint(id) {
-        if (!confirm("削除しますか？")) return;
-        showLoading(true);
-        try { await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ method: 'DELETE', password: adminPass, id: String(id) }) }); syncData(); } catch (e) {}
-        showLoading(false);
     }
 
     function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
