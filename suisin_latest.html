@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.5.3 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.5.5 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -25,16 +25,16 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.5.3 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.5.5 by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
-        <div style="font-size: 0.7rem; color: #2980b9; margin-bottom: 4px; font-weight: bold;">📅 シミュレーション日時（ここを変えると全ピンの色が変わります）</div>
+        <div style="font-size: 0.7rem; color: #2980b9; margin-bottom: 4px; font-weight: bold;">📅 シミュレーション日時</div>
         <div class="datetime-row">
             <input type="datetime-local" id="target-datetime">
             <button onclick="setNow()" style="padding: 10px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.8rem;">現在</button>
         </div>
-        <div id="status-display" class="status-bar">潮位を取得中...</div>
+        <div id="status-display" class="status-bar">データを読み込み中...</div>
     </div>
 
     <div class="input-row">
@@ -66,6 +66,7 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby5DdCBfYlXr9Q_D7bdtKKboN2JN6vQ9Y7y82S6eLrZ4_Zp3KyACr4u7HFfMKfORoVYLQ/exec"; 
     let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
     let tideDataGlobal = null;
+    let isDataLoaded = false;
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -76,10 +77,7 @@
         syncData();
     }
 
-    // イベントリスナーを確実にセット
-    document.getElementById('target-datetime').addEventListener('change', () => {
-        calculateTideAndRefresh();
-    });
+    document.getElementById('target-datetime').addEventListener('change', calculateTideAndRefresh);
 
     function setNow() {
         const now = new Date();
@@ -103,15 +101,23 @@
         try {
             const res = await fetch(WEB_APP_URL);
             const data = await res.json();
-            if (data.todayTide) tideDataGlobal = data.todayTide;
-            if (data.points) allPointsData = data.points;
+            tideDataGlobal = data.todayTide || null;
+            allPointsData = data.points || [];
+            isDataLoaded = true;
             calculateTideAndRefresh();
-        } catch (e) { document.getElementById('status-display').textContent = "❌ 通信エラー"; }
+        } catch (e) { 
+            document.getElementById('status-display').textContent = "❌ 通信エラー（再試行してください）"; 
+        }
         showLoading(false);
     }
 
     function calculateTideAndRefresh() {
-        if (!tideDataGlobal) return;
+        // データがまだ届いていない場合は計算をスキップ
+        if (!isDataLoaded || !tideDataGlobal) {
+            document.getElementById('status-display').textContent = "⏳ 潮位データ受信待ち...";
+            return;
+        }
+
         const val = document.getElementById('target-datetime').value;
         if (!val) return;
 
@@ -119,10 +125,15 @@
         const h = selectedTime.getHours();
         const m = selectedTime.getMinutes();
         
-        const t1 = Number(tideDataGlobal[12 + h]);
-        const t2 = (h < 23) ? Number(tideDataGlobal[12 + h + 1]) : t1;
+        // 潮位データの存在を厳密にチェック
+        const t1 = tideDataGlobal[12 + h];
+        const t2 = (h < 23) ? tideDataGlobal[12 + h + 1] : t1;
         
-        currentSelectedTide = t1 + (t2 - t1) * (m / 60);
+        // 数値でない場合は0を代入してNaNを回避
+        const numT1 = parseFloat(t1) || 0;
+        const numT2 = parseFloat(t2) || 0;
+        
+        currentSelectedTide = numT1 + (numT2 - numT1) * (m / 60);
         document.getElementById('status-display').textContent = `潮位: ${currentSelectedTide.toFixed(1)}cm`;
         
         refreshMarkersOnMap();
@@ -163,13 +174,13 @@
     }
 
     function getDepthColor(b) {
-        if (b < 15) return "#ff0000"; // 赤
-        if (b < 40) return "#ff8c00"; // 橙
-        if (b < 70) return "#ffff00"; // 黄
-        if (b < 100) return "#00ff00"; // 緑
-        if (b < 140) return "#0000ff"; // 青
-        if (b < 180) return "#4b0082"; // 藍
-        return "#8e44ad"; // 紫
+        if (b < 15) return "#ff0000"; 
+        if (b < 40) return "#ff8c00"; 
+        if (b < 70) return "#ffff00"; 
+        if (b < 100) return "#00ff00"; 
+        if (b < 140) return "#0000ff"; 
+        if (b < 180) return "#4b0082"; 
+        return "#8e44ad"; 
     }
 
     async function promptAndSave(latLng) {
