@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.5.7 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.6.0 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -16,7 +16,7 @@
         input#depth-input { flex: 1.5; padding: 12px; border: 2px solid #3498db; border-radius: 6px; font-size: 1rem; }
         .btn-record { background: #2ecc71; color: white; flex: 2.5; padding: 12px; border: none; border-radius: 6px; font-weight: bold; }
         .btn-admin { background: #95a5a6; color: white; width: 44px; padding: 12px 0; border: none; border-radius: 6px; font-size: 1.1rem; }
-        .status-bar { font-size: 0.75rem; color: #666; text-align: center; margin-top: 5px; font-weight: bold; min-height: 1.2em; }
+        .status-bar { font-size: 0.75rem; color: #666; text-align: center; margin-top: 5px; font-weight: bold; }
         #map-container { position: relative; flex-grow: 1; width: 100%; }
         #map { width: 100%; height: 100%; }
         #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 4000; font-weight: bold; color: #3498db; }
@@ -25,11 +25,11 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.5.7 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.6.0 by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
-        <div style="font-size: 0.7rem; color: #2980b9; margin-bottom: 4px; font-weight: bold;">📅 シミュレーション日時（未来予測）</div>
+        <div style="font-size: 0.7rem; color: #2980b9; margin-bottom: 4px; font-weight: bold;">📅 日時選択 (シミュレーション対応)</div>
         <div class="datetime-row">
             <input type="datetime-local" id="target-datetime">
             <button onclick="setNow()" style="padding: 10px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.8rem;">現在</button>
@@ -65,7 +65,7 @@
 <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby5DdCBfYlXr9Q_D7bdtKKboN2JN6vQ9Y7y82S6eLrZ4_Zp3KyACr4u7HFfMKfORoVYLQ/exec"; 
     let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
-    let tideDataGlobal = null;
+    let cleanTideList = []; // 数字だけの潮位リスト
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -101,16 +101,26 @@
             const res = await fetch(WEB_APP_URL);
             const data = await res.json();
             
-            if (data && data.todayTide && data.todayTide.length > 0) {
-                tideDataGlobal = data.todayTide;
-            } else {
-                document.getElementById('status-display').textContent = "⚠️ GASからの潮位データが空です";
+            // 潮位データから「数字だけ」を抽出して24時間分（0-23時）を特定する
+            if (data && data.todayTide) {
+                // 文字列を排除し、純粋な数値配列を作る
+                cleanTideList = data.todayTide
+                    .map(v => parseFloat(v))
+                    .filter(v => !isNaN(v));
+                
+                // データの並びが [0,1...23, 潮位0,潮位1...潮位23] の場合、後ろの24個を取る
+                if (cleanTideList.length >= 48) {
+                    cleanTideList = cleanTideList.slice(-24);
+                } else if (cleanTideList.length > 24) {
+                    // それ以外で24個以上ある場合は、直感的に最後の24個を採用
+                    cleanTideList = cleanTideList.slice(-24);
+                }
             }
             
             allPointsData = data.points || [];
             calculateTideAndRefresh();
         } catch (e) { 
-            document.getElementById('status-display').textContent = "❌ 通信エラー: サーバーに繋げません"; 
+            document.getElementById('status-display').textContent = "❌ 通信エラー"; 
         }
         showLoading(false);
     }
@@ -119,35 +129,21 @@
         const val = document.getElementById('target-datetime').value;
         if (!val) return;
 
-        let tideValue = 0;
-        if (tideDataGlobal) {
-            const selectedTime = new Date(val);
-            const h = selectedTime.getHours();
-            const m = selectedTime.getMinutes();
-            
-            // 配列のインデックスチェック
-            const idx1 = 12 + h;
-            const idx2 = (h < 23) ? 12 + h + 1 : idx1;
-            
-            const v1 = tideDataGlobal[idx1];
-            const v2 = tideDataGlobal[idx2];
+        const selectedTime = new Date(val);
+        const h = selectedTime.getHours();
+        const m = selectedTime.getMinutes();
 
-            const t1 = parseFloat(v1);
-            const t2 = parseFloat(v2);
-
-            if (isNaN(t1)) {
-                document.getElementById('status-display').textContent = `⚠️ データ異常: [${h}時]の値が数字ではありません`;
-                tideValue = 0;
-            } else {
-                tideValue = t1 + ( (isNaN(t2) ? t1 : t2) - t1) * (m / 60);
-                document.getElementById('status-display').textContent = `現在の計算潮位: ${tideValue.toFixed(1)}cm`;
-            }
+        if (cleanTideList.length >= 24) {
+            const t1 = cleanTideList[h];
+            const t2 = (h < 23) ? cleanTideList[h + 1] : t1;
+            
+            currentSelectedTide = t1 + (t2 - t1) * (m / 60);
+            document.getElementById('status-display').textContent = `潮位: ${currentSelectedTide.toFixed(1)}cm`;
         } else {
-            document.getElementById('status-display').textContent = "⏳ 潮位データを待機中...";
-            tideValue = 0;
+            document.getElementById('status-display').textContent = "⚠️ 潮位データ解析失敗(0cm固定)";
+            currentSelectedTide = 0;
         }
         
-        currentSelectedTide = tideValue;
         refreshMarkersOnMap();
     }
 
@@ -197,12 +193,11 @@
 
     async function promptAndSave(latLng) {
         const raw = document.getElementById('depth-input').value;
+        if (!raw) return alert("水深を入力してください");
         const type = document.getElementById('type-input').value;
         const selectedTimeStr = document.getElementById('target-datetime').value;
-        if (!raw) return alert("水深を入力してください");
-        if (!adminPass) return openModal('admin-modal');
-
         const baseDepth = parseFloat(raw) - currentSelectedTide;
+        
         const pointData = { method: 'POST', password: adminPass, id: String(Date.now()), lat: latLng.lat(), lng: latLng.lng(), rawDepth: raw, baseDepth: baseDepth, timestamp: selectedTimeStr.replace('T', ' '), type: type };
 
         showLoading(true);
