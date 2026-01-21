@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.5.6 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.5.7 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -16,7 +16,7 @@
         input#depth-input { flex: 1.5; padding: 12px; border: 2px solid #3498db; border-radius: 6px; font-size: 1rem; }
         .btn-record { background: #2ecc71; color: white; flex: 2.5; padding: 12px; border: none; border-radius: 6px; font-weight: bold; }
         .btn-admin { background: #95a5a6; color: white; width: 44px; padding: 12px 0; border: none; border-radius: 6px; font-size: 1.1rem; }
-        .status-bar { font-size: 0.75rem; color: #666; text-align: center; margin-top: 5px; font-weight: bold; }
+        .status-bar { font-size: 0.75rem; color: #666; text-align: center; margin-top: 5px; font-weight: bold; min-height: 1.2em; }
         #map-container { position: relative; flex-grow: 1; width: 100%; }
         #map { width: 100%; height: 100%; }
         #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 4000; font-weight: bold; color: #3498db; }
@@ -25,11 +25,11 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.5.6 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.5.7 by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
-        <div style="font-size: 0.7rem; color: #2980b9; margin-bottom: 4px; font-weight: bold;">📅 シミュレーション日時</div>
+        <div style="font-size: 0.7rem; color: #2980b9; margin-bottom: 4px; font-weight: bold;">📅 シミュレーション日時（未来予測）</div>
         <div class="datetime-row">
             <input type="datetime-local" id="target-datetime">
             <button onclick="setNow()" style="padding: 10px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.8rem;">現在</button>
@@ -97,22 +97,20 @@
 
     async function syncData() {
         showLoading(true);
-        document.getElementById('status-display').textContent = "📡 サーバーに接続中...";
         try {
             const res = await fetch(WEB_APP_URL);
             const data = await res.json();
             
-            if (data.todayTide && data.todayTide.length > 0) {
+            if (data && data.todayTide && data.todayTide.length > 0) {
                 tideDataGlobal = data.todayTide;
-                console.log("潮位データ取得成功:", tideDataGlobal);
             } else {
-                document.getElementById('status-display').textContent = "⚠️ 潮位データが空です";
+                document.getElementById('status-display').textContent = "⚠️ GASからの潮位データが空です";
             }
             
             allPointsData = data.points || [];
             calculateTideAndRefresh();
         } catch (e) { 
-            document.getElementById('status-display').textContent = "❌ 通信エラー: GAS設定を確認してください"; 
+            document.getElementById('status-display').textContent = "❌ 通信エラー: サーバーに繋げません"; 
         }
         showLoading(false);
     }
@@ -121,29 +119,35 @@
         const val = document.getElementById('target-datetime').value;
         if (!val) return;
 
-        if (!tideDataGlobal) {
-            document.getElementById('status-display').textContent = "⏳ 潮位データなし(0cm固定中)";
-            currentSelectedTide = 0;
-        } else {
+        let tideValue = 0;
+        if (tideDataGlobal) {
             const selectedTime = new Date(val);
             const h = selectedTime.getHours();
             const m = selectedTime.getMinutes();
             
-            // GAS側の配列構造（0-11:時刻, 12-35:潮位）を考慮
+            // 配列のインデックスチェック
             const idx1 = 12 + h;
             const idx2 = (h < 23) ? 12 + h + 1 : idx1;
             
-            const t1 = parseFloat(tideDataGlobal[idx1]);
-            const t2 = parseFloat(tideDataGlobal[idx2]);
+            const v1 = tideDataGlobal[idx1];
+            const v2 = tideDataGlobal[idx2];
+
+            const t1 = parseFloat(v1);
+            const t2 = parseFloat(v2);
 
             if (isNaN(t1)) {
-                document.getElementById('status-display').textContent = `⚠️ データ異常(Idx:${idx1})`;
-                currentSelectedTide = 0;
+                document.getElementById('status-display').textContent = `⚠️ データ異常: [${h}時]の値が数字ではありません`;
+                tideValue = 0;
             } else {
-                currentSelectedTide = t1 + (t2 - t1) * (m / 60);
-                document.getElementById('status-display').textContent = `潮位: ${currentSelectedTide.toFixed(1)}cm`;
+                tideValue = t1 + ( (isNaN(t2) ? t1 : t2) - t1) * (m / 60);
+                document.getElementById('status-display').textContent = `現在の計算潮位: ${tideValue.toFixed(1)}cm`;
             }
+        } else {
+            document.getElementById('status-display').textContent = "⏳ 潮位データを待機中...";
+            tideValue = 0;
         }
+        
+        currentSelectedTide = tideValue;
         refreshMarkersOnMap();
     }
 
