@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.6.3 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.6.5 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -16,16 +16,16 @@
         input#depth-input { flex: 1.5; padding: 12px; border: 2px solid #3498db; border-radius: 6px; font-size: 1rem; }
         .btn-record { background: #2ecc71; color: white; flex: 2.5; padding: 12px; border: none; border-radius: 6px; font-weight: bold; }
         .btn-admin { background: #95a5a6; color: white; width: 44px; padding: 12px 0; border: none; border-radius: 6px; font-size: 1.1rem; }
-        .status-bar { font-size: 0.75rem; color: #666; text-align: center; margin-top: 5px; font-weight: bold; }
+        .status-bar { font-size: 0.75rem; color: #666; text-align: center; margin-top: 5px; font-weight: bold; min-height: 1.2em; }
         #map-container { position: relative; flex-grow: 1; width: 100%; }
-        #map { width: 100%; height: 100%; background: #ddd; }
+        #map { width: 100%; height: 100%; background: #eee; }
         #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 4000; font-weight: bold; color: #3498db; }
     </style>
 </head>
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.6.3 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.6.5 by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
@@ -33,7 +33,7 @@
             <input type="datetime-local" id="target-datetime">
             <button onclick="setNow()" style="padding: 10px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.8rem;">現在</button>
         </div>
-        <div id="status-display" class="status-bar">⏳ 起動準備中...</div>
+        <div id="status-display" class="status-bar">⏳ 起動中...</div>
     </div>
 
     <div class="input-row">
@@ -59,16 +59,12 @@
     </div>
 </div>
 
-<script>
-    function gm_authFailure() { 
-        document.getElementById('status-display').textContent = "❌ Google Maps APIエラー(キーを確認)";
-        alert("Google Mapsの認証に失敗しました。APIキーが正しいか確認してください。");
-    }
-</script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer onerror="gm_authFailure()"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
 <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby5DdCBfYlXr9Q_D7bdtKKboN2JN6vQ9Y7y82S6eLrZ4_Zp3KyACr4u7HFfMKfORoVYLQ/exec"; 
+    // ★★★ ここに新しいGASのURLを貼り付けてください ★★★
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyS11MWxIO9EPxmbRMq57T6KhAKQDyUh7eTN5sx8AeD_ubrV1a0XixANKC6cnWqNCFBHA/exec"; 
+    
     let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
     let fullTideMasterData = []; 
 
@@ -87,45 +83,42 @@
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         document.getElementById('target-datetime').value = now.toISOString().slice(0, 16);
-        // 時刻セット後に再計算
         if (fullTideMasterData.length > 0) calculateTideAndRefresh();
     }
 
     async function initMap() {
-        try {
-            document.getElementById('status-display').textContent = "📡 地図をロード中...";
-            map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 15, center: { lat: 26.3318, lng: 127.9288 }, 
-                mapTypeId: 'roadmap', 
-                mapTypeControl: true,
-                mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_RIGHT }
-            });
-            map.addListener("click", (e) => promptAndSave(e.latLng));
-            
-            // 地図ができたらデータ取得
-            setNow();
-            await syncData();
-        } catch (e) {
-            document.getElementById('status-display').textContent = "❌ マップ初期化エラー";
-        }
+        map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 15, center: { lat: 26.3318, lng: 127.9288 }, 
+            mapTypeId: 'roadmap', 
+            mapTypeControl: true,
+            mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_RIGHT }
+        });
+        map.addListener("click", (e) => promptAndSave(e.latLng));
+        setNow();
+        await syncData();
     }
 
     async function syncData() {
         showLoading(true);
-        document.getElementById('status-display').textContent = "📥 データ取得中...";
+        document.getElementById('status-display').textContent = "📥 データを同期中...";
         try {
             const res = await fetch(WEB_APP_URL);
             const data = await res.json();
-            fullTideMasterData = data.allTideData || [];
-            allPointsData = data.points || [];
             
-            if (fullTideMasterData.length > 0) {
-                calculateTideAndRefresh();
+            if (data.error) {
+                document.getElementById('status-display').textContent = "❌ GASエラー: " + data.error;
             } else {
-                document.getElementById('status-display').textContent = "⚠️ 潮位データが受信できません";
+                fullTideMasterData = data.allTideData || [];
+                allPointsData = data.points || [];
+                
+                if (fullTideMasterData.length > 0) {
+                    calculateTideAndRefresh();
+                } else {
+                    document.getElementById('status-display').textContent = "⚠️ 潮位データが空です";
+                }
             }
         } catch (e) { 
-            document.getElementById('status-display').textContent = "❌ GAS通信エラー"; 
+            document.getElementById('status-display').textContent = "❌ 通信失敗(URLを確認)"; 
         }
         showLoading(false);
     }
@@ -141,19 +134,25 @@
         const h = selectedDate.getHours();
         const min = selectedDate.getMinutes();
 
+        // 日付の一致を確認（A列をDateオブジェクトとして判定）
         const targetRow = fullTideMasterData.find(row => {
             const rowDate = new Date(row[0]);
             return rowDate.getFullYear() === y && (rowDate.getMonth() + 1) === m && rowDate.getDate() === d;
         });
 
         if (targetRow) {
+            // A列が日付なので、B列(index 1)から18時ならindex 19を参照
             const t1 = parseFloat(targetRow[1 + h]);
             const t2 = (h < 23) ? parseFloat(targetRow[1 + h + 1]) : t1;
-            currentSelectedTide = t1 + (t2 - t1) * (min / 60);
-            document.getElementById('status-display').textContent = `潮位(${d}日 ${h}時): ${currentSelectedTide.toFixed(1)}cm`;
+            
+            if(!isNaN(t1)) {
+                currentSelectedTide = t1 + ((isNaN(t2) ? t1 : t2) - t1) * (min / 60);
+                document.getElementById('status-display').textContent = `潮位(${d}日 ${h}時): ${currentSelectedTide.toFixed(1)}cm`;
+            } else {
+                document.getElementById('status-display').textContent = `⚠️ ${h}時のデータが数字ではありません`;
+            }
         } else {
-            document.getElementById('status-display').textContent = `⚠️ ${m}/${d}の日付がデータにありません`;
-            currentSelectedTide = 0;
+            document.getElementById('status-display').textContent = `⚠️ ${m}/${d}のデータが見当たりません`;
         }
         refreshMarkersOnMap();
     }
@@ -185,7 +184,7 @@
                 strokeWeight: 1.5 
             }
         });
-        const info = new google.maps.InfoWindow({ content: `<div style="font-size:12px;"><b>${d.type}</b><br>予想水深: <b>${d.simulatedDepth.toFixed(1)}cm</b></div>` });
+        const info = new google.maps.InfoWindow({ content: `<div style="font-size:12px;"><b>${d.type}</b><br>予想水深: <b>${d.simulatedDepth.toFixed(1)}cm</b><br><small>基準:${d.baseDepth.toFixed(1)}</small></div>` });
         marker.addListener("click", () => info.open(map, marker));
         markers.push(marker);
     }
