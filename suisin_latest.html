@@ -3,20 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.3.7 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.5.1 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
         .ui-panel { background: white; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 1000; flex-shrink: 0; }
+        
+        /* 日時選択セクション */
+        .datetime-panel { background: #ebf5fb; padding: 8px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #aed6f1; }
+        .datetime-row { display: flex; gap: 6px; align-items: center; }
+        #target-datetime { flex: 1; padding: 10px; border: 1px solid #3498db; border-radius: 6px; font-size: 0.9rem; }
+
         .input-row { display: flex; gap: 6px; align-items: center; }
-        #type-input { flex: 1.5; padding: 12px 5px; border: 2px solid #3498db; border-radius: 6px; background: white; font-size: 0.9rem; font-weight: bold; }
-        input#depth-input { flex: 2; padding: 12px; border: 2px solid #3498db; border-radius: 6px; font-size: 1rem; -webkit-appearance: none; }
+        #type-input { flex: 1.2; padding: 12px 5px; border: 2px solid #3498db; border-radius: 6px; background: white; font-size: 0.9rem; font-weight: bold; }
+        input#depth-input { flex: 1.5; padding: 12px; border: 2px solid #3498db; border-radius: 6px; font-size: 1rem; -webkit-appearance: none; }
         .btn-record { background: #2ecc71; color: white; flex: 2.5; padding: 12px; border: none; border-radius: 6px; font-weight: bold; }
         .btn-admin { background: #95a5a6; color: white; width: 44px; padding: 12px 0; border: none; border-radius: 6px; font-size: 1.1rem; }
-        .status-bar { font-size: 0.75rem; color: #666; text-align: center; margin-top: 5px; }
+        
+        .status-bar { font-size: 0.75rem; color: #666; text-align: center; margin-top: 5px; font-weight: bold; }
         #map-container { position: relative; flex-grow: 1; width: 100%; }
         #map { width: 100%; height: 100%; }
-        .btn-help { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); border: 2px solid #3498db; color: #3498db; border-radius: 50%; width: 32px; height: 32px; font-weight: bold; z-index: 1500; display: flex; align-items: center; justify-content: center; }
+        
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 5000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 20px; border-radius: 12px; width: 85%; max-width: 300px; text-align: center; }
         #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 4000; font-weight: bold; color: #3498db; }
@@ -25,9 +32,18 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.3.7 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.5.1 by Popolo App.com</div>
 
 <div class="ui-panel">
+    <div class="datetime-panel">
+        <div style="font-size: 0.7rem; color: #2980b9; margin-bottom: 4px; font-weight: bold;">📅 日時選択 (シミュレーション & 過去入力用)</div>
+        <div class="datetime-row">
+            <input type="datetime-local" id="target-datetime" onchange="handleTimeChange()">
+            <button onclick="setNow()" style="padding: 10px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.8rem;">現在</button>
+        </div>
+        <div id="status-display" class="status-bar">潮位を取得中...</div>
+    </div>
+
     <div class="input-row">
         <select id="type-input">
             <option value="平地" selected>平地</option>
@@ -38,12 +54,10 @@
         <button class="btn-record" onclick="addCurrentLocationPoint()">記録</button>
         <button class="btn-admin" onclick="openModal('admin-modal')">🔑</button>
     </div>
-    <div id="status-display" class="status-bar">同期中...</div>
 </div>
 
 <div id="map-container">
     <div id="map"></div>
-    <button class="btn-help" onclick="openModal('help-modal')">?</button>
 </div>
 
 <div id="admin-modal" class="modal">
@@ -55,19 +69,12 @@
     </div>
 </div>
 
-<div id="help-modal" class="modal">
-    <div class="modal-content">
-        <h3>基準水深とは？</h3>
-        <p style="text-align:left; font-size:0.9rem;">実測した水深から、その時の潮位を引いた値です。</p>
-        <button class="btn-record" onclick="closeModal('help-modal')" style="width:100%">了解</button>
-    </div>
-</div>
-
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
 <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby5DdCBfYlXr9Q_D7bdtKKboN2JN6vQ9Y7y82S6eLrZ4_Zp3KyACr4u7HFfMKfORoVYLQ/exec"; 
-    let map, markers = [], currentTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
+    let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
+    let tideDataGlobal = null;
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -78,32 +85,69 @@
         syncData();
     }
 
+    // 日時を現在時刻にリセット
+    function setNow() {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('target-datetime').value = now.toISOString().slice(0, 16);
+        handleTimeChange();
+    }
+
     async function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
             zoom: 15, center: { lat: 26.3318, lng: 127.9288 }, 
             mapTypeId: 'roadmap', disableDefaultUI: true, zoomControl: true
         });
         map.addListener("click", (e) => promptAndSave(e.latLng));
+        setNow();
         await syncData();
     }
 
+    // 潮位データを取得し、選択された日時に合わせて潮位を計算
     async function syncData() {
-        if(currentTide === 0) showLoading(true);
+        showLoading(true);
         try {
             const res = await fetch(WEB_APP_URL);
             const data = await res.json();
-            if (data.todayTide) {
-                const now = new Date();
-                const h = now.getHours(), m = now.getMinutes();
-                const t1 = data.todayTide[12 + h], t2 = (h < 23) ? data.todayTide[12 + h + 1] : t1;
-                currentTide = t1 + (t2 - t1) * (m / 60);
-                document.getElementById('status-display').textContent = `潮位: ${currentTide.toFixed(1)}cm | ${adminPass ? "🔑OK" : "🔑未設定"}`;
-            }
-            markers.forEach(m => m.setMap(null));
-            markers = [];
-            if (data.points) data.points.forEach(p => createMarker({id:p[0], lat:p[1], lng:p[2], rawDepth:p[3], baseDepth:p[4], timestamp:p[5], type:p[6] || "平地"}));
+            if (data.todayTide) tideDataGlobal = data.todayTide;
+            if (data.points) allPointsData = data.points;
+            
+            calculateCurrentTideAndRefreshMarkers();
         } catch (e) { document.getElementById('status-display').textContent = "❌ 通信エラー"; }
         showLoading(false);
+    }
+
+    function handleTimeChange() {
+        calculateCurrentTideAndRefreshMarkers();
+    }
+
+    function calculateCurrentTideAndRefreshMarkers() {
+        if (!tideDataGlobal) return;
+
+        const selectedTime = new Date(document.getElementById('target-datetime').value);
+        const h = selectedTime.getHours();
+        const m = selectedTime.getMinutes();
+        
+        // 潮位配列(12~35)から線形補完
+        const t1 = tideDataGlobal[12 + h];
+        const t2 = (h < 23) ? tideDataGlobal[12 + h + 1] : t1;
+        currentSelectedTide = t1 + (t2 - t1) * (m / 60);
+
+        document.getElementById('status-display').textContent = `選択日時の潮位: ${currentSelectedTide.toFixed(1)}cm`;
+        
+        // 地図上のピンを再描画（未来の水深を計算）
+        refreshMarkers();
+    }
+
+    function refreshMarkers() {
+        markers.forEach(m => m.setMap(null));
+        markers = [];
+        allPointsData.forEach(p => {
+            const baseDepth = parseFloat(p[4]);
+            // シミュレーション水深 = 基準水深 + 選択された日時の潮位
+            const simulatedDepth = baseDepth + currentSelectedTide;
+            createMarker({id:p[0], lat:p[1], lng:p[2], baseDepth:baseDepth, simulatedDepth:simulatedDepth, timestamp:p[5], type:p[6] || "平地"});
+        });
     }
 
     function addCurrentLocationPoint() {
@@ -117,60 +161,82 @@
     async function promptAndSave(latLng) {
         const raw = document.getElementById('depth-input').value;
         const type = document.getElementById('type-input').value;
+        const selectedTimeStr = document.getElementById('target-datetime').value;
+        
         if (!raw) return alert("水深を入力してください");
         if (!adminPass) return openModal('admin-modal');
-        const baseDepth = parseFloat(raw) - currentTide;
-        const pointData = { method: 'POST', password: adminPass, id: String(Date.now()), lat: latLng.lat(), lng: latLng.lng(), rawDepth: raw, baseDepth: baseDepth, timestamp: new Date().toLocaleString(), type: type };
+
+        // その時点（選択された日時）の潮位で「基準水深」を計算して保存
+        const baseDepth = parseFloat(raw) - currentSelectedTide;
+        const pointData = { 
+            method: 'POST', 
+            password: adminPass, 
+            id: String(Date.now()), 
+            lat: latLng.lat(), 
+            lng: latLng.lng(), 
+            rawDepth: raw, 
+            baseDepth: baseDepth, 
+            timestamp: selectedTimeStr.replace('T', ' '),
+            type: type 
+        };
+
         showLoading(true);
         try {
             const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(pointData) });
-            if ((await res.text()).trim() === "success") { syncData(); document.getElementById('depth-input').value = ""; } 
-            else { alert("保存失敗"); }
+            if ((await res.text()).trim() === "success") { 
+                await syncData(); 
+                document.getElementById('depth-input').value = ""; 
+            } else { alert("保存失敗"); }
         } catch (e) { alert("エラー"); }
         showLoading(false);
     }
 
     function createMarker(d) {
         let sym = google.maps.SymbolPath.CIRCLE;
-        let scale = 7; 
-        
-        if(d.type === "岩") {
-            // 正三角形のパス
-            sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; 
-        } else if(d.type === "杭") {
-            // ひし形のパス
-            sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z"; 
-        }
+        if(d.type === "岩") sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; 
+        else if(d.type === "杭") sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z"; 
 
         const marker = new google.maps.Marker({
             position: {lat: Number(d.lat), lng: Number(d.lng)}, 
             map: map,
             icon: { 
                 path: sym, 
-                fillColor: getDepthColor(d.baseDepth), 
+                fillColor: getDepthColor(d.simulatedDepth), // 未来のシミュレーション水深で色を決定
                 fillOpacity: 0.9, 
-                scale: scale, 
+                scale: 7, 
                 strokeColor: "#333", 
                 strokeWeight: 1.5 
             }
         });
 
-        const content = `<div style="padding:5px; font-size:12px;"><b>${d.type}: ${Number(d.baseDepth).toFixed(1)}cm</b><br><button onclick="deletePoint('${d.id}')" style="background:#e74c3c; color:white; border:none; border-radius:3px; padding:4px 8px; margin-top:5px; width:100%;">削除</button></div>`;
+        const content = `
+            <div style="padding:5px; font-size:12px;">
+                <b>${d.type}</b><br>
+                選択日時の予想水深: <span style="color:blue; font-weight:bold;">${d.simulatedDepth.toFixed(1)}cm</span><br>
+                <small>(基準: ${d.baseDepth.toFixed(1)}cm)</small><br>
+                <button onclick="deletePoint('${d.id}')" style="background:#e74c3c; color:white; border:none; border-radius:3px; padding:4px 8px; margin-top:5px; width:100%;">削除</button>
+            </div>`;
         const info = new google.maps.InfoWindow({ content: content });
         marker.addListener("click", () => info.open(map, marker));
         markers.push(marker);
     }
 
     function getDepthColor(b) {
-        if (b < 10) return "#ff0000"; if (b < 50) return "#ff8c00"; if (b < 100) return "#9acd32"; if (b < 150) return "#0000ff"; return "#8e44ad";
+        // 虹色グラデーション配列（浅い順：赤→橙→黄→緑→青→紫）
+        if (b < 10) return "#ff0000"; // 赤
+        if (b < 40) return "#ff8c00"; // 橙
+        if (b < 80) return "#ffd700"; // 黄
+        if (b < 120) return "#32cd32"; // 緑
+        if (b < 160) return "#0000ff"; // 青
+        return "#8e44ad"; // 紫
     }
 
     async function deletePoint(id) {
         if (!confirm("削除しますか？")) return;
         showLoading(true);
         try {
-            const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ method: 'DELETE', password: adminPass, id: String(id) }) });
-            if ((await res.text()).trim() === "success_delete") { syncData(); } 
+            await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ method: 'DELETE', password: adminPass, id: String(id) }) });
+            syncData();
         } catch (e) { alert("通信エラー"); }
         showLoading(false);
     }
