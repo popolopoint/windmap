@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.3.8 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.3.7 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -16,15 +16,16 @@
         .status-bar { font-size: 0.75rem; color: #666; text-align: center; margin-top: 5px; }
         #map-container { position: relative; flex-grow: 1; width: 100%; }
         #map { width: 100%; height: 100%; }
-        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 4000; font-weight: bold; color: #3498db; }
+        .btn-help { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); border: 2px solid #3498db; color: #3498db; border-radius: 50%; width: 32px; height: 32px; font-weight: bold; z-index: 1500; display: flex; align-items: center; justify-content: center; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 5000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 20px; border-radius: 12px; width: 85%; max-width: 300px; text-align: center; }
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 4000; font-weight: bold; color: #3498db; }
     </style>
 </head>
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.3.8 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.3.7 by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="input-row">
@@ -42,6 +43,7 @@
 
 <div id="map-container">
     <div id="map"></div>
+    <button class="btn-help" onclick="openModal('help-modal')">?</button>
 </div>
 
 <div id="admin-modal" class="modal">
@@ -53,15 +55,22 @@
     </div>
 </div>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&libraries=visualization&callback=initMap" async defer></script>
+<div id="help-modal" class="modal">
+    <div class="modal-content">
+        <h3>基準水深とは？</h3>
+        <p style="text-align:left; font-size:0.9rem;">実測した水深から、その時の潮位を引いた値です。</p>
+        <button class="btn-record" onclick="closeModal('help-modal')" style="width:100%">了解</button>
+    </div>
+</div>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
 <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby5DdCBfYlXr9Q_D7bdtKKboN2JN6vQ9Y7y82S6eLrZ4_Zp3KyACr4u7HFfMKfORoVYLQ/exec"; 
-    let map, markers = [], heatmap, currentTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
+    let map, markers = [], currentTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-    
     function saveAdminPass() {
         adminPass = document.getElementById('pass-input').value.trim();
         localStorage.setItem('popolo_pass', adminPass);
@@ -71,7 +80,7 @@
 
     async function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
-            zoom: 17, center: { lat: 26.3318, lng: 127.9288 }, 
+            zoom: 15, center: { lat: 26.3318, lng: 127.9288 }, 
             mapTypeId: 'roadmap', disableDefaultUI: true, zoomControl: true
         });
         map.addListener("click", (e) => promptAndSave(e.latLng));
@@ -83,7 +92,6 @@
         try {
             const res = await fetch(WEB_APP_URL);
             const data = await res.json();
-            
             if (data.todayTide) {
                 const now = new Date();
                 const h = now.getHours(), m = now.getMinutes();
@@ -91,81 +99,19 @@
                 currentTide = t1 + (t2 - t1) * (m / 60);
                 document.getElementById('status-display').textContent = `潮位: ${currentTide.toFixed(1)}cm | ${adminPass ? "🔑OK" : "🔑未設定"}`;
             }
-
             markers.forEach(m => m.setMap(null));
             markers = [];
-            if (heatmap) heatmap.setMap(null);
-
-            let heatData = [];
-
-            if (data.points) {
-                data.points.forEach(p => {
-                    const point = {id:p[0], lat:p[1], lng:p[2], rawDepth:p[3], baseDepth:p[4], timestamp:p[5], type:p[6] || "平地"};
-                    
-                    if (point.type === "平地") {
-                        heatData.push({
-                            location: new google.maps.LatLng(point.lat, point.lng),
-                            weight: Math.max(0.1, point.baseDepth) 
-                        });
-                    }
-                    createMarker(point);
-                });
-            }
-
-            heatmap = new google.maps.visualization.HeatmapLayer({
-                data: heatData,
-                map: map,
-                radius: 40,
-                opacity: 0.6,
-                gradient: [
-                    'rgba(255, 0, 0, 0)',   // 浅い：赤系
-                    'rgba(255, 69, 0, 1)',
-                    'rgba(255, 140, 0, 1)',
-                    'rgba(255, 215, 0, 1)',
-                    'rgba(144, 238, 144, 1)',
-                    'rgba(0, 255, 255, 1)',
-                    'rgba(30, 144, 255, 1)',
-                    'rgba(0, 0, 255, 1)'    // 深い：青
-                ]
-            });
-
+            if (data.points) data.points.forEach(p => createMarker({id:p[0], lat:p[1], lng:p[2], rawDepth:p[3], baseDepth:p[4], timestamp:p[5], type:p[6] || "平地"}));
         } catch (e) { document.getElementById('status-display').textContent = "❌ 通信エラー"; }
         showLoading(false);
     }
 
-    function createMarker(d) {
-        let sym = google.maps.SymbolPath.CIRCLE;
-        let scale = 6; 
-        
-        if(d.type === "岩") {
-            sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; 
-            scale = 8;
-        } else if(d.type === "杭") {
-            sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z"; 
-            scale = 8;
-        }
-
-        const marker = new google.maps.Marker({
-            position: {lat: Number(d.lat), lng: Number(d.lng)}, 
-            map: map,
-            icon: { 
-                path: sym, 
-                fillColor: getDepthColor(d.baseDepth), 
-                fillOpacity: d.type === "平地" ? 0.3 : 1.0, 
-                scale: scale, 
-                strokeColor: "#333", 
-                strokeWeight: 1 
-            }
-        });
-
-        const content = `<div style="padding:5px; font-size:12px;"><b>${d.type}: ${Number(d.baseDepth).toFixed(1)}cm</b><br><button onclick="deletePoint('${d.id}')" style="background:#e74c3c; color:white; border:none; border-radius:3px; padding:4px 8px; margin-top:5px; width:100%;">削除</button></div>`;
-        const info = new google.maps.InfoWindow({ content: content });
-        marker.addListener("click", () => info.open(map, marker));
-        markers.push(marker);
-    }
-
-    function getDepthColor(b) {
-        if (b < 10) return "#ff0000"; if (b < 50) return "#ff8c00"; if (b < 100) return "#9acd32"; if (b < 150) return "#0000ff"; return "#8e44ad";
+    function addCurrentLocationPoint() {
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const latLng = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+            map.panTo(latLng);
+            promptAndSave(latLng);
+        }, (err) => alert("位置情報が取得できませんでした"), {enableHighAccuracy: true});
     }
 
     async function promptAndSave(latLng) {
@@ -179,25 +125,53 @@
         try {
             const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(pointData) });
             if ((await res.text()).trim() === "success") { syncData(); document.getElementById('depth-input').value = ""; } 
+            else { alert("保存失敗"); }
         } catch (e) { alert("エラー"); }
         showLoading(false);
     }
 
-    function addCurrentLocationPoint() {
-        navigator.geolocation.getCurrentPosition((pos) => {
-            const latLng = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
-            map.panTo(latLng);
-            promptAndSave(latLng);
+    function createMarker(d) {
+        let sym = google.maps.SymbolPath.CIRCLE;
+        let scale = 7; 
+        
+        if(d.type === "岩") {
+            // 正三角形のパス
+            sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; 
+        } else if(d.type === "杭") {
+            // ひし形のパス
+            sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z"; 
+        }
+
+        const marker = new google.maps.Marker({
+            position: {lat: Number(d.lat), lng: Number(d.lng)}, 
+            map: map,
+            icon: { 
+                path: sym, 
+                fillColor: getDepthColor(d.baseDepth), 
+                fillOpacity: 0.9, 
+                scale: scale, 
+                strokeColor: "#333", 
+                strokeWeight: 1.5 
+            }
         });
+
+        const content = `<div style="padding:5px; font-size:12px;"><b>${d.type}: ${Number(d.baseDepth).toFixed(1)}cm</b><br><button onclick="deletePoint('${d.id}')" style="background:#e74c3c; color:white; border:none; border-radius:3px; padding:4px 8px; margin-top:5px; width:100%;">削除</button></div>`;
+        const info = new google.maps.InfoWindow({ content: content });
+        marker.addListener("click", () => info.open(map, marker));
+        markers.push(marker);
+    }
+
+    function getDepthColor(b) {
+        if (b < 10) return "#ff0000"; if (b < 50) return "#ff8c00"; if (b < 100) return "#9acd32"; if (b < 150) return "#0000ff"; return "#8e44ad";
     }
 
     async function deletePoint(id) {
         if (!confirm("削除しますか？")) return;
         showLoading(true);
         try {
-            await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ method: 'DELETE', password: adminPass, id: String(id) }) });
-            syncData();
-        } catch (e) {}
+            const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ method: 'DELETE', password: adminPass, id: String(id) }) });
+            if ((await res.text()).trim() === "success_delete") { syncData(); } 
+        } catch (e) { alert("通信エラー"); }
         showLoading(false);
     }
 
