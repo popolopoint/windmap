@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.6.6 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.6.7 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -25,7 +25,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.6.6 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.6.7 by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
@@ -52,9 +52,10 @@
 
 <div id="admin-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:5000; justify-content:center; align-items:center;">
     <div style="background:white; padding:20px; border-radius:12px; width:85%; max-width:300px; text-align:center;">
-        <h3>管理者パスワード</h3>
+        <h3>管理者パスワード設定</h3>
+        <p style="font-size: 0.8rem; color: #666;">GASに設定したパスワードを入力</p>
         <input type="password" id="pass-input" placeholder="パスワードを入力" style="width:100%; margin:10px 0; padding:10px; box-sizing:border-box;">
-        <button class="btn-record" onclick="saveAdminPass()" style="width:100%">保存</button>
+        <button class="btn-record" onclick="saveAdminPass()" style="width:100%">保存して同期</button>
         <button onclick="closeModal('admin-modal')" style="margin-top:10px; background:none; border:none; color:gray;">閉じる</button>
     </div>
 </div>
@@ -62,14 +63,18 @@
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
 <script>
-    // ★★★ ここに新しいGASのURLを貼り付けてください ★★★
+    // ★最新のGASウェブアプリURLに書き換えてください
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyZM81lTYubJ8Fv1Hp3U7YUH-aqNhaPit2BsX4gGvSq4-oUtr4oYDF1zdljX8qc08alpA/exec"; 
     
     let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
     let fullTideMasterData = []; 
 
-    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function openModal(id) { 
+        document.getElementById('pass-input').value = adminPass;
+        document.getElementById(id).style.display = 'flex'; 
+    }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    
     function saveAdminPass() {
         adminPass = document.getElementById('pass-input').value.trim();
         localStorage.setItem('popolo_pass', adminPass);
@@ -100,59 +105,37 @@
 
     async function syncData() {
         showLoading(true);
-        document.getElementById('status-display').textContent = "📥 データを同期中...";
         try {
             const res = await fetch(WEB_APP_URL);
             const data = await res.json();
-            
             if (data.error) {
-                document.getElementById('status-display').textContent = "❌ GASエラー: " + data.error;
+                document.getElementById('status-display').textContent = "❌ GAS読み取りエラー: " + data.error;
             } else {
                 fullTideMasterData = data.allTideData || [];
                 allPointsData = data.points || [];
-                
-                if (fullTideMasterData.length > 0) {
-                    calculateTideAndRefresh();
-                } else {
-                    document.getElementById('status-display').textContent = "⚠️ 潮位データが空です";
-                }
+                calculateTideAndRefresh();
             }
-        } catch (e) { 
-            document.getElementById('status-display').textContent = "❌ 通信失敗(URLを確認)"; 
-        }
+        } catch (e) { document.getElementById('status-display').textContent = "❌ 通信失敗"; }
         showLoading(false);
     }
 
     function calculateTideAndRefresh() {
         const val = document.getElementById('target-datetime').value;
         if (!val || fullTideMasterData.length === 0) return;
+        const s = new Date(val);
+        const y = s.getFullYear(), m = s.getMonth() + 1, d = s.getDate(), h = s.getHours(), min = s.getMinutes();
 
-        const selectedDate = new Date(val);
-        const y = selectedDate.getFullYear();
-        const m = selectedDate.getMonth() + 1;
-        const d = selectedDate.getDate();
-        const h = selectedDate.getHours();
-        const min = selectedDate.getMinutes();
-
-        // 日付の一致を確認（A列をDateオブジェクトとして判定）
-        const targetRow = fullTideMasterData.find(row => {
-            const rowDate = new Date(row[0]);
-            return rowDate.getFullYear() === y && (rowDate.getMonth() + 1) === m && rowDate.getDate() === d;
+        const row = fullTideMasterData.find(r => {
+            const rd = new Date(r[0]);
+            return rd.getFullYear() === y && (rd.getMonth()+1) === m && rd.getDate() === d;
         });
 
-        if (targetRow) {
-            // A列が日付なので、B列(index 1)から18時ならindex 19を参照
-            const t1 = parseFloat(targetRow[1 + h]);
-            const t2 = (h < 23) ? parseFloat(targetRow[1 + h + 1]) : t1;
-            
-            if(!isNaN(t1)) {
-                currentSelectedTide = t1 + ((isNaN(t2) ? t1 : t2) - t1) * (min / 60);
-                document.getElementById('status-display').textContent = `潮位(${d}日 ${h}時): ${currentSelectedTide.toFixed(1)}cm`;
-            } else {
-                document.getElementById('status-display').textContent = `⚠️ ${h}時のデータが数字ではありません`;
-            }
+        if (row) {
+            const t1 = parseFloat(row[1+h]), t2 = (h<23)?parseFloat(row[1+h+1]):t1;
+            currentSelectedTide = t1 + (t2-t1)*(min/60);
+            document.getElementById('status-display').textContent = `潮位(${d}日 ${h}時): ${currentSelectedTide.toFixed(1)}cm`;
         } else {
-            document.getElementById('status-display').textContent = `⚠️ ${m}/${d}のデータが見当たりません`;
+            document.getElementById('status-display').textContent = `⚠️ ${m}/${d}の潮位データなし`;
         }
         refreshMarkersOnMap();
     }
@@ -162,8 +145,8 @@
         markers = [];
         allPointsData.forEach(p => {
             const baseDepth = parseFloat(p[4]) || 0;
-            const simulatedDepth = baseDepth + currentSelectedTide;
-            createMarker({id:p[0], lat:p[1], lng:p[2], baseDepth:baseDepth, simulatedDepth:simulatedDepth, type:p[6] || "平地"});
+            const simDepth = baseDepth + currentSelectedTide;
+            createMarker({id:p[0], lat:p[1], lng:p[2], baseDepth:baseDepth, simDepth:simDepth, type:p[6] || "平地"});
         });
     }
 
@@ -175,37 +158,70 @@
         const marker = new google.maps.Marker({
             position: {lat: Number(d.lat), lng: Number(d.lng)}, 
             map: map,
-            icon: { 
-                path: sym, 
-                fillColor: getDepthColor(d.simulatedDepth), 
-                fillOpacity: 0.9, 
-                scale: 7, 
-                strokeColor: "#333", 
-                strokeWeight: 1.5 
-            }
+            icon: { path: sym, fillColor: getDepthColor(d.simDepth), fillOpacity: 0.9, scale: 7, strokeColor: "#333", strokeWeight: 1.5 }
         });
-        const info = new google.maps.InfoWindow({ content: `<div style="font-size:12px;"><b>${d.type}</b><br>予想水深: <b>${d.simulatedDepth.toFixed(1)}cm</b><br><small>基準:${d.baseDepth.toFixed(1)}</small></div>` });
+
+        const info = new google.maps.InfoWindow({
+            content: `<div style="font-size:12px;"><b>${d.type}</b><br>水深: <b>${d.simDepth.toFixed(1)}cm</b><br><button onclick="deletePoint('${d.id}')" style="margin-top:5px; color:red; border:1px solid red; background:white; border-radius:3px; font-size:10px;">削除</button></div>`
+        });
         marker.addListener("click", () => info.open(map, marker));
         markers.push(marker);
     }
 
     function getDepthColor(b) {
-        if (b < 15) return "#ff0000"; 
-        if (b < 40) return "#ff8c00"; 
-        if (b < 70) return "#ffff00"; 
-        if (b < 100) return "#00ff00"; 
-        if (b < 140) return "#0000ff"; 
-        if (b < 180) return "#4b0082"; 
+        if (b < 15) return "#ff0000"; if (b < 40) return "#ff8c00"; if (b < 70) return "#ffff00"; 
+        if (b < 100) return "#00ff00"; if (b < 140) return "#0000ff"; if (b < 180) return "#4b0082"; 
         return "#8e44ad"; 
     }
 
     async function promptAndSave(latLng) {
         const raw = document.getElementById('depth-input').value;
         if (!raw) return alert("水深を入力してください");
+        if (!adminPass) return openModal('admin-modal');
+
         const baseDepth = parseFloat(raw) - currentSelectedTide;
-        const pointData = { method: 'POST', password: adminPass, id: String(Date.now()), lat: latLng.lat(), lng: latLng.lng(), rawDepth: raw, baseDepth: baseDepth, timestamp: document.getElementById('target-datetime').value.replace('T', ' '), type: document.getElementById('type-input').value };
+        const pointData = { 
+            method: 'POST', 
+            password: adminPass, 
+            id: String(Date.now()), 
+            lat: latLng.lat(), 
+            lng: latLng.lng(), 
+            rawDepth: raw, 
+            baseDepth: baseDepth, 
+            timestamp: document.getElementById('target-datetime').value.replace('T', ' '), 
+            type: document.getElementById('type-input').value 
+        };
+
         showLoading(true);
-        try { const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(pointData) }); if ((await res.text()).trim() === "success") { await syncData(); document.getElementById('depth-input').value = ""; } } catch (e) {}
+        try {
+            const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(pointData) });
+            const result = await res.text();
+            if (result.trim() === "success") {
+                await syncData();
+                document.getElementById('depth-input').value = "";
+            } else if (result.trim() === "auth_fail") {
+                alert("パスワードが違います（🔑から再設定してください）");
+            } else {
+                alert("保存失敗: " + result);
+            }
+        } catch (e) { alert("通信エラーで保存できません"); }
+        showLoading(false);
+    }
+
+    async function deletePoint(id) {
+        if (!confirm("このポイントを削除しますか？")) return;
+        if (!adminPass) return openModal('admin-modal');
+
+        showLoading(true);
+        try {
+            const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ method: 'DELETE', password: adminPass, id: id }) });
+            const result = await res.text();
+            if (result.includes("success")) {
+                await syncData();
+            } else if (result.trim() === "auth_fail") {
+                alert("パスワードが違います");
+            }
+        } catch (e) { alert("削除失敗"); }
         showLoading(false);
     }
 
