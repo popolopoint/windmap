@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.6.3b by Popolo App.com</title>
+<title>コース作るくん v6.6.3d by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -53,8 +53,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.6.3b by Popolo App.com</span></h2>
-<div id="version">v6.6.3b</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.6.3d by Popolo App.com</span></h2>
+<div id="version">v6.6.3d</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -224,29 +224,69 @@ function movePoint(lat,lng,dist,bearing){
 
 function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
   let p = {A: baseA};
-  const isS = (course==='sausage'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2'), 
+  
+
+
+const isS = (course==='sausage'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2'), 
         isJW3 = (course==='jwsa3'), isJW5 = (course==='jwsa5'), 
         is5J = (course==='5jibe'), isF8 = (course==='figure8');
 
-  if(isS){
+
+
+if(isS){
     const dAS = parseFloat(document.getElementById('distAS').value) || 100;
     const sAng = parseFloat(document.getElementById('sAngle').value) || 0;
+    
+    // 1. まずS点を計算
     const bS = wind + (isPort ? (90 + theta + sAng) : (270 - theta - sAng));
     p.S = movePoint(p.A.lat, p.A.lng, dAS, bS);
+    
+    // 2. スタートラインの真ん中（mid）を計算
     const mid = {lat:(p.A.lat+p.S.lat)/2, lng:(p.A.lng+p.S.lng)/2};
+    
+    // 3. 上マーク(B)は、midから「指定距離」だけ風上に
     p.B = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('upDist').value)||0, wind);
-    p.C = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('downDist').value)||0, (wind+180)%360);
-  } else if(isJW || isJW2 || isJW3 || isJW5){
+    
+   
+
+// 4. 下マーク(C)もmidから風上方向に配置（ここをwindに変更）
+    const dDown = parseFloat(document.getElementById('downDist').value)||0;
+    p.C = movePoint(mid.lat, mid.lng, dDown, wind); 
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ else if(isJW || isJW2 || isJW3 || isJW5){
     const sfx = (isJW3 || isJW5) ? '3' : '2';
     const dAB=parseFloat(document.getElementById('distAB'+sfx).value)||0, dBC=parseFloat(document.getElementById('distBC'+sfx).value)||0, dCD=parseFloat(document.getElementById('distCD'+sfx).value)||0, dDE=parseFloat(document.getElementById('distDE'+sfx).value)||0, thD=parseFloat(document.getElementById('theta2_'+sfx).value)||0, thB=parseFloat(document.getElementById('theta3_'+sfx).value)||0;
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
     const bF = isPort ? (wind+270+thB) : (wind+90-thB);
     p.F = movePoint(p.B.lat, p.B.lng, dBC, bF);
     p.G = movePoint(p.F.lat, p.F.lng, dCD, wind);
-    if(!isJW5) {
+    
+
+
+
+
+if(!isJW5) {
       const bK = isPort ? (wind+270-thD) : (wind+90+thD);
       p.K = movePoint(p.G.lat, p.G.lng, dDE, bK);
     }
+
+
+
+
     if(isJW3 || isJW5){
         p.C = movePoint(p.B.lat, p.B.lng, dist, isPort?wind+270-theta:wind+90+theta);
         p.D = movePoint(p.C.lat, p.C.lng, dist, isPort?wind+90+theta:wind+270-theta);
@@ -343,7 +383,7 @@ document.getElementById('btnS').style.display = isS ? 'flex' : 'none';
 
 
 let path = [];
-  if(isS) path = [points.A, points.B, points.C, points.B, points.C, points.A];
+  if(isS) path = [points.S, points.A, points.B, points.C, points.B, points.C, points.A];
   else if(isJW) path = [points.A, points.B, points.G, points.K, points.B, points.A];
   else if(isJW2) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.A];
   else if(isJW3) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.C, points.D, points.E];
