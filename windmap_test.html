@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.6.1 by Popolo App.com</title>
+<title>コース作るくん v6.6.2 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -53,8 +53,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.6.1 by Popolo App.com</span></h2>
-<div id="version">v6.6.1</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.6.2 by Popolo App.com</span></h2>
+<div id="version">v6.6.2</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -207,14 +207,32 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
     const mid = {lat:(p.A.lat+p.S.lat)/2, lng:(p.A.lng+p.S.lng)/2};
     p.B = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('upDist').value)||0, wind);
     p.C = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('downDist').value)||0, (wind+180)%360);
-  } else if(isJW){
-    // JWSA1：AB, BG(C), GK(D) の計算
+ 
+
+
+    
+
+
+
+} else if(isJW){
+    // JWSA1：AB, BG, GK の計算
     const dAB=parseFloat(document.getElementById('distAB').value)||0, dBC=parseFloat(document.getElementById('distBC').value)||0, dCD=parseFloat(document.getElementById('distCD').value)||0, thD=parseFloat(document.getElementById('theta2').value)||0;
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
-    p.C = movePoint(p.B.lat, p.B.lng, dBC, wind); 
-    p.D = movePoint(p.C.lat, p.C.lng, dCD, isPort?wind+270-thD:wind+90+thD);
+    // 直接 G と K に保存
+    p.G = movePoint(p.B.lat, p.B.lng, dBC, wind); 
+    p.K = movePoint(p.G.lat, p.G.lng, dCD, isPort?wind+270-thD:wind+90+thD);
   } else if(isJW2 || isJW3){
-    // JWSA2, 3：AB, BF, FG, GK の計算
+
+
+
+
+
+
+
+
+
+
+// JWSA2, 3：AB, BF, FG, GK の計算
     const sfx = isJW3 ? '3' : '2';
     const dAB=parseFloat(document.getElementById('distAB'+sfx).value)||0, dBC=parseFloat(document.getElementById('distBC'+sfx).value)||0, dCD=parseFloat(document.getElementById('distCD'+sfx).value)||0, dDE=parseFloat(document.getElementById('distDE'+sfx).value)||0, thD=parseFloat(document.getElementById('theta2_'+sfx).value)||0, thB=parseFloat(document.getElementById('theta3_'+sfx).value)||0;
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
@@ -294,7 +312,7 @@ document.getElementById('btnS').style.display = isS ? 'flex' : 'none';
 
   let path = [];
   if(isS) path = [points.A, points.B, points.C, points.B, points.C, points.A];
-  else if(isJW) path = [points.A, points.B, points.C, points.D, points.B, points.A];
+ else if(isJW) path = [points.A, points.B, points.G, points.K, points.B, points.A];
   else if(isJW2) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.A];
   else if(isJW3) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.C, points.D, points.E];
   else if(is5J) path = [points.A, points.B, points.C, points.D, points.E, points.F, points.G];
@@ -307,37 +325,16 @@ document.getElementById('btnS').style.display = isS ? 'flex' : 'none';
 
 
 
-// これに差し替え
-Object.keys(points).forEach(k => { 
-  if(points[k]) { 
-    let d = k; 
-    // 表示名のルール設定
-    if(isJW){ 
-      if(k==='C') d='G'; if(k==='D') d='K'; 
+// 描画ループ：名前をそのまま表示するシンプルな形に
+  Object.keys(points).forEach(k => { 
+    if(points[k]) { 
+      drawPoint(k, points[k], COLORS[k], k); 
     } 
-    else if(isJW2 || (isJW3 && (k==='F'||k==='G'||k==='K'))){ 
-      if(k==='F') d='F'; if(k==='G') d='G'; if(k==='K') d='K'; 
-    }
-    // 描画実行
-    drawPoint(k, points[k], COLORS[k], d); 
-  } 
-});
-
-
-
-
-
-
-
-
+  });
 
 
   updateDistModalContent(isJW3, is5J);
 }
-
-
-
-
 
 
 
