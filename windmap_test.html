@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.6.2c by Popolo App.com</title>
+<title>コース作るくん v6.6.2d by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -53,8 +53,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.6.2c by Popolo App.com</span></h2>
-<div id="version">v6.6.2c</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.6.2d by Popolo App.com</span></h2>
+<div id="version">v6.6.2d</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -82,14 +82,22 @@ h2 { margin:0 0 8px 0; font-size:18px; }
   <label>GK<br><input type="number" id="distCD" class="compact-input" value="500"></label>
   <label>角D<br><input type="number" id="theta2" class="compact-input" value="30"></label>
 </div>
+
+
+
 <div id="jwsa2Settings">
   <label>AB<br><input type="number" id="distAB2" class="compact-input" value="500"></label>
   <label>BF<br><input type="number" id="distBC2" class="compact-input" value="200"></label>
   <label>FG<br><input type="number" id="distCD2" class="compact-input" value="500"></label>
-  <label>GK<br><input type="number" id="distDE" class="compact-input" value="500"></label>
-  <label>角B<br><input type="number" id="theta3" class="compact-input" value="45"></label>
+  <label>GK<br><input type="number" id="distDE2" class="compact-input" value="500"></label> 
+  <label>角B<br><input type="number" id="theta3_2" class="compact-input" value="45"></label> 
   <label>角D<br><input type="number" id="theta2_2" class="compact-input" value="30"></label>
 </div>
+
+
+
+
+
 <div id="jwsa3Settings">
   <label>AB<br><input type="number" id="distAB3" class="compact-input" value="500"></label>
   <label>BF<br><input type="number" id="distBC3" class="compact-input" value="500"></label>
@@ -382,24 +390,35 @@ function drawPoint(label,pos,color,displayText){
 
 function distanceBetween(p1,p2){ if(!p1||!p2)return 0; const R=6378137, dφ=(p2.lat-p1.lat)*Math.PI/180, dλ=(p2.lng-p1.lng)*Math.PI/180; const a=Math.sin(dφ/2)**2 + Math.cos(p1.lat*Math.PI/180)*Math.cos(p2.lat*Math.PI/180)*Math.sin(dλ/2)**2; return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
 
-// 個別シェア
-function shareCoords(l,p){ if(!p)return; const t=`${l}点\n${p.lat.toFixed(6)},${p.lng.toFixed(6)}\nhttps://www.google.com/maps?q=${p.lat},${p.lng}`; if(navigator.share)navigator.share({text:t}); else alert(t); }
 
-window.addEventListener('load', ()=>{
-  checkUrlParams();
-  document.getElementById('btnStarboard').onclick=()=>calculateCourse(false);
-  document.getElementById('btnPort').onclick=()=>calculateCourse(true);
-  
-  // データ一括送信（マップリンク復活）
-  document.getElementById('btnShareAll').onclick=()=>{ 
-    let t="【コース座標】\n"; 
-    Object.keys(points).forEach(k=>{
-      if(points[k]){
-        t+=`${k}: ${points[k].lat.toFixed(6)},${points[k].lng.toFixed(6)}\nhttps://www.google.com/maps?q=${points[k].lat},${points[k].lng}\n\n`;
-      }
-    }); 
-    if(navigator.share)navigator.share({text:t}); else alert(t); 
-  };
+
+
+// 個別シェア (266行目付近)
+function shareCoords(l,p){ 
+  if(!p)return; 
+  const t=`${l}点\n${p.lat.toFixed(6)},${p.lng.toFixed(6)}\nhttps://www.google.com/maps?q=${p.lat},${p.lng}`; 
+  if(navigator.share)navigator.share({text:t}); else alert(t); 
+}
+
+// データ一括送信 (277行目付近)
+document.getElementById('btnShareAll').onclick=()=>{ 
+  let t="【コース座標】\n"; 
+  Object.keys(points).forEach(k=>{
+    if(points[k]){
+      t+=`${k}: ${points[k].lat.toFixed(6)},${points[k].lng.toFixed(6)}\nhttps://www.google.com/maps?q=${points[k].lat},${points[k].lng}\n\n`;
+    }
+  }); 
+  if(navigator.share)navigator.share({text:t}); else alert(t); 
+};
+
+
+
+
+
+
+
+
+
 
   document.getElementById('btnSetCurrent').onclick=()=>{ const mode=document.querySelector('input[name="aMode"]:checked').value; if(mode==='gps'){ navigator.geolocation.getCurrentPosition(p=>{setBasePosition({lat:p.coords.latitude,lng:p.coords.longitude});}, e=>alert("取得失敗")); } else alert("地図上をタップしてください"); };
   ['A','B','C','D','E','F','G','K','S'].forEach(l=>{ const btn=document.getElementById('btn'+l); if(btn)btn.onclick=()=>shareCoords(l,points[l]); });
