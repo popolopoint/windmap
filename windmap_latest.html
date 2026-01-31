@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.6.3a by Popolo App.com</title>
+<title>コース作るくん v6.6.3e by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -53,8 +53,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.6.3a by Popolo App.com</span></h2>
-<div id="version">v6.6.3a</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.6.3e by Popolo App.com</span></h2>
+<div id="version">v6.6.3e</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -76,7 +76,16 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 <div id="sausageSettings">
   <label>上<br><input type="number" id="upDist" class="compact-input" value="1000"></label>
   <label>下<br><input type="number" id="downDist" class="compact-input" value="100"></label>
+  <label>AS距離<br><input type="number" id="distAS" class="compact-input" value="100"></label>
+  <label>S角度<br><input type="number" id="sAngle" class="compact-input" value="0"></label>
 </div>
+
+
+
+
+
+
+
 <div id="jwsaSettings">
   <label>AB<br><input type="number" id="distAB" class="compact-input" value="500"></label>
   <label>BG<br><input type="number" id="distBC" class="compact-input" value="500"></label>
@@ -213,48 +222,76 @@ function movePoint(lat,lng,dist,bearing){
 
 
 
-
-
 function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
   let p = {A: baseA};
-  const isS = (course==='sausage'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2'), 
-        isJW3 = (course==='jwsa3'), isJW5 = (course==='jwsa5'), // ★isJW5を追加
+  
+
+
+const isS = (course==='sausage'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2'), 
+        isJW3 = (course==='jwsa3'), isJW5 = (course==='jwsa5'), 
         is5J = (course==='5jibe'), isF8 = (course==='figure8');
 
-  if(isS){
-    const bS = wind + (isPort?90+theta:270-theta);
-    p.S = movePoint(p.A.lat, p.A.lng, 100, bS);
-    const mid = {lat:(p.A.lat+p.S.lat)/2, lng:(p.A.lng+p.S.lng)/2};
-    p.B = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('upDist').value)||0, wind);
-    p.C = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('downDist').value)||0, (wind+180)%360);
 
-  } else if(isJW){
-    const dAB=parseFloat(document.getElementById('distAB').value)||0, dBC=parseFloat(document.getElementById('distBC').value)||0, dCD=parseFloat(document.getElementById('distCD').value)||0, thD=parseFloat(document.getElementById('theta2').value)||0;
-    p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
-    p.G = movePoint(p.B.lat, p.B.lng, dBC, wind); 
-    p.K = movePoint(p.G.lat, p.G.lng, dCD, isPort?wind+270-thD:wind+90+thD);
 
-  } else if(isJW2 || isJW3 || isJW5){ // ★isJW5もここを通るように変更
-    const sfx = (isJW3 || isJW5) ? '3' : '2'; // ★JW5も入力欄は「3」を使う
-    const dAB=parseFloat(document.getElementById('distAB'+sfx).value)||0, dBC=parseFloat(document.getElementById('distBC'+sfx).value)||0, dCD=parseFloat(document.getElementById('distCD'+sfx).value)||0, dDE=parseFloat(document.getElementById('distDE'+sfx).value)||0, thD=parseFloat(document.getElementById('theta2_'+sfx).value)||0, thB=parseFloat(document.getElementById('theta3_'+sfx).value)||0;
+if(isS){
+    const dAS = parseFloat(document.getElementById('distAS').value) || 100;
+    const sAng = parseFloat(document.getElementById('sAngle').value) || 0;
     
+    // 1. まずS点を計算
+    const bS = wind + (isPort ? (90 + theta + sAng) : (270 - theta - sAng));
+    p.S = movePoint(p.A.lat, p.A.lng, dAS, bS);
+    
+    // 2. スタートラインの真ん中（mid）を計算
+    const mid = {lat:(p.A.lat+p.S.lat)/2, lng:(p.A.lng+p.S.lng)/2};
+    
+    // 3. 上マーク(B)は、midから「指定距離」だけ風上に
+    p.B = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('upDist').value)||0, wind);
+    
+   
+
+// 4. 下マーク(C)もmidから風上方向に配置（ここをwindに変更）
+    const dDown = parseFloat(document.getElementById('downDist').value)||0;
+    p.C = movePoint(mid.lat, mid.lng, dDown, wind); 
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ else if(isJW || isJW2 || isJW3 || isJW5){
+    const sfx = (isJW3 || isJW5) ? '3' : '2';
+    const dAB=parseFloat(document.getElementById('distAB'+sfx).value)||0, dBC=parseFloat(document.getElementById('distBC'+sfx).value)||0, dCD=parseFloat(document.getElementById('distCD'+sfx).value)||0, dDE=parseFloat(document.getElementById('distDE'+sfx).value)||0, thD=parseFloat(document.getElementById('theta2_'+sfx).value)||0, thB=parseFloat(document.getElementById('theta3_'+sfx).value)||0;
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
     const bF = isPort ? (wind+270+thB) : (wind+90-thB);
     p.F = movePoint(p.B.lat, p.B.lng, dBC, bF);
     p.G = movePoint(p.F.lat, p.F.lng, dCD, wind);
+    
 
-    // ★K点はJW5のときは計算しないようにガード
-    if(!isJW5) {
+
+
+
+if(!isJW5) {
       const bK = isPort ? (wind+270-thD) : (wind+90+thD);
       p.K = movePoint(p.G.lat, p.G.lng, dDE, bK);
     }
 
-    if(isJW3 || isJW5){ // ★JW5も後半のM字部分（C,D,E）を計算する
+
+
+
+    if(isJW3 || isJW5){
         p.C = movePoint(p.B.lat, p.B.lng, dist, isPort?wind+270-theta:wind+90+theta);
         p.D = movePoint(p.C.lat, p.C.lng, dist, isPort?wind+90+theta:wind+270-theta);
         p.E = movePoint(p.D.lat, p.D.lng, dist, isPort?wind+270-theta:wind+90+theta);
     }
-
   } else {
     p.B = movePoint(p.A.lat, p.A.lng, dist, isPort?wind+90+theta:wind+270-theta);
     if(isF8) {
@@ -264,14 +301,13 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
       p.C = movePoint(p.B.lat, p.B.lng, dist, isPort?wind+270-theta:wind+90+theta);
       p.D = movePoint(p.C.lat, p.C.lng, dist, isPort?wind+90+theta:wind+270-theta);
       p.E = movePoint(p.D.lat, p.D.lng, dist, isPort?wind+270-theta:wind+90+theta);
-      if(is5J){ 
-        p.F = movePoint(p.E.lat, p.E.lng, dist, isPort?wind+90+theta:wind+270-theta); 
-        p.G = movePoint(p.F.lat, p.F.lng, dist, isPort?wind+270-theta:wind+90+theta); 
-      }
+      if(is5J){ p.F = movePoint(p.E.lat, p.E.lng, dist, isPort?wind+90+theta:wind+270-theta); p.G = movePoint(p.F.lat, p.F.lng, dist, isPort?wind+270-theta:wind+90+theta); }
     }
   }
   return p;
 }
+
+
 
 
 
@@ -347,13 +383,18 @@ document.getElementById('btnS').style.display = isS ? 'flex' : 'none';
 
 
 let path = [];
-if(isS) path = [points.A, points.B, points.C, points.B, points.C, points.A];
-else if(isJW) path = [points.A, points.B, points.G, points.K, points.B, points.A];
-else if(isJW2) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.A];
-else if(isJW3) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.C, points.D, points.E];
-else if(isJW5) path = [points.A, points.B, points.F, points.G, points.B, points.C, points.D, points.E]; // ★Kを抜いてG→Bへ
-else if(is5J) path = [points.A, points.B, points.C, points.D, points.E, points.F, points.G];
-else path = [points.A, points.B, points.C, points.D, points.E].filter(v => v);
+  if(isS) path = [points.S, points.A, points.B, points.C, points.B, points.C, points.A];
+  else if(isJW) path = [points.A, points.B, points.G, points.K, points.B, points.A];
+  else if(isJW2) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.A];
+  else if(isJW3) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.C, points.D, points.E];
+  else if(isJW5) path = [points.A, points.B, points.F, points.G, points.B, points.C, points.D, points.E]; // ★これがJW5専用の線
+  else if(is5J) path = [points.A, points.B, points.C, points.D, points.E, points.F, points.G];
+  else path = [points.A, points.B, points.C, points.D, points.E].filter(v => v);
+
+
+
+
+
 
 
 
@@ -464,22 +505,30 @@ window.addEventListener('load', ()=>{ // ← これが消えていたのが原�
 
 
 
-
 document.getElementById('courseSelect').onchange = (e) => {
-  const v = e.target.value;
-  const dI = document.getElementById('dist');
-  dI.value = (v === 'sausage') ? 100 : 500;
+    const v = e.target.value;
+    const dI = document.getElementById('dist');
+    const tI = document.getElementById('theta'); // 角度の入力を取得
 
-  ['sausage', 'jwsa', 'jwsa2', 'jwsa3'].forEach(s => {
-    const el = document.getElementById(s + 'Settings');
-    if (el) {
-      // jwsa5のときはjwsa3のパネルを流用する
-      if (v === 'jwsa5' && s === 'jwsa3') el.style.display = 'flex';
-      else el.style.display = (v === s) ? 'flex' : 'none';
-    }
-  });
-  calculateCourse(currentIsPort);
-};
+    // ソーセージなら距離100、角度0にする。それ以外は500と5。
+    dI.value = (v === 'sausage') ? 100 : 500;
+    tI.value = (v === 'sausage') ? 0 : 5; 
+
+    ['sausage', 'jwsa', 'jwsa2', 'jwsa3'].forEach(s => {
+      const el = document.getElementById(s + 'Settings');
+      if (el) {
+        if (v === 'jwsa5' && s === 'jwsa3') el.style.display = 'flex';
+        else el.style.display = (v === s) ? 'flex' : 'none';
+      }
+    });
+    calculateCourse(currentIsPort);
+  };
+
+
+
+
+
+
 
 
 
