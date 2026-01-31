@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.6.3d by Popolo App.com</title>
+<title>コース作るくん v6.6.3e by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -53,8 +53,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.6.3d by Popolo App.com</span></h2>
-<div id="version">v6.6.3d</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.6.3e by Popolo App.com</span></h2>
+<div id="version">v6.6.3e</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -505,22 +505,30 @@ window.addEventListener('load', ()=>{ // ← これが消えていたのが原�
 
 
 
-
 document.getElementById('courseSelect').onchange = (e) => {
-  const v = e.target.value;
-  const dI = document.getElementById('dist');
-  dI.value = (v === 'sausage') ? 100 : 500;
+    const v = e.target.value;
+    const dI = document.getElementById('dist');
+    const tI = document.getElementById('theta'); // 角度の入力を取得
 
-  ['sausage', 'jwsa', 'jwsa2', 'jwsa3'].forEach(s => {
-    const el = document.getElementById(s + 'Settings');
-    if (el) {
-      // jwsa5のときはjwsa3のパネルを流用する
-      if (v === 'jwsa5' && s === 'jwsa3') el.style.display = 'flex';
-      else el.style.display = (v === s) ? 'flex' : 'none';
-    }
-  });
-  calculateCourse(currentIsPort);
-};
+    // ソーセージなら距離100、角度0にする。それ以外は500と5。
+    dI.value = (v === 'sausage') ? 100 : 500;
+    tI.value = (v === 'sausage') ? 0 : 5; 
+
+    ['sausage', 'jwsa', 'jwsa2', 'jwsa3'].forEach(s => {
+      const el = document.getElementById(s + 'Settings');
+      if (el) {
+        if (v === 'jwsa5' && s === 'jwsa3') el.style.display = 'flex';
+        else el.style.display = (v === s) ? 'flex' : 'none';
+      }
+    });
+    calculateCourse(currentIsPort);
+  };
+
+
+
+
+
+
 
 
 
