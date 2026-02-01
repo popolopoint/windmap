@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.6.5f by Popolo App.com</title>
+<title>コース作るくん v6.6.5g by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -53,8 +53,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.6.5f by Popolo App.com</span></h2>
-<div id="version">v6.6.5f</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.6.5g by Popolo App.com</span></h2>
+<div id="version">v6.6.5g</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -204,11 +204,29 @@ function checkUrlParams() {
   }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function initMap(){
   let centerPos = { lat: 26.3318, lng: 127.9179 };
   const latA = parseFloat(document.getElementById('latA').value);
   const lngA = parseFloat(document.getElementById('lngA').value);
   if(!isNaN(latA) && !isNaN(lngA)) centerPos = { lat: latA, lng: lngA };
+  
   map = new google.maps.Map(document.getElementById('map'), { 
     center: centerPos, 
     zoom: 14, 
@@ -216,14 +234,55 @@ function initMap(){
     disableDefaultUI: true, 
     zoomControl: true 
   });
+
   map.addListener('click', (e)=>{ 
     if(document.querySelector('input[name="aMode"]:checked').value==='map'){ 
       setBasePosition({lat:e.latLng.lat(), lng:e.latLng.lng()}); 
     } 
   });
+
+  // --- ここから追加 ---
+  // 現在地を表示する青いマーカー
+  let meMarker = new google.maps.Marker({
+    map: map,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 8,
+      fillColor: '#007AFF', // iOSっぽい鮮やかな青
+      fillOpacity: 1,
+      strokeColor: 'white',
+      strokeWeight: 2
+    },
+    title: "現在地"
+  });
+
+  // 位置情報をリアルタイムで監視（動くと青い点も動く）
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(pos => {
+      const myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      meMarker.setPosition(myPos);
+    }, error => {
+      console.log("位置情報取得エラー:", error);
+    }, { 
+      enableHighAccuracy: true, // 高精度モード
+      maximumAge: 0,
+      timeout: 5000 
+    });
+  }
+  // --- ここまで追加 ---
+
   checkUrlParams();
   if(document.getElementById('wind').value && !isNaN(latA)) setTimeout(() => calculateCourse(true), 500);
 }
+
+
+
+
+
+
+
+
+
 
 function movePoint(lat,lng,dist,bearing){
   const R=6378137, brng=(bearing%360)*Math.PI/180;
@@ -351,16 +410,33 @@ function drawPoint(label,pos,color,displayText){
 
 function distanceBetween(p1,p2){ if(!p1||!p2)return 0; const R=6378137, dφ=(p2.lat-p1.lat)*Math.PI/180, dλ=(p2.lng-p1.lng)*Math.PI/180; const a=Math.sin(dφ/2)**2 + Math.cos(p1.lat*Math.PI/180)*Math.cos(p2.lat*Math.PI/180)*Math.sin(dλ/2)**2; return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
 
-function shareCoords(l,p){ 
-  if(!p) return; 
-  const lat = p.lat.toFixed(6), lng = p.lng.toFixed(6);
-  const t = `${l}点\n${lat},${lng}\nhttps://www.google.com/maps?q=${lat},${lng}`; 
-  if(navigator.share) navigator.share({text:t}).catch(() => {}); else alert(t); 
-}
 
-window.addEventListener('load', ()=>{ 
-  document.getElementById('btnStarboard').onclick=()=>calculateCourse(false);
-  document.getElementById('btnPort').onclick=()=>calculateCourse(true);
+
+
+
+
+
+
+function shareCoords(l, p) { 
+  if (!p) return; 
+  const lat = p.lat.toFixed(6);
+  const lng = p.lng.toFixed(6);
+  const t = `${l}点\n${lat},${lng}`;
+  
+  // Googleマップでナビを開始するURL（正常な形式）
+  const mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`;
+
+  if (confirm(`${l}点へ向かいますか？\n(OKでGoogleマップのナビを起動します)`)) {
+    window.open(mapUrl, '_blank');
+  } else {
+    // キャンセル時は従来通り座標をシェア
+    if (navigator.share) {
+      navigator.share({text: t + "\n" + mapUrl}).catch(() => {});
+    } else {
+      alert(t + "\n" + mapUrl);
+    }
+  }
+}
 
   
 
