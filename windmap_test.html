@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.6.5b by Popolo App.com</title>
+<title>コース作るくん v6.6.5c by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -53,8 +53,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.6.5b by Popolo App.com</span></h2>
-<div id="version">v6.6.5b</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.6.5c by Popolo App.com</span></h2>
+<div id="version">v6.6.5c</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -491,11 +491,15 @@ window.addEventListener('load', ()=>{
 
 
 
-// データ一括送信（エラー防止 ＆ 確実なURL生成）
+
+
+
+
+// データ一括送信（安全版）
   document.getElementById('btnShareAll').onclick = () => {
-    // 1. コースが計算されているかチェック（計算前なら警告を出して中断）
-    if (typeof path === 'undefined' || !path || path.length === 0) {
-      alert("コースが計算されていません。「スタボー」または「ポート」を押してから送信してください。");
+    // pathがない場合は計算を促す
+    if (!points || !points.A) {
+      alert("地点データがありません。基準点をセットしてください。");
       return;
     }
 
@@ -505,18 +509,15 @@ window.addEventListener('load', ()=>{
     
     let t = `【${courseName}】風向:${wind}°\n\n`;
     
-    // 2. URL形式を「dir（ルート探索）」に変更。これが一番確実です。
-    // 最後に各座標をスラッシュで繋いでいく形式
+    // Googleマップで複数地点を表示する、最も安定したURL形式
     let mapUrl = "https://www.google.com/maps/dir/";
 
-    path.forEach(p => {
-      if (p) mapUrl += `${p.lat.toFixed(6)},${p.lng.toFixed(6)}/`;
-    });
-
-    // 各マークの座標一覧テキスト
-    Object.keys(points).forEach(k => {
-      if (points[k]) {
-        t += `${k}: ${points[k].lat.toFixed(6)},${points[k].lng.toFixed(6)}\n`;
+    // 表示する地点を順番に追加
+    const order = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'K', 'S'];
+    order.forEach(key => {
+      if (points[key]) {
+        mapUrl += `${points[key].lat.toFixed(6)},${points[key].lng.toFixed(6)}/`;
+        t += `${key}: ${points[key].lat.toFixed(6)},${points[key].lng.toFixed(6)}\n`;
       }
     });
 
@@ -528,11 +529,6 @@ window.addEventListener('load', ()=>{
       alert(t);
     }
   };
-
-
-
-
-
 
 
 
