@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.6.3e by Popolo App.com</title>
+<title>コース作るくん v6.6.3g by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -53,8 +53,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.6.3e by Popolo App.com</span></h2>
-<div id="version">v6.6.3e</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.6.3g by Popolo App.com</span></h2>
+<div id="version">v6.6.3g</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -90,7 +90,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
   <label>AB<br><input type="number" id="distAB" class="compact-input" value="500"></label>
   <label>BG<br><input type="number" id="distBC" class="compact-input" value="500"></label>
   <label>GK<br><input type="number" id="distCD" class="compact-input" value="500"></label>
-  <label>角D<br><input type="number" id="theta2" class="compact-input" value="30"></label>
+  <label>角G<br><input type="number" id="theta2" class="compact-input" value="60"></label>
 </div>
 
 
@@ -101,7 +101,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
   <label>FG<br><input type="number" id="distCD2" class="compact-input" value="500"></label>
   <label>GK<br><input type="number" id="distDE2" class="compact-input" value="500"></label> 
   <label>角B<br><input type="number" id="theta3_2" class="compact-input" value="45"></label> 
-  <label>角D<br><input type="number" id="theta2_2" class="compact-input" value="30"></label>
+  <label>角G<br><input type="number" id="theta2_2" class="compact-input" value="60"></label>
 </div>
 
 
@@ -114,7 +114,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
   <label>FG<br><input type="number" id="distCD3" class="compact-input" value="500"></label>
   <label>GK<br><input type="number" id="distDE3" class="compact-input" value="500"></label>
   <label>角B<br><input type="number" id="theta3_3" class="compact-input" value="30"></label>
-  <label>角D<br><input type="number" id="theta2_3" class="compact-input" value="30"></label>
+  <label>角G<br><input type="number" id="theta2_3" class="compact-input" value="60"></label>
 </div>
 
 <div class="main-buttons">
@@ -367,7 +367,7 @@ document.getElementById('btnC').style.display = (isM || isF8 || isS || is5J || i
 document.getElementById('btnD').style.display = (isM || is5J || isJW3 || isJW5) ? 'flex' : 'none';
 document.getElementById('btnE').style.display = (isM || isF8 || is5J || isJW3 || isJW5) ? 'flex' : 'none';
 document.getElementById('btnF').style.display = (isJW2 || isJW3 || isJW5 || is5J) ? 'flex' : 'none';
-document.getElementById('btnG').style.display = (isJW2 || isJW3 || isJW5 || is5J || isJW) ? 'flex' : 'none';
+document.getElementById('btnG').style.display = (isJW2 || isJW3 || isJW5 || is5J) ? 'flex' : 'none';
 document.getElementById('btnK').style.display = (isJW2 || isJW3 || isJW) ? 'flex' : 'none'; // JW5は除外
 document.getElementById('btnS').style.display = isS ? 'flex' : 'none';
 
@@ -468,40 +468,76 @@ function distanceBetween(p1,p2){ if(!p1||!p2)return 0; const R=6378137, dφ=(p2.
 
 
 // 個別シェア
+
+
+
+
+// 個別シェア
 function shareCoords(l,p){ 
-  if(!p)return; 
-  const t=`${l}点\n${p.lat.toFixed(6)},${p.lng.toFixed(6)}\nhttps://www.google.com/maps?q=${p.lat},${p.lng}`; 
-  if(navigator.share)navigator.share({text:t}); else alert(t); 
+  if(!p) return; 
+  const lat = p.lat.toFixed(6);
+  const lng = p.lng.toFixed(6);
+  // URLを正しい形式（q=緯度,経度）に修正
+  const t = `${l}点\n${lat},${lng}\nhttps://www.google.com/maps?q=${lat},${lng}`; 
+  if(navigator.share) navigator.share({text:t}).catch(() => {}); else alert(t); 
 }
 
-window.addEventListener('load', ()=>{ // ← これが消えていたのが原因です
+window.addEventListener('load', ()=>{ 
   checkUrlParams();
   document.getElementById('btnStarboard').onclick=()=>calculateCourse(false);
   document.getElementById('btnPort').onclick=()=>calculateCourse(true);
 
-  // データ一括送信
-  document.getElementById('btnShareAll').onclick=()=>{ 
-    let t="【コース座標】\n"; 
-    Object.keys(points).forEach(k=>{
-      if(points[k]){
-        t+=`${k}: ${points[k].lat.toFixed(6)},${points[k].lng.toFixed(6)}\nhttps://www.google.com/maps?q=${points[k].lat},${points[k].lng}\n\n`;
+
+
+
+
+
+
+// データ一括送信（風向と一括表示URLを追加）
+  document.getElementById('btnShareAll').onclick = () => {
+    const wind = document.getElementById('wind').value || 0;
+    const courseSelect = document.getElementById('courseSelect');
+    const courseName = courseSelect.options[courseSelect.selectedIndex].text;
+    
+    let t = `【${courseName}】風向:${wind}°\n\n`;
+    
+    // 一括表示用URLのベース
+    let mapUrl = "https://www.google.com/maps/dir/";
+
+    // path（描画されている線の順番）に沿って地点をURLに追加
+    if (typeof path !== 'undefined' && path.length > 0) {
+      path.forEach(p => {
+        if (p) mapUrl += `${p.lat.toFixed(6)},${p.lng.toFixed(6)}/`;
+      });
+    }
+
+    // 各マークの座標一覧（テキスト）
+    Object.keys(points).forEach(k => {
+      if (points[k]) {
+        t += `${k}: ${points[k].lat.toFixed(6)},${points[k].lng.toFixed(6)}\n`;
       }
-    }); 
-    if(navigator.share)navigator.share({text:t}); else alert(t); 
+    });
+
+    t += `\n▼コースを一括表示\n${mapUrl}\n`;
+
+    if (navigator.share) {
+      navigator.share({ text: t }).catch(() => {});
+    } else {
+      alert(t);
+    }
   };
 
-  document.getElementById('btnSetCurrent').onclick=()=>{ 
-    const mode=document.querySelector('input[name="aMode"]:checked').value; 
-    if(mode==='gps'){ 
-      navigator.geolocation.getCurrentPosition(p=>{setBasePosition({lat:p.coords.latitude,lng:p.coords.longitude});}, e=>alert("取得失敗")); 
+  document.getElementById('btnSetCurrent').onclick = () => { 
+    const mode = document.querySelector('input[name="aMode"]:checked').value; 
+    if (mode === 'gps') { 
+      navigator.geolocation.getCurrentPosition(p => { setBasePosition({ lat: p.coords.latitude, lng: p.coords.longitude }); }, e => alert("取得失敗")); 
     } else alert("地図上をタップしてください"); 
   };
 
-  ['A','B','C','D','E','F','G','K','S'].forEach(l=>{ 
-    const btn=document.getElementById('btn'+l); 
-    if(btn)btn.onclick=()=>shareCoords(l,points[l]); 
+  ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'K', 'S'].forEach(l => { 
+    const btn = document.getElementById('btn' + l); 
+    if (btn) btn.onclick = () => shareCoords(l, points[l]); 
   });
-
 
 
 
