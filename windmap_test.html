@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.6.5e by Popolo App.com</title>
+<title>コース作るくん v6.6.5f by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -53,8 +53,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.6.5e by Popolo App.com</span></h2>
-<div id="version">v6.6.5e</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.6.5f by Popolo App.com</span></h2>
+<div id="version">v6.6.5f</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -185,12 +185,22 @@ let path = [];
 
 function checkUrlParams() {
   const urlParams = new URLSearchParams(window.location.search);
-  const twd = urlParams.get('twd') || urlParams.get('h') || urlParams.get('heading');
   const lat = urlParams.get('lat');
   const lng = urlParams.get('lng');
+  const twd = urlParams.get('twd');
+  const dist = urlParams.get('dist');
+  const theta = urlParams.get('theta');
+  const course = urlParams.get('course');
+
+  if (lat && lng) updateAPos(parseFloat(lat), parseFloat(lng));
   if (twd) document.getElementById('wind').value = twd;
-  if (lat && lng) {
-    updateAPos(parseFloat(lat), parseFloat(lng));
+  if (dist) document.getElementById('dist').value = dist;
+  if (theta) document.getElementById('theta').value = theta;
+  if (course) {
+    const sel = document.getElementById('courseSelect');
+    sel.value = course;
+    // セレクトボックスが変わった時のイベントを手動で発生させる
+    sel.dispatchEvent(new Event('change'));
   }
 }
 
@@ -352,23 +362,55 @@ window.addEventListener('load', ()=>{
   document.getElementById('btnStarboard').onclick=()=>calculateCourse(false);
   document.getElementById('btnPort').onclick=()=>calculateCourse(true);
 
-  document.getElementById('btnShareAll').onclick = () => {
+  
+
+
+
+document.getElementById('btnShareAll').onclick = () => {
     if (!points || !points.A) { alert("地点データがありません。"); return; }
+    
     const wind = document.getElementById('wind').value || 0;
-    const cEl = document.getElementById('courseSelect');
-    const cName = cEl.options[cEl.selectedIndex].text;
-    let t = `【${cName}】風向:${wind}°\n\n`;
-    let mapUrl = "https://www.google.com/maps/dir/";
+    const dist = document.getElementById('dist').value || 500;
+    const theta = document.getElementById('theta').value || 5;
+    const courseSelect = document.getElementById('courseSelect');
+    const courseValue = courseSelect.value;
+    const courseName = courseSelect.options[courseSelect.selectedIndex].text;
+    
+    // 現在のアプリのURLにパラメータを付与（緯度、経度、風向、距離、角度、コース種類）
+    const baseUrl = window.location.origin + window.location.pathname;
+    const params = `?lat=${points.A.lat.toFixed(6)}&lng=${points.A.lng.toFixed(6)}&twd=${wind}&dist=${dist}&theta=${theta}&course=${courseValue}`;
+    const shareUrl = baseUrl + params;
+
+    let t = `【${courseName}】風向:${wind}°\n`;
+    t += `距離:${dist}m / 角度:${theta}°\n\n`;
+    
+    // 各マークの座標も一応テキストで入れる
     const order = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'K', 'S'];
     order.forEach(key => {
       if (points[key]) {
-        mapUrl += `${points[key].lat.toFixed(6)},${points[key].lng.toFixed(6)}/`;
         t += `${key}: ${points[key].lat.toFixed(6)},${points[key].lng.toFixed(6)}\n`;
       }
     });
-    t += `\n▼コースを一括表示\n${mapUrl}\n`;
-    if (navigator.share) navigator.share({ text: t }).catch(() => {}); else alert(t);
+
+    t += `\n▼アプリでコース図を再現\n${shareUrl}`;
+
+    if (navigator.share) {
+      navigator.share({ text: t }).catch(() => {});
+    } else {
+      alert(t);
+    }
   };
+
+
+
+
+
+
+
+
+
+
+
 
   document.getElementById('btnSetCurrent').onclick = () => { 
     const mode = document.querySelector('input[name="aMode"]:checked').value; 
