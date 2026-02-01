@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.6.5g by Popolo App.com</title>
+<title>コース作るくん v6.6.5h by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -53,8 +53,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.6.5g by Popolo App.com</span></h2>
-<div id="version">v6.6.5g</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.6.5h by Popolo App.com</span></h2>
+<div id="version">v6.6.5h</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -417,28 +417,37 @@ function distanceBetween(p1,p2){ if(!p1||!p2)return 0; const R=6378137, dφ=(p2.
 
 
 
+
+
+  
+
+
 function shareCoords(l, p) { 
   if (!p) return; 
   const lat = p.lat.toFixed(6);
   const lng = p.lng.toFixed(6);
-  const t = `${l}点\n${lat},${lng}`;
+  const t = l + "点\n" + lat + "," + lng;
   
-  // Googleマップでナビを開始するURL（正常な形式）
-  const mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`;
+  // URLの書き方を修正しました（エラーの原因を解消）
+  const mapUrl = "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng + "&travelmode=walking";
 
-  if (confirm(`${l}点へ向かいますか？\n(OKでGoogleマップのナビを起動します)`)) {
+  if (confirm(l + "点へ向かいますか？\n(OKでGoogleマップのナビを起動します)")) {
     window.open(mapUrl, '_blank');
   } else {
-    // キャンセル時は従来通り座標をシェア
     if (navigator.share) {
-      navigator.share({text: t + "\n" + mapUrl}).catch(() => {});
+      navigator.share({text: t + "\n" + mapUrl}).catch(function(){});
     } else {
       alert(t + "\n" + mapUrl);
     }
   }
 }
 
-  
+
+
+
+
+
+
 
 
 
