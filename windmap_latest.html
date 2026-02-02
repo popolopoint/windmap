@@ -398,31 +398,24 @@ function shareCoords(l,p){
 }
 
 // --- ★ここを追加する（割り込ませる） ---
-window.addEventListener('message', function(event) {
-  if (event.data && event.data.type === 'updateWind') {
-    const windInput = document.getElementById('wind');
-    if (windInput) {
-      windInput.value = event.data.wind;
-      calculateCourse(currentIsPort); 
-    }
-  }
-});
 
 
 
 
 window.addEventListener('load', ()=>{ 
   // ここに移動（追加）します！
-  window.addEventListener('message', function(event) {
-    if (event.data && event.data.type === 'updateWind') {
-      const windInput = document.getElementById('wind');
-      if (windInput) {
-        windInput.value = event.data.wind;
-        calculateCourse(currentIsPort); 
-      }
+ 
+
+// 補正ドン受信機
+  window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'updateWind') {
+      document.getElementById('wind').value = e.data.wind;
+      calculateCourse(currentIsPort);
     }
   });
 
+  initMap(); // ←このすぐ上に配置
+});
 
 
 
