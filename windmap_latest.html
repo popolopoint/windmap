@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.6.3f by Popolo App.com</title>
+<title>コース作るくん v6.7.1a by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
 h2 { margin:0 0 8px 0; font-size:18px; }
 #version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
 
-.input-row { display: flex; gap: 5px; width: 100%; margin-bottom: 10px; }
+.input-row { display: flex; dap: 5px; width: 100%; margin-bottom: 10px; }
 .input-group { flex: 1; display: flex; flex-direction: column; }
 .input-group label { font-size: 11px; font-weight: bold; margin-bottom: 2px; }
 .input-group input { font-size: 24px; padding: 8px 4px; width: 100%; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; text-align: center; }
@@ -53,8 +53,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.6.3f by Popolo App.com</span></h2>
-<div id="version">v6.6.3f</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.7.1a by Popolo App.com</span></h2>
+<div id="version">v6.7.1a</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -174,21 +174,35 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 
 <input type="hidden" id="latA"><input type="hidden" id="lngA">
 
+
+
+
+
+
 <script>
 let map, circles={}, markersLabel={}, polylines=[];
 let points = {A:null,B:null,C:null,D:null,E:null,F:null,G:null,S:null,K:null};
 const COLORS = { A:'#ff3b30', B:'#0000ff', C:'#ffff00', D:'#28a745', E:'#6a1b9a', F:'#ff2d55', G:'#000080', S:'#0000ff', K:'#5ac8fa' };
 let currentIsPort = true;
+let path = [];
 
 function checkUrlParams() {
   const urlParams = new URLSearchParams(window.location.search);
-  const twd = urlParams.get('twd') || urlParams.get('h') || urlParams.get('heading');
   const lat = urlParams.get('lat');
   const lng = urlParams.get('lng');
+  const twd = urlParams.get('twd');
+  const dist = urlParams.get('dist');
+  const theta = urlParams.get('theta');
+  const course = urlParams.get('course');
+
+  if (lat && lng) updateAPos(parseFloat(lat), parseFloat(lng));
   if (twd) document.getElementById('wind').value = twd;
-  if (lat && lng) {
-    updateAPos(parseFloat(lat), parseFloat(lng));
-    if (map) map.setCenter({lat: parseFloat(lat), lng: parseFloat(lng)});
+  if (dist) document.getElementById('dist').value = dist;
+  if (theta) document.getElementById('theta').value = theta;
+  if (course) {
+    const sel = document.getElementById('courseSelect');
+    sel.value = course;
+    sel.dispatchEvent(new Event('change'));
   }
 }
 
@@ -197,8 +211,48 @@ function initMap(){
   const latA = parseFloat(document.getElementById('latA').value);
   const lngA = parseFloat(document.getElementById('lngA').value);
   if(!isNaN(latA) && !isNaN(lngA)) centerPos = { lat: latA, lng: lngA };
-  map = new google.maps.Map(document.getElementById('map'), { center: centerPos, zoom: 14, gestureHandling: 'greedy', disableDefaultUI: true, zoomControl: true });
-  map.addListener('click', (e)=>{ if(document.querySelector('input[name="aMode"]:checked').value==='map'){ setBasePosition({lat:e.latLng.lat(), lng:e.latLng.lng()}); } });
+  
+  map = new google.maps.Map(document.getElementById('map'), { 
+    center: centerPos, 
+    zoom: 14, 
+    gestureHandling: 'greedy', 
+    disableDefaultUI: true, 
+    zoomControl: true 
+  });
+
+  map.addListener('click', (e)=>{ 
+    if(document.querySelector('input[name="aMode"]:checked').value==='map'){ 
+      setBasePosition({lat:e.latLng.lat(), lng:e.latLng.lng()}); 
+    } 
+  });
+
+  let meMarker = new google.maps.Marker({
+    map: map,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 8,
+      fillColor: '#007AFF',
+      fillOpacity: 1,
+      strokeColor: 'white',
+      strokeWeight: 2
+    },
+    title: "現在地"
+  });
+
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(pos => {
+      const myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      meMarker.setPosition(myPos);
+    }, error => {
+      console.log("位置情報取得エラー:", error);
+    }, { 
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 5000 
+    });
+  }
+
+  checkUrlParams();
   if(document.getElementById('wind').value && !isNaN(latA)) setTimeout(() => calculateCourse(true), 500);
 }
 
@@ -210,87 +264,37 @@ function movePoint(lat,lng,dist,bearing){
   return {lat: φ2*180/Math.PI, lng: λ2*180/Math.PI};
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
   let p = {A: baseA};
-  
-
-
-const isS = (course==='sausage'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2'), 
+  const isS = (course==='sausage'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2'), 
         isJW3 = (course==='jwsa3'), isJW5 = (course==='jwsa5'), 
         is5J = (course==='5jibe'), isF8 = (course==='figure8');
 
-
-
-if(isS){
-    const dAS = parseFloat(document.getElementById('distAS').value) || 100;
+  if(isS){
+    const dAS = 100; // AS距離デフォルト100
     const sAng = parseFloat(document.getElementById('sAngle').value) || 0;
-    
-    // 1. まずS点を計算
     const bS = wind + (isPort ? (90 + theta + sAng) : (270 - theta - sAng));
     p.S = movePoint(p.A.lat, p.A.lng, dAS, bS);
-    
-    // 2. スタートラインの真ん中（mid）を計算
     const mid = {lat:(p.A.lat+p.S.lat)/2, lng:(p.A.lng+p.S.lng)/2};
-    
-    // 3. 上マーク(B)は、midから「指定距離」だけ風上に
     p.B = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('upDist').value)||0, wind);
-    
-   
-
-// 4. 下マーク(C)もmidから風上方向に配置（ここをwindに変更）
     const dDown = parseFloat(document.getElementById('downDist').value)||0;
     p.C = movePoint(mid.lat, mid.lng, dDown, wind); 
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- else if(isJW || isJW2 || isJW3 || isJW5){
+  else if(isJW || isJW2 || isJW3 || isJW5){
     const sfx = (isJW3 || isJW5) ? '3' : '2';
-    const dAB=parseFloat(document.getElementById('distAB'+sfx).value)||0, dBC=parseFloat(document.getElementById('distBC'+sfx).value)||0, dCD=parseFloat(document.getElementById('distCD'+sfx).value)||0, dDE=parseFloat(document.getElementById('distDE'+sfx).value)||0, thD=parseFloat(document.getElementById('theta2_'+sfx).value)||0, thB=parseFloat(document.getElementById('theta3_'+sfx).value)||0;
+    const dAB=parseFloat(document.getElementById('distAB'+sfx).value)||0, dBC=parseFloat(document.getElementById('distBC'+sfx).value)||0, dCD=parseFloat(document.getElementById('distCD'+sfx).value)||0, dDE=parseFloat(document.getElementById('distDE'+sfx).value)||0, thD=30, thB=45; // 角D:30, 角B:45デフォルト
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
     const bF = isPort ? (wind+270+thB) : (wind+90-thB);
     p.F = movePoint(p.B.lat, p.B.lng, dBC, bF);
     p.G = movePoint(p.F.lat, p.F.lng, dCD, wind);
-    
-
-
-
-
-if(!isJW5) {
+    if(!isJW5) {
       const bK = isPort ? (wind+270-thD) : (wind+90+thD);
       p.K = movePoint(p.G.lat, p.G.lng, dDE, bK);
     }
-
-
-
-
     if(isJW3 || isJW5){
-        p.C = movePoint(p.B.lat, p.B.lng, dist, isPort?wind+270-theta:wind+90+theta);
-        p.D = movePoint(p.C.lat, p.C.lng, dist, isPort?wind+90+theta:wind+270-theta);
-        p.E = movePoint(p.D.lat, p.D.lng, dist, isPort?wind+270-theta:wind+90+theta);
+      p.C = movePoint(p.B.lat, p.B.lng, dist, isPort?wind+270-theta:wind+90+theta);
+      p.D = movePoint(p.C.lat, p.C.lng, dist, isPort?wind+90+theta:wind+270-theta);
+      p.E = movePoint(p.D.lat, p.D.lng, dist, isPort?wind+270-theta:wind+90+theta);
     }
   } else {
     p.B = movePoint(p.A.lat, p.A.lng, dist, isPort?wind+90+theta:wind+270-theta);
@@ -307,129 +311,44 @@ if(!isJW5) {
   return p;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function calculateCourse(isPort){
   currentIsPort = isPort;
   const latA=parseFloat(document.getElementById('latA').value), lngA=parseFloat(document.getElementById('lngA').value);
   if(isNaN(latA)||isNaN(lngA)) return;
   const wind=parseFloat(document.getElementById('wind').value)||0, dist=parseFloat(document.getElementById('dist').value)||0, theta=parseFloat(document.getElementById('theta').value)||0, course=document.getElementById('courseSelect').value;
-  polylines.forEach(p => p.setMap(null)); polylines = [];
+  polylines.forEach(pl => pl.setMap(null)); polylines = [];
   Object.keys(points).forEach(k => { if(circles[k])circles[k].setMap(null); if(markersLabel[k])markersLabel[k].setMap(null); points[k]=null; });
   points = getPointsStructure({lat:latA, lng:lngA}, wind, dist, theta, course, isPort);
-  
-  
 
+  const isM = (course==='mcourse'), isF8 = (course==='figure8'), isS = (course==='sausage'), is5J = (course==='5jibe'), isJW3 = (course==='jwsa3'), isJW5 = (course==='jwsa5'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2');
 
-// ここから差し替え
+  document.getElementById('btnC').style.display = (isM || isF8 || isS || is5J || isJW3 || isJW5) ? 'flex' : 'none';
+  document.getElementById('btnD').style.display = (isM || is5J || isJW3 || isJW5) ? 'flex' : 'none';
+  document.getElementById('btnE').style.display = (isM || isF8 || is5J || isJW3 || isJW5) ? 'flex' : 'none';
+  document.getElementById('btnF').style.display = (isJW2 || isJW3 || isJW5 || is5J) ? 'flex' : 'none';
+  document.getElementById('btnG').style.display = (isJW2 || isJW3 || isJW5 || is5J) ? 'flex' : 'none';
+  document.getElementById('btnK').style.display = (isJW2 || isJW3 || isJW) ? 'flex' : 'none';
+  document.getElementById('btnS').style.display = isS ? 'flex' : 'none';
 
-
-const isM = (course==='mcourse');
-const isF8 = (course==='figure8');
-const isS = (course==='sausage');
-const is5J = (course==='5jibe');
-const isJW3 = (course==='jwsa3');
-const isJW5 = (course==='jwsa5'); // 追加
-const isJW = (course==='jwsa');
-const isJW2 = (course==='jwsa2');
-
-// ボタンの制御
-document.getElementById('btnC').style.display = (isM || isF8 || isS || is5J || isJW3 || isJW5) ? 'flex' : 'none';
-document.getElementById('btnD').style.display = (isM || is5J || isJW3 || isJW5) ? 'flex' : 'none';
-document.getElementById('btnE').style.display = (isM || isF8 || is5J || isJW3 || isJW5) ? 'flex' : 'none';
-document.getElementById('btnF').style.display = (isJW2 || isJW3 || isJW5 || is5J) ? 'flex' : 'none';
-document.getElementById('btnG').style.display = (isJW2 || isJW3 || isJW5 || is5J) ? 'flex' : 'none';
-document.getElementById('btnK').style.display = (isJW2 || isJW3 || isJW) ? 'flex' : 'none'; // JW5は除外
-document.getElementById('btnS').style.display = isS ? 'flex' : 'none';
-
-
-
-
-
-
-
-// ここまで差し替え
-
-
-
-
-let path = [];
+  path = [];
   if(isS) path = [points.S, points.A, points.B, points.C, points.B, points.C, points.A];
   else if(isJW) path = [points.A, points.B, points.G, points.K, points.B, points.A];
   else if(isJW2) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.A];
   else if(isJW3) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.C, points.D, points.E];
-  else if(isJW5) path = [points.A, points.B, points.F, points.G, points.B, points.C, points.D, points.E]; // ★これがJW5専用の線
+  else if(isJW5) path = [points.A, points.B, points.F, points.G, points.B, points.C, points.D, points.E];
   else if(is5J) path = [points.A, points.B, points.C, points.D, points.E, points.F, points.G];
   else path = [points.A, points.B, points.C, points.D, points.E].filter(v => v);
 
-
-
-
-
-
-
-
-
   polylines.push(new google.maps.Polyline({path:path, strokeColor:'#444', strokeWeight:2, map}));
- 
-
-
-
-
-
-// 描画ループ：名前をそのまま表示するシンプルな形に
-  Object.keys(points).forEach(k => { 
-    if(points[k]) { 
-      drawPoint(k, points[k], COLORS[k], k); 
-    } 
-  });
-
-
+  Object.keys(points).forEach(k => { if(points[k]) drawPoint(k, points[k], COLORS[k], k); });
   updateDistModalContent(isJW3, is5J);
 }
-
-
-
 
 function updateDistModalContent(isJW3, is5J){
   const area = document.getElementById('distResultArea');
   let html = `<div class="dist-item">A～C：${distanceBetween(points.A,points.C).toFixed(1)} m</div>`;
   if(points.E) html += `<div class="dist-item">A～E：${distanceBetween(points.A,points.E).toFixed(1)} m</div>`;
   if(is5J) html += `<div class="dist-item">A～G：${distanceBetween(points.A,points.G).toFixed(1)} m</div>`;
-  if(isJW3){
-    const dAB=distanceBetween(points.A,points.B), dBF=distanceBetween(points.B,points.F), dFG=distanceBetween(points.F,points.G), dGK=distanceBetween(points.G,points.K), dKB=distanceBetween(points.K,points.B), dBD=distanceBetween(points.B,points.D), dDE=distanceBetween(points.D,points.E), dBC=distanceBetween(points.B,points.C), dCD=distanceBetween(points.C,points.D);
-    html += `<div class="dist-item">Total (B-D-E)：${(dAB+dBF+dFG+dGK+dKB+dBD+dDE).toFixed(0)} m</div>`;
-    html += `<div class="dist-item">Total (B-C-D-E)：${(dAB+dBF+dFG+dGK+dKB+dBC+dCD+dDE).toFixed(0)} m</div>`;
-  }
   area.innerHTML = html;
 }
 
@@ -463,57 +382,64 @@ function drawPoint(label,pos,color,displayText){
 
 function distanceBetween(p1,p2){ if(!p1||!p2)return 0; const R=6378137, dφ=(p2.lat-p1.lat)*Math.PI/180, dλ=(p2.lng-p1.lng)*Math.PI/180; const a=Math.sin(dφ/2)**2 + Math.cos(p1.lat*Math.PI/180)*Math.cos(p2.lat*Math.PI/180)*Math.sin(dλ/2)**2; return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
 
+function shareCoords(l, p) { 
+  if (!p) return; 
+  const lat = p.lat.toFixed(6);
+  const lng = p.lng.toFixed(6);
+  const t = l + "点\n" + lat + "," + lng;
+  const mapUrl = "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng + "&travelmode=walking";
 
-
-
-
-// 個別シェア
-function shareCoords(l,p){ 
-  if(!p)return; 
-  const t=`${l}点\n${p.lat.toFixed(6)},${p.lng.toFixed(6)}\nhttps://www.google.com/maps?q=${p.lat},${p.lng}`; 
-  if(navigator.share)navigator.share({text:t}); else alert(t); 
+  if (confirm(l + "点へ向かいますか？\n(OKでGoogleマップのナビを起動します)")) {
+    window.open(mapUrl, '_blank');
+  } else {
+    if (navigator.share) {
+      navigator.share({text: t + "\n" + mapUrl}).catch(function(){});
+    } else {
+      alert(t + "\n" + mapUrl);
+    }
+  }
 }
 
-window.addEventListener('load', ()=>{ // ← これが消えていたのが原因です
-  checkUrlParams();
+window.addEventListener('load', ()=>{ 
   document.getElementById('btnStarboard').onclick=()=>calculateCourse(false);
   document.getElementById('btnPort').onclick=()=>calculateCourse(true);
 
-  // データ一括送信
-  document.getElementById('btnShareAll').onclick=()=>{ 
-    let t="【コース座標】\n"; 
-    Object.keys(points).forEach(k=>{
-      if(points[k]){
-        t+=`${k}: ${points[k].lat.toFixed(6)},${points[k].lng.toFixed(6)}\nhttps://www.google.com/maps?q=${points[k].lat},${points[k].lng}\n\n`;
-      }
-    }); 
-    if(navigator.share)navigator.share({text:t}); else alert(t); 
+  document.getElementById('btnShareAll').onclick = () => {
+    if (!points || !points.A) { alert("地点データがありません。"); return; }
+    const wind = document.getElementById('wind').value || 0;
+    const dist = document.getElementById('dist').value || 500;
+    const theta = document.getElementById('theta').value || 5;
+    const courseSelect = document.getElementById('courseSelect');
+    const courseValue = courseSelect.value;
+    const courseName = courseSelect.options[courseSelect.selectedIndex].text;
+    const baseUrl = window.location.origin + window.location.pathname;
+    const params = `?lat=${points.A.lat.toFixed(6)}&lng=${points.A.lng.toFixed(6)}&twd=${wind}&dist=${dist}&theta=${theta}&course=${courseValue}`;
+    const shareUrl = baseUrl + params;
+
+    let t = `【${courseName}】風向:${wind}°\n距離:${dist}m / 角度:${theta}°\n\n`;
+    const order = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'K', 'S'];
+    order.forEach(key => { if (points[key]) t += `${key}: ${points[key].lat.toFixed(6)},${points[key].lng.toFixed(6)}\n`; });
+    t += `\n▼アプリでコース図を再現\n${shareUrl}`;
+    if (navigator.share) navigator.share({ text: t }).catch(() => {}); else alert(t);
   };
 
-  document.getElementById('btnSetCurrent').onclick=()=>{ 
-    const mode=document.querySelector('input[name="aMode"]:checked').value; 
-    if(mode==='gps'){ 
-      navigator.geolocation.getCurrentPosition(p=>{setBasePosition({lat:p.coords.latitude,lng:p.coords.longitude});}, e=>alert("取得失敗")); 
+  document.getElementById('btnSetCurrent').onclick = () => { 
+    const mode = document.querySelector('input[name="aMode"]:checked').value; 
+    if (mode === 'gps') { 
+      navigator.geolocation.getCurrentPosition(p => { setBasePosition({ lat: p.coords.latitude, lng: p.coords.longitude }); }, e => alert("取得失敗")); 
     } else alert("地図上をタップしてください"); 
   };
 
-  ['A','B','C','D','E','F','G','K','S'].forEach(l=>{ 
-    const btn=document.getElementById('btn'+l); 
-    if(btn)btn.onclick=()=>shareCoords(l,points[l]); 
+  ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'K', 'S'].forEach(l => { 
+    const btn = document.getElementById('btn' + l); 
+    if (btn) btn.onclick = () => shareCoords(l, points[l]); 
   });
 
-
-
-
-document.getElementById('courseSelect').onchange = (e) => {
+  document.getElementById('courseSelect').onchange = (e) => {
     const v = e.target.value;
-    const dI = document.getElementById('dist');
-    const tI = document.getElementById('theta'); // 角度の入力を取得
-
-    // ソーセージなら距離100、角度0にする。それ以外は500と5。
+    const dI = document.getElementById('dist'), tI = document.getElementById('theta');
     dI.value = (v === 'sausage') ? 100 : 500;
     tI.value = (v === 'sausage') ? 0 : 5; 
-
     ['sausage', 'jwsa', 'jwsa2', 'jwsa3'].forEach(s => {
       const el = document.getElementById(s + 'Settings');
       if (el) {
@@ -523,16 +449,6 @@ document.getElementById('courseSelect').onchange = (e) => {
     });
     calculateCourse(currentIsPort);
   };
-
-
-
-
-
-
-
-
-
-
 
   document.getElementById('btnOpenCoordModal').onclick = () => { document.getElementById('modalOverlay').style.display = 'flex'; };
   document.getElementById('btnModalClose').onclick = () => {
@@ -546,6 +462,11 @@ document.getElementById('courseSelect').onchange = (e) => {
   initMap();
 });
 </script>
+
+
+
+
+
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 </body>
 </html>
