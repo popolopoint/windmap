@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.7.2 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.7.5a-2 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -15,13 +15,64 @@
         /* 種別選択ボタンのスタイル */
         .type-selector { display: flex; gap: 5px; margin-bottom: 8px; }
         .type-btn { flex: 1; padding: 10px; border: 2px solid #3498db; background: white; color: #3498db; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
+       
+
+
+
+
+
+
+
         .type-btn.active { background: #3498db; color: white; }
 
-        .input-row { display: flex; gap: 6px; align-items: center; margin-bottom: 5px; }
-        input#depth-input { flex: 1; padding: 12px; border: 2px solid #3498db; border-radius: 6px; font-size: 1.1rem; }
-        #comment-input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 5px; box-sizing: border-box; }
-        .btn-record { background: #2ecc71; color: white; flex: 2; padding: 12px; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; }
+
+
+
+
+
+/* 入力エリアとボタンを倍のサイズ感に調整 */
+        .input-row { display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px; }
         
+        input#depth-input { 
+           
+            width: 200px; /* 幅を固定して広がりすぎを防止 */
+            flex: 1.5; 
+            padding: 15px 10px; 
+            border: 3px solid #3498db; 
+            border-radius: 8px; 
+            font-size: 1.6rem; /* 水深の数字を大に */
+            font-weight: bold;
+        }
+
+        #comment-input { 
+            width: 100%; 
+            padding: 15px; 
+            border: 2px solid #ccc; 
+            border-radius: 8px; 
+            margin-bottom: 8px; 
+            box-sizing: border-box; 
+            font-size: 1.6rem; /* コメント欄も大きく */
+        }
+
+        .btn-record { 
+            background: #2ecc71; 
+            color: white; 
+            flex: 1; 
+            padding: 10px; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            font-size: 1.8rem; /* 記録ボタンの文字を巨大に */
+            cursor: pointer;
+        }
+
+
+
+
+
+
+
+
         .status-bar { font-size: 0.75rem; color: #666; text-align: center; margin-top: 5px; font-weight: bold; }
         #map-container { flex-grow: 1; position: relative; }
         #map { width: 100%; height: 100%; }
@@ -35,7 +86,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.7.2 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.7.5a-2 by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
@@ -53,7 +104,16 @@
     </div>
 
     <div class="input-row">
-        <input type="number" id="depth-input" placeholder="今測った水深(cm)" inputmode="decimal">
+
+
+
+      
+
+      
+        <input type="text" id="depth-input" placeholder="今測った水深(cm)">
+
+
+
         <button class="btn-record" onclick="recordAtCurrentLocation()">記録</button>
         <button onclick="openModal('admin-modal')" style="width:40px; height:45px; border-radius:6px; border:none; background:#95a5a6; color:white;">🔑</button>
     </div>
@@ -77,8 +137,28 @@
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
 <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw1wg_a28-_dOyLbik9VnYfbzKEHPNBWwaVVeyc4gcibovUIQ5BUGNw1esYy0beyZVf3g/exec"; 
-    let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
+   
+
+
+
+
+
+
+
+
+
+
+
+
+ const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw1wg_a28-_dOyLbik9VnYfbzKEHPNBWwaVVeyc4gcibovUIQ5BUGNw1esYy0beyZVf3g/exec"; 
+    
+
+
+
+
+
+
+let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
     let fullTideMasterData = [];
     let myLocationMarker = null;
     let selectedType = "平地";
