@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.8.1c by Popolo App.com</title>
+    <title>水深測っ太郎 v1.8.1d by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -88,7 +88,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.8.1c by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.8.1d by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
@@ -248,21 +248,62 @@
         refreshMarkersOnMap();
     }
 
-    function refreshMarkersOnMap() {
+
+
+function refreshMarkersOnMap() {
         markers.forEach(m => m.setMap(null));
         markers = [];
         allPointsData.forEach(p => {
+            const id = p[0];
+            const lat = p[1];
+            const lng = p[2];
             const baseDepth = parseFloat(p[4]) || 0;
             const simDepth = baseDepth + currentSelectedTide;
+            const comment = p[7] || "";
+
             const marker = new google.maps.Marker({
-                position: {lat: Number(p[1]), lng: Number(p[2])}, map: map,
-                icon: { path: google.maps.SymbolPath.CIRCLE, fillColor: getDepthColor(simDepth), fillOpacity: 0.9, scale: 7, strokeColor: "#333", strokeWeight: 1.5 }
+                position: {lat: Number(lat), lng: Number(lng)},
+                map: map,
+                icon: { 
+                    path: google.maps.SymbolPath.CIRCLE, 
+                    fillColor: getDepthColor(simDepth), 
+                    fillOpacity: 0.9, 
+                    scale: 8, 
+                    strokeColor: "#333", 
+                    strokeWeight: 1.5 
+                }
             });
-            const info = new google.maps.InfoWindow({ content: `<div style="font-size:12px;">水深: <b>${simDepth.toFixed(1)}cm</b><br>コメント: ${p[7]||""}</div>` });
+
+            // 吹き出し（モーダル）の中身を巨大化 ＆ 機能復活
+            const info = new google.maps.InfoWindow({
+                content: `
+                <div style="font-size: 1.5rem; width: 250px; line-height: 1.6; padding: 10px;">
+                    <b style="color: #3498db;">水深: ${simDepth.toFixed(1)}cm</b><br>
+                    <input type="text" id="edit-cmt-${id}" value="${comment}" 
+                        style="width: 100%; font-size: 1.3rem; padding: 8px; margin: 10px 0; border: 2px solid #ccc; border-radius: 5px;" 
+                        placeholder="コメントを入力">
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button onclick="updateComment('${id}')" 
+                            style="flex: 1; background: #3498db; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 1.2rem; font-weight: bold;">保存</button>
+                        <button onclick="deletePoint('${id}')" 
+                            style="flex: 1; background: #e74c3c; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 1.2rem; font-weight: bold;">削除</button>
+                    </div>
+                </div>`
+            });
+
             marker.addListener("click", () => info.open(map, marker));
             markers.push(marker);
         });
     }
+
+
+
+
+
+
+
+
+
 
     function getDepthColor(b) {
         if (b < 15) return "#ff0000"; if (b < 40) return "#ff8c00"; if (b < 70) return "#ffff00"; 
@@ -295,6 +336,41 @@
     }
 
     function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
+
+
+
+
+
+async function updateComment(id) {
+        const newCmt = document.getElementById(`edit-cmt-${id}`).value;
+        showLoading(true);
+        try {
+            const res = await fetch(WEB_APP_URL, { 
+                method: 'POST', 
+                body: JSON.stringify({ method: 'UPDATE_COMMENT', password: adminPass, id: id, comment: newCmt }) 
+            });
+            await syncData();
+        } catch (e) { alert("更新に失敗しました"); }
+        showLoading(false);
+    }
+
+    async function deletePoint(id) {
+        if (!confirm("このデータを削除してもよろしいですか？")) return;
+        showLoading(true);
+        try {
+            const res = await fetch(WEB_APP_URL, { 
+                method: 'POST', 
+                body: JSON.stringify({ method: 'DELETE', password: adminPass, id: id }) 
+            });
+            await syncData();
+        } catch (e) { alert("削除に失敗しました"); }
+        showLoading(false);
+    }
+
+
+
+
+
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 </body>
