@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.7.5d by Popolo App.com</title>
+    <title>水深測っ太郎 v1.7.6a by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -100,7 +100,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.7.5d by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.7.6a by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
@@ -209,6 +209,25 @@ let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = 
         setNow();
         await syncData();
         updateMyLocation(true); // 2. 起動時に現在地を表示
+
+// 地図が動かなくなったタイミングでメッシュを更新
+        map.addListener("idle", drawGrid);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         
         // 継続的な位置監視
         navigator.geolocation.watchPosition(updateMyLocation, null, {enableHighAccuracy: true});
@@ -372,6 +391,54 @@ let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = 
     }
 
     function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
+
+
+
+
+
+
+let gridLines = [];
+function drawGrid() {
+    // すでにある線を一度全部消す
+    gridLines.forEach(l => l.setMap(null));
+    gridLines = [];
+
+    const bounds = map.getBounds();
+    if (!bounds) return;
+
+    const north = bounds.getNorthEast().lat();
+    const south = bounds.getSouthWest().lat();
+    const east = bounds.getNorthEast().lng();
+    const west = bounds.getSouthWest().lng();
+
+    // 100mの間隔（緯度・経度の度数に換算）
+    const latStep = 0.0009009; 
+    const lngStep = 0.0010966;
+
+    // 緯度線（横線）
+    for (let lat = Math.ceil(south / latStep) * latStep; lat <= north; lat += latStep) {
+        const line = new google.maps.Polyline({
+            path: [{lat: lat, lng: west}, {lat: lat, lng: east}],
+            strokeColor: "#555", strokeOpacity: 0.4, strokeWeight: 1, map: map, clickable: false
+        });
+        gridLines.push(line);
+    }
+    // 経度線（縦線）
+    for (let lng = Math.ceil(west / lngStep) * lngStep; lng <= east; lng += lngStep) {
+        const line = new google.maps.Polyline({
+            path: [{lat: south, lng: lng}, {lat: north, lng: lng}],
+            strokeColor: "#555", strokeOpacity: 0.4, strokeWeight: 1, map: map, clickable: false
+        });
+        gridLines.push(line);
+    }
+}
+
+
+
+
+
+
+
 </script>
 </body>
 </html>
