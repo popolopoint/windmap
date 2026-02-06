@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.8.1d by Popolo App.com</title>
+    <title>水深測っ太郎 v1.8.1e by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -49,7 +49,7 @@
         }
         
         input#depth-input { 
-            width: 300px; /* 幅を固定して広がりすぎを防止 */
+            width: 200px; /* 幅を固定して広がりすぎを防止 */
             flex: none;  /* 自動で広がらないように設定 */
             padding: 0 5px; 
             border: 4px solid #3498db; 
@@ -83,12 +83,36 @@
         #map { width: 100%; height: 100%; }
         .gps-button { position: absolute; bottom: 20px; right: 10px; width: 50px; height: 50px; background: white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; z-index: 10; cursor: pointer; font-size: 24px; }
         #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 4000; font-weight: bold; color: #3498db; }
-    </style>
+   
+
+
+
+.type-btn { 
+            flex: 1; 
+            padding: 12px; 
+            border: 2px solid #3498db; 
+            background: white; 
+            color: #3498db; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            font-size: 1.1rem; 
+        }
+
+
+
+
+
+ </style>
 </head>
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.8.1d by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.8.1e by Popolo App.com</div>
+
+
+
+
 
 <div class="ui-panel">
     <div class="datetime-panel">
@@ -101,6 +125,23 @@
             <span id="grid-label"></span>
         </div>
     </div>
+
+
+
+
+
+
+
+<div class="type-selector" style="display: flex; gap: 5px; margin-bottom: 8px;">
+        <button id="btn-平地" class="type-btn active" onclick="selectType('平地', this)">平地〇</button>
+        <button id="btn-岩" class="type-btn" onclick="selectType('岩', this)">岩△</button>
+        <button id="btn-杭" class="type-btn" onclick="selectType('杭', this)">杭◇</button>
+    </div>
+
+
+
+
+
 
 <div class="input-row">
         <input type="number" id="depth-input" placeholder="水深" inputmode="decimal">
@@ -249,56 +290,64 @@
     }
 
 
-
 function refreshMarkersOnMap() {
         markers.forEach(m => m.setMap(null));
         markers = [];
         allPointsData.forEach(p => {
             const id = p[0];
-            const lat = p[1];
-            const lng = p[2];
+            const type = p[6]; // スプレッドシートの種別列
             const baseDepth = parseFloat(p[4]) || 0;
             const simDepth = baseDepth + currentSelectedTide;
-            const comment = p[7] || "";
+
+            // 種別によって形（パス）を定義
+            let sym = google.maps.SymbolPath.CIRCLE; // デフォルトは〇
+            if (type === "岩") {
+                sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; // △（三角形）
+            } else if (type === "杭") {
+                sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z"; // ◇（ひし形）
+            }
 
             const marker = new google.maps.Marker({
-                position: {lat: Number(lat), lng: Number(lng)},
+                position: {lat: Number(p[1]), lng: Number(p[2])},
                 map: map,
                 icon: { 
-                    path: google.maps.SymbolPath.CIRCLE, 
+                    path: sym, 
                     fillColor: getDepthColor(simDepth), 
                     fillOpacity: 0.9, 
-                    scale: 8, 
+                    scale: 9, // 少し大きくしました
                     strokeColor: "#333", 
                     strokeWeight: 1.5 
                 }
             });
 
-            // 吹き出し（モーダル）の中身を巨大化 ＆ 機能復活
+            // 巨大化したInfoWindow（前回修正分）
             const info = new google.maps.InfoWindow({
                 content: `
                 <div style="font-size: 1.5rem; width: 250px; line-height: 1.6; padding: 10px;">
-                    <b style="color: #3498db;">水深: ${simDepth.toFixed(1)}cm</b><br>
-                    <input type="text" id="edit-cmt-${id}" value="${comment}" 
-                        style="width: 100%; font-size: 1.3rem; padding: 8px; margin: 10px 0; border: 2px solid #ccc; border-radius: 5px;" 
-                        placeholder="コメントを入力">
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        <button onclick="updateComment('${id}')" 
-                            style="flex: 1; background: #3498db; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 1.2rem; font-weight: bold;">保存</button>
-                        <button onclick="deletePoint('${id}')" 
-                            style="flex: 1; background: #e74c3c; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 1.2rem; font-weight: bold;">削除</button>
+                    <b style="color: #3498db;">${type} : ${simDepth.toFixed(1)}cm</b><br>
+                    <input type="text" id="edit-cmt-${id}" value="${p[7]||""}" 
+                        style="width: 100%; font-size: 1.3rem; padding: 8px; margin: 10px 0; border: 2px solid #ccc; border-radius: 5px;">
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="updateComment('${id}')" style="flex: 1; background: #3498db; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 1.2rem; font-weight: bold;">保存</button>
+                        <button onclick="deletePoint('${id}')" style="flex: 1; background: #e74c3c; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 1.2rem; font-weight: bold;">削除</button>
                     </div>
                 </div>`
             });
-
             marker.addListener("click", () => info.open(map, marker));
             markers.push(marker);
         });
     }
 
-
-
-
+    // ボタン選択の状態を管理する関数
+    function selectType(type, btn) {
+        selectedType = type;
+        document.querySelectorAll('.type-btn').forEach(b => {
+            b.style.background = "white";
+            b.style.color = "#3498db";
+        });
+        btn.style.background = "#3498db";
+        btn.style.color = "white";
+    }
 
 
 
