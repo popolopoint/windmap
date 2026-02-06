@@ -410,45 +410,50 @@ let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = 
 
 let gridLines = [];
 function drawGrid() {
-    // 古い線を消去
+    // 既存の線をクリア
     gridLines.forEach(l => l.setMap(null));
     gridLines = [];
 
     const zoom = map.getZoom();
     const bounds = map.getBounds();
+    const label = document.getElementById('grid-label');
     if (!bounds) return;
 
-    // ズームレベルによって100m、50m、25mと間隔を切り替える
+    // ズームレベルによって間隔を判定
     let step;
+    let text = "";
     if (zoom >= 19) {
-        step = 0.000225; // 約25m間隔
+        step = 0.000225; text = "メッシュ: 25m";
     } else if (zoom >= 18) {
-        step = 0.00045;  // 約50m間隔
+        step = 0.00045;  text = "メッシュ: 50m";
     } else if (zoom >= 16) {
-        step = 0.0009;   // 約100m間隔
+        step = 0.0009;   text = "メッシュ: 100m";
     } else if (zoom >= 14) {
-        step = 0.0045;   // 約500m間隔
+        step = 0.0045;   text = "メッシュ: 500m";
     } else {
-        return; // 引きすぎている時は表示しない
+        if (label) label.textContent = "";
+        return; 
     }
+
+    if (label) label.textContent = text;
 
     const north = bounds.getNorthEast().lat();
     const south = bounds.getSouthWest().lat();
     const east = bounds.getNorthEast().lng();
     const west = bounds.getSouthWest().lng();
 
+    // 線の描画（無限ループ防止のため安全策をとったループ）
     // 緯度線（横線）
     for (let lat = Math.ceil(south / step) * step; lat <= north; lat += step) {
         drawLine([{lat: lat, lng: west}, {lat: lat, lng: east}]);
     }
     // 経度線（縦線）
-    const lngStep = step * 1.2; // 経度補正
+    const lngStep = step * 1.1; // 簡易的な経度補正
     for (let lng = Math.ceil(west / lngStep) * lngStep; lng <= east; lng += lngStep) {
         drawLine([{lat: south, lng: lng}, {lat: north, lng: lng}]);
     }
 }
 
-// 共通の描画用補助関数
 function drawLine(path) {
     const line = new google.maps.Polyline({
         path: path,
@@ -460,7 +465,6 @@ function drawLine(path) {
     });
     gridLines.push(line);
 }
-
 
 
 
