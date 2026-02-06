@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.8.1e by Popolo App.com</title>
+    <title>水深測っ太郎 v1.8.1f by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -108,7 +108,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.8.1e by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.8.1f by Popolo App.com</div>
 
 
 
@@ -169,11 +169,34 @@
 </div>
 
 <script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw1wg_a28-_dOyLbik9VnYfbzKEHPNBWwaVVeyc4gcibovUIQ5BUGNw1esYy0beyZVf3g/exec"; 
     let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
     let fullTideMasterData = [];
     let myLocationMarker = null;
     let gridLines = [];
+
+ let selectedType = "平地"; // ★ここを追加（初期値）
+
+
+
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -369,10 +392,26 @@ function refreshMarkersOnMap() {
         }, () => alert("位置情報エラー"), {enableHighAccuracy: true});
     }
 
-    async function savePoint(latLng, raw) {
+   
+
+
+
+
+async function savePoint(latLng, raw) {
         showLoading(true);
         const baseDepth = parseFloat(raw) - currentSelectedTide;
-        const data = { method: 'POST', password: adminPass, id: String(Date.now()), lat: latLng.lat, lng: latLng.lng, rawDepth: raw, baseDepth: baseDepth, timestamp: document.getElementById('target-datetime').value, type: "平地", comment: document.getElementById('comment-input').value };
+        const data = { 
+            method: 'POST', 
+            password: adminPass, 
+            id: String(Date.now()), 
+            lat: latLng.lat, 
+            lng: latLng.lng, 
+            rawDepth: raw, 
+            baseDepth: baseDepth, 
+            timestamp: document.getElementById('target-datetime').value, 
+            type: selectedType, // ★ここを "平地" から selectedType に変更！
+            comment: document.getElementById('comment-input').value 
+        };
         try {
             const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(data) });
             if (await res.text() === "success") {
@@ -383,6 +422,17 @@ function refreshMarkersOnMap() {
         } catch (e) { alert("保存失敗"); }
         showLoading(false);
     }
+
+
+
+
+
+
+
+
+
+
+
 
     function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
 
