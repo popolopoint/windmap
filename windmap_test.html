@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.8.1a by Popolo App.com</title>
+<title>コース作るくん v6.8.1b by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -54,7 +54,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 <body>
 
 <h2>コース作るくん <span style="font-size:0.7em;">v6.7.1h by Popolo App.com</span></h2>
-<div id="version">v6.8.1a</div>
+<div id="version">v6.8.1b</div>
 
 <div class="input-row">
   <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -185,23 +185,59 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 
 const DEPTH_DATA_URL = "https://script.google.com/macros/s/AKfycbw1wg_a28-_dOyLbik9VnYfbzKEHPNBWwaVVeyc4gcibovUIQ5BUGNw1esYy0beyZVf3g/exec";
 
+
+
+
+
 async function loadDepthData() {
     try {
         const res = await fetch(DEPTH_DATA_URL);
         const data = await res.json();
-        data.points.forEach(p => {
+        const points = data.points || [];
+        const tideData = data.allTideData || []; 
+
+        const now = new Date();
+        const hour = now.getHours();
+        const min = now.getMinutes();
+        const currentTide = calculateCurrentTide(tideData, hour, min);
+
+        points.forEach(p => {
             let sym = (p[6] === "岩") ? "M 0,-1.1 L 1.2,1 L -1.2,1 Z" : google.maps.SymbolPath.CIRCLE;
+            const realDepth = parseFloat(p[4]) + currentTide;
+            
             new google.maps.Marker({
                 position: {lat: Number(p[1]), lng: Number(p[2])},
                 map: map,
-                icon: { path: sym, fillColor: "#ff8c00", fillOpacity: 0.5, scale: 5, strokeColor: "#333", strokeWeight: 1 },
-                title: p[6]
+                icon: { 
+                    path: sym, 
+                    fillColor: getDepthColor(realDepth),
+                    fillOpacity: 0.7, 
+                    scale: 6, 
+                    strokeColor: "#333", 
+                    strokeWeight: 1 
+                },
+                title: `${p[6]}: 水深 ${realDepth.toFixed(0)}cm`
             });
         });
-    } catch(e) { console.log("水深データ取得エラー"); }
+    } catch(e) { console.log("潮位連動エラー"); }
 }
 
+function calculateCurrentTide(tideData, h, m) {
+    if (!tideData || tideData.length < 24) return 0;
+    const t1 = tideData[h];
+    const t2 = tideData[(h + 1) % 24];
+    return t1 + (t2 - t1) * (m / 60);
+}
 
+function getDepthColor(b) {
+    if (b < 15) return "#ff0000";
+    if (b < 40) return "#ff8c00";
+    if (b < 70) return "#ffff00";
+    if (b < 100) return "#00ff00";
+    if (b < 140) return "#0000ff";
+    if (b < 180) return "#4b0082";
+    return "#8e44ad";
+}
 
 
 
