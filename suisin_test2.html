@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.8.2b by Popolo App.com</title>
+    <title>水深測っ太郎 v1.8.2c by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -36,7 +36,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.8.2b by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.8.2c by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
@@ -161,23 +161,41 @@
         }
     }
 
-    function drawCustomLine(path, isBold) {
+
+
+
+
+
+
+
+function drawCustomLine(path, isBold) {
         const line = new google.maps.Polyline({
             path: path,
             geodesic: true,
             strokeColor: '#000000',
-            strokeOpacity: isBold ? 0.4 : 0.2, // 100mは少し濃く
-            strokeWeight: isBold ? 1.5 : 1,   // 100mは少し太く
+            // 100m実線は0.3（やや薄め）、50m点線は0.1（かなり薄く）
+            strokeOpacity: isBold ? 0.3 : 0.1, 
+            // 線の太さを 100mは1、50mは0.5（極細）に設定
+            strokeWeight: isBold ? 1 : 0.5,   
             icons: isBold ? [] : [{
-                icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 2 },
+                icon: { 
+                    path: 'M 0,-1 0,1', 
+                    strokeOpacity: 0.5, // 点線一つ一つの粒も薄く
+                    scale: 1            // 点線の粒を小さく
+                },
                 offset: '0',
-                repeat: '10px' // 50mラインを点線にする設定
+                repeat: '12px'          // 点の間隔を少し広げてスッキリさせる
             }],
             map: map,
             clickable: false
         });
         gridLines.push(line);
     }
+
+
+
+
+
 
 
 
