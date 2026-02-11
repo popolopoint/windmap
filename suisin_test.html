@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.7.5d by Popolo App.com</title>
+    <title>水深測っ太郎 v1.8.2a by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -25,20 +25,7 @@
         #map-container { flex-grow: 1; position: relative; }
         #map { width: 100%; height: 100%; }
         
-        /* 凡例のスタイル */
-        .depth-legend {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 8px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-            z-index: 10;
-            font-size: 0.7rem;
-            font-weight: bold;
-            pointer-events: none;
-        }
+        .depth-legend { position: absolute; top: 10px; right: 10px; background: rgba(255, 255, 255, 0.9); padding: 8px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 10; font-size: 0.7rem; font-weight: bold; pointer-events: none; }
         .legend-item { display: flex; align-items: center; margin-bottom: 3px; }
         .color-box { width: 12px; height: 12px; margin-right: 6px; border: 1px solid #333; border-radius: 2px; }
 
@@ -49,7 +36,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.7.5d by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.8.2a by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
@@ -76,7 +63,6 @@
 
 <div id="map-container">
     <div id="map"></div>
-    
     <div class="depth-legend">
         <div class="legend-item"><div class="color-box" style="background:#ff0000;"></div>15cm未満</div>
         <div class="legend-item"><div class="color-box" style="background:#ff8c00;"></div>15-40cm</div>
@@ -86,7 +72,6 @@
         <div class="legend-item"><div class="color-box" style="background:#4b0082;"></div>140-180cm</div>
         <div class="legend-item"><div class="color-box" style="background:#8e44ad;"></div>180cm以上</div>
     </div>
-
     <div class="gps-button" onclick="updateMyLocation(true)">📍</div>
 </div>
 
@@ -107,16 +92,15 @@
     let fullTideMasterData = [];
     let myLocationMarker = null;
     let selectedType = "平地";
+    let gridLines = []; // グリッド線管理用
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-    
     function selectType(type, btn) {
         selectedType = type;
         document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
     }
-
     function saveAdminPass() {
         adminPass = document.getElementById('pass-input').value.trim();
         localStorage.setItem('popolo_pass', adminPass);
@@ -135,14 +119,61 @@
 
     async function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
-            zoom: 17, center: { lat: 26.3318, lng: 127.9288 }, 
+            zoom: 19, center: { lat: 26.3318, lng: 127.9288 }, 
             mapTypeId: 'roadmap', mapTypeControl: true,
             gestureHandling: 'greedy'
         });
+        
+        // 地図移動完了時にグリッドを再描画
+        map.addListener('idle', drawGrid);
+
         setNow();
         await syncData();
         updateMyLocation(true);
         navigator.geolocation.watchPosition(updateMyLocation, null, {enableHighAccuracy: true});
+    }
+
+    // グリッド線を描画する関数
+    function drawGrid() {
+        gridLines.forEach(line => line.setMap(null));
+        gridLines = [];
+
+        const zoom = map.getZoom();
+        if (zoom < 16) return; // ズームが遠いときは描画しない
+
+        const bounds = map.getBounds();
+        const north = bounds.getNorthEast().lat();
+        const east = bounds.getNorthEast().lng();
+        const south = bounds.getSouthWest().lat();
+        const west = bounds.getSouthWest().lng();
+
+        const step = 0.0001; // グリッドの間隔（約10m）
+
+        const startLat = Math.floor(south / step) * step;
+        const startLng = Math.floor(west / step) * step;
+
+        const lineOptions = {
+            strokeColor: '#000000',
+            strokeOpacity: 0.2,
+            strokeWeight: 1,
+            map: map,
+            clickable: false
+        };
+
+        // 緯度線
+        for (let lat = startLat; lat <= north; lat += step) {
+            gridLines.push(new google.maps.Polyline({
+                ...lineOptions,
+                path: [{lat: lat, lng: west}, {lat: lat, lng: east}]
+            }));
+        }
+        // 経度線
+        for (let lng = startLng; lng <= east; lng += step) {
+            gridLines.push(new google.maps.Polyline({
+                ...lineOptions,
+                path: [{lat: south, lng: lng}, {lat: north, lng: lng}]
+            }));
+        }
     }
 
     function updateMyLocation(panTo = false) {
@@ -204,24 +235,13 @@
         let sym = google.maps.SymbolPath.CIRCLE;
         if(d.type === "岩") sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; 
         else if(d.type === "杭") sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z"; 
-
         const marker = new google.maps.Marker({
             position: {lat: Number(d.lat), lng: Number(d.lng)}, 
             map: map,
             icon: { path: sym, fillColor: getDepthColor(d.simDepth), fillOpacity: 0.9, scale: 7, strokeColor: "#333", strokeWeight: 1.5 }
         });
-
         const info = new google.maps.InfoWindow({
-            content: `
-                <div style="font-size:12px; width:150px;">
-                    <b>${d.type}</b><br>
-                    水深: <b>${d.simDepth.toFixed(1)}cm</b><br>
-                    <input type="text" id="edit-cmt-${d.id}" value="${d.comment}" style="width:100%; margin-top:5px; font-size:11px;" placeholder="コメントを編集">
-                    <div style="margin-top:8px; display:flex; gap:5px;">
-                        <button onclick="updateComment('${d.id}')" style="background:#3498db; color:white; border:none; padding:4px 8px; border-radius:3px;">保存</button>
-                        <button onclick="deletePoint('${d.id}')" style="background:none; border:1px solid red; color:red; padding:4px 8px; border-radius:3px;">削除</button>
-                    </div>
-                </div>`
+            content: `<div style="font-size:12px; width:150px;"><b>${d.type}</b><br>水深: <b>${d.simDepth.toFixed(1)}cm</b><br><input type="text" id="edit-cmt-${d.id}" value="${d.comment}" style="width:100%; margin-top:5px; font-size:11px;" placeholder="コメントを編集"><div style="margin-top:8px; display:flex; gap:5px;"><button onclick="updateComment('${d.id}')" style="background:#3498db; color:white; border:none; padding:4px 8px; border-radius:3px;">保存</button><button onclick="deletePoint('${d.id}')" style="background:none; border:1px solid red; color:red; padding:4px 8px; border-radius:3px;">削除</button></div></div>`
         });
         marker.addListener("click", () => info.open(map, marker));
         markers.push(marker);
@@ -245,19 +265,11 @@
         const comment = document.getElementById('comment-input').value;
         if (!raw) return alert("水深を入力してください");
         const baseDepth = parseFloat(raw) - currentSelectedTide;
-        const pointData = { 
-            method: 'POST', password: adminPass, id: String(Date.now()), lat: latLng.lat(), lng: latLng.lng(), 
-            rawDepth: raw, baseDepth: baseDepth, timestamp: document.getElementById('target-datetime').value, 
-            type: selectedType, comment: comment 
-        };
+        const pointData = { method: 'POST', password: adminPass, id: String(Date.now()), lat: latLng.lat(), lng: latLng.lng(), rawDepth: raw, baseDepth: baseDepth, timestamp: document.getElementById('target-datetime').value, type: selectedType, comment: comment };
         showLoading(true);
         try {
             const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(pointData) });
-            if ((await res.text()).trim() === "success") {
-                await syncData();
-                document.getElementById('depth-input').value = "";
-                document.getElementById('comment-input').value = "";
-            }
+            if ((await res.text()).trim() === "success") { await syncData(); document.getElementById('depth-input').value = ""; document.getElementById('comment-input').value = ""; }
         } catch (e) {}
         showLoading(false);
     }
