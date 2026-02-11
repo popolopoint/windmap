@@ -147,7 +147,7 @@
         const south = bounds.getSouthWest().lat();
         const west = bounds.getSouthWest().lng();
 
-        const step = 0.0001; // グリッドの間隔（約10m）
+        const step = 0.0005; // グリッドの間隔（約10m）
 
         const startLat = Math.floor(south / step) * step;
         const startLng = Math.floor(west / step) * step;
