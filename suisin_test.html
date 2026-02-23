@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.8.2a by Popolo App.com</title>
+    <title>水深測っ太郎 v1.8.3 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -36,7 +36,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.8.2a by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.8.3 by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
@@ -134,49 +134,75 @@
     }
 
     // グリッド線を描画する関数
+   // グリッド線を描画する関数 (50m点線 / 100m実線)
     function drawGrid() {
         gridLines.forEach(line => line.setMap(null));
         gridLines = [];
 
         const zoom = map.getZoom();
-        if (zoom < 16) return; // ズームが遠いときは描画しない
+        if (zoom < 15) return; // ズームが遠いときは非表示
 
         const bounds = map.getBounds();
-        const north = bounds.getNorthEast().lat();
-        const east = bounds.getNorthEast().lng();
-        const south = bounds.getSouthWest().lat();
-        const west = bounds.getSouthWest().lng();
+        const ne = bounds.getNorthEast();
+        const sw = bounds.getSouthWest();
 
-        const step = 0.0005; // グリッドの間隔（約10m）
+        const step = 0.00045; // 約50m間隔
+        
+        const startLat = Math.floor(sw.lat() / step) * step;
+        const startLng = Math.floor(sw.lng() / step) * step;
 
-        const startLat = Math.floor(south / step) * step;
-        const startLng = Math.floor(west / step) * step;
-
-        const lineOptions = {
-            strokeColor: '#000000',
-            strokeOpacity: 0.2,
-            strokeWeight: 1,
-            map: map,
-            clickable: false
-        };
-
-        // 緯度線
-        for (let lat = startLat; lat <= north; lat += step) {
-            gridLines.push(new google.maps.Polyline({
-                ...lineOptions,
-                path: [{lat: lat, lng: west}, {lat: lat, lng: east}]
-            }));
+        for (let lat = startLat; lat <= ne.lat(); lat += step) {
+            const is100m = Math.round(lat / step) % 2 === 0;
+            drawCustomLine([{lat: lat, lng: sw.lng()}, {lat: lat, lng: ne.lng()}], is100m);
         }
-        // 経度線
-        for (let lng = startLng; lng <= east; lng += step) {
-            gridLines.push(new google.maps.Polyline({
-                ...lineOptions,
-                path: [{lat: south, lng: lng}, {lat: north, lng: lng}]
-            }));
+        for (let lng = startLng; lng <= ne.lng(); lng += step) {
+            const is100m = Math.round(lng / step) % 2 === 0;
+            drawCustomLine([{lat: sw.lat(), lng: lng}, {lat: ne.lat(), lng: lng}], is100m);
         }
     }
 
-    function updateMyLocation(panTo = false) {
+
+
+
+
+
+
+
+function drawCustomLine(path, isBold) {
+        const line = new google.maps.Polyline({
+            path: path,
+            geodesic: true,
+            strokeColor: '#000000',
+            // 100m実線は0.3（やや薄め）、50m点線は0.1（かなり薄く）
+            strokeOpacity: isBold ? 0.3 : 0.1, 
+            // 線の太さを 100mは1、50mは0.5（極細）に設定
+            strokeWeight: isBold ? 1 : 0.5,   
+            icons: isBold ? [] : [{
+                icon: { 
+                    path: 'M 0,-1 0,1', 
+                    strokeOpacity: 0.5, // 点線一つ一つの粒も薄く
+                    scale: 1            // 点線の粒を小さく
+                },
+                offset: '0',
+                repeat: '12px'          // 点の間隔を少し広げてスッキリさせる
+            }],
+            map: map,
+            clickable: false
+        });
+        gridLines.push(line);
+    }
+
+
+
+
+
+
+
+
+
+
+
+ function updateMyLocation(panTo = false) {
         navigator.geolocation.getCurrentPosition((pos) => {
             const latLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             if (!myLocationMarker) {
@@ -231,6 +257,8 @@
         });
     }
 
+    
+    
     function createMarker(d) {
         let sym = google.maps.SymbolPath.CIRCLE;
         if(d.type === "岩") sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; 
@@ -240,13 +268,38 @@
             map: map,
             icon: { path: sym, fillColor: getDepthColor(d.simDepth), fillOpacity: 0.9, scale: 7, strokeColor: "#333", strokeWeight: 1.5 }
         });
+
+        // --- ここから修正：文字サイズ、入力欄、ボタンを大きくしました ---
         const info = new google.maps.InfoWindow({
-            content: `<div style="font-size:12px; width:150px;"><b>${d.type}</b><br>水深: <b>${d.simDepth.toFixed(1)}cm</b><br><input type="text" id="edit-cmt-${d.id}" value="${d.comment}" style="width:100%; margin-top:5px; font-size:11px;" placeholder="コメントを編集"><div style="margin-top:8px; display:flex; gap:5px;"><button onclick="updateComment('${d.id}')" style="background:#3498db; color:white; border:none; padding:4px 8px; border-radius:3px;">保存</button><button onclick="deletePoint('${d.id}')" style="background:none; border:1px solid red; color:red; padding:4px 8px; border-radius:3px;">削除</button></div></div>`
+            content: `
+                <div style="font-size:24px; width:280px; padding:10px; line-height:1.4;">
+                    <b>${d.type}</b><br>
+                    水深: <b style="color:#2c3e50;">${d.simDepth.toFixed(1)}cm</b><br>
+                    <input type="text" id="edit-cmt-${d.id}" value="${d.comment}" 
+                           style="width:100%; margin-top:15px; font-size:20px; padding:10px; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;" 
+                           placeholder="コメント編集">
+                    <div style="margin-top:20px; display:flex; gap:10px;">
+                        <button onclick="updateComment('${d.id}')" 
+                                style="flex:1; background:#3498db; color:white; border:none; padding:15px; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">
+                            保存
+                        </button>
+                        <button onclick="deletePoint('${d.id}')" 
+                                style="flex:1; background:white; border:2px solid red; color:red; padding:15px; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">
+                            削除
+                        </button>
+                    </div>
+                </div>`
         });
+        // --- ここまで修正 ---
+
         marker.addListener("click", () => info.open(map, marker));
         markers.push(marker);
     }
 
+    
+    
+    
+    
     function getDepthColor(b) {
         if (b < 15) return "#ff0000"; if (b < 40) return "#ff8c00"; if (b < 70) return "#ffff00"; 
         if (b < 100) return "#00ff00"; if (b < 140) return "#0000ff"; if (b < 180) return "#4b0082"; 
