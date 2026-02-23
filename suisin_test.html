@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.8.3c by Popolo App.com</title>
+    <title>水深測っ太郎 v1.8.3d by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -36,7 +36,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.8.3c by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.8.3d by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
@@ -61,8 +61,11 @@
     <input type="text" id="comment-input" placeholder="一言コメント（任意）">
 </div>
 
+
+
 <div id="map-container">
     <div id="map"></div>
+    
     <div class="depth-legend">
         <div class="legend-item"><div class="color-box" style="background:#ff0000;"></div>15cm未満</div>
         <div class="legend-item"><div class="color-box" style="background:#ff8c00;"></div>15-40cm</div>
@@ -71,7 +74,23 @@
         <div class="legend-item"><div class="color-box" style="background:#0000ff;"></div>100-140cm</div>
         <div class="legend-item"><div class="color-box" style="background:#4b0082;"></div>140-180cm</div>
         <div class="legend-item"><div class="color-box" style="background:#8e44ad;"></div>180cm以上</div>
+        
+        <hr style="border: 0; border-top: 1px solid #ccc; margin: 8px 0;">
+        <div style="font-size: 0.65rem; color: #333;">
+            <div class="legend-item">
+                <div style="width: 12px; height: 0; border-top: 2px solid #000; margin-right: 6px;"></div>実線: 100m
+            </div>
+            <div class="legend-item">
+                <div style="width: 12px; height: 0; border-top: 2px dotted #666; margin-right: 6px;"></div>点線: 50m
+            </div>
+        </div>
     </div>
+    
+    
+    
+    
+    
+  
     <div class="gps-button" onclick="updateMyLocation(true)">📍</div>
 </div>
 
