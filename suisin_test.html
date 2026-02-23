@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.8.3b by Popolo App.com</title>
+    <title>水深測っ太郎 v1.8.3c by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -36,7 +36,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.8.3b by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.8.3c by Popolo App.com</div>
 
 <div class="ui-panel">
     <div class="datetime-panel">
@@ -86,8 +86,11 @@
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
+
+
+
 <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw1wg_a28-_dOyLbik9VnYfbzKEHPNBWwaVVeyc4gcibovUIQ5BUGNw1esYy0beyZVf3g/exec"; 
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxnc1lgELgFHBh41zYKm0nCRIbGks3AeMgR75G0VCEfOA_RcebeToLBtcs5BhJx_iNVkg/exec"; 
     let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
     let fullTideMasterData = [];
     let myLocationMarker = null;
