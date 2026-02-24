@@ -280,17 +280,36 @@ function drawCustomLine(path, isBold) {
     }
 
     
-    
     function createMarker(d) {
-        let sym = google.maps.SymbolPath.CIRCLE;
-        if(d.type === "岩") sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; 
-        else if(d.type === "杭") sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z"; 
-        const marker = new google.maps.Marker({
-            position: {lat: Number(d.lat), lng: Number(d.lng)}, 
-            map: map,
-            icon: { path: sym, fillColor: getDepthColor(d.simDepth), fillOpacity: 0.9, scale: 7, strokeColor: "#333", strokeWeight: 1.5 }
-        });
+    let sym = google.maps.SymbolPath.CIRCLE;
+    let currentScale = 3.5; // 平地は 7 から 3.5（半分）に変更
 
+    if(d.type === "岩") {
+        sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z";
+        currentScale = 7; 
+    } else if(d.type === "杭") {
+        sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z";
+        currentScale = 7;
+    }
+
+    const marker = new google.maps.Marker({
+        position: {lat: Number(d.lat), lng: Number(d.lng)}, 
+        map: map,
+        icon: { 
+            path: sym, 
+            fillColor: getDepthColor(d.simDepth), 
+            fillOpacity: 0.9, 
+            scale: currentScale, 
+            strokeColor: "#333", 
+            strokeWeight: 1.5 
+        }
+    });
+    // 以降の InfoWindow 処理は変更なし
+
+
+
+
+ 
         // 修正ポイント：水深も input 要素に変更。IDは 'edit-depth-' + id
         const info = new google.maps.InfoWindow({
             content: `
