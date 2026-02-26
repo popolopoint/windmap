@@ -186,33 +186,44 @@ const COLORS = { A:'#ff3b30', B:'#0000ff', C:'#ffff00', D:'#28a745', E:'#6a1b9a'
 let currentIsPort = true;
 let path = [];
 
+
+
+
+// --- checkUrlParams関数の中 ---
 function checkUrlParams() {
   const urlParams = new URLSearchParams(window.location.search);
   const lat = urlParams.get('lat');
   const lng = urlParams.get('lng');
-
-
-
-
-
-
-const twd = urlParams.get('heading');
-
-
+  const twd = urlParams.get('heading'); // 補正どんからの風向
   const dist = urlParams.get('dist');
   const theta = urlParams.get('theta');
   const course = urlParams.get('course');
 
+  // A点の位置を更新
   if (lat && lng) updateAPos(parseFloat(lat), parseFloat(lng));
+  // 風向をセット
   if (twd) document.getElementById('wind').value = twd;
-  if (dist) document.getElementById('dist').value = dist;
-  if (theta) document.getElementById('theta').value = theta;
-  if (course) {
-    const sel = document.getElementById('courseSelect');
-    sel.value = course;
-    sel.dispatchEvent(new Event('change'));
+  
+  /* ...他のパラメータ処理... */
+}
+
+// --- initMap関数の最後 ---
+function initMap(){
+  /* ...地図初期化処理... */
+
+  checkUrlParams();
+
+  // ★ここを微調整：風向(wind)が入っていて、かつA点(latA)が決まっていれば即計算
+  const windVal = document.getElementById('wind').value;
+  const latA = parseFloat(document.getElementById('latA').value);
+  if(windVal !== "" && !isNaN(latA)) {
+    setTimeout(() => calculateCourse(true), 800); // 地図の描画を待ってから計算
   }
 }
+
+
+
+
 
 function initMap(){
   let centerPos = { lat: 26.3318, lng: 127.9179 };
