@@ -1,197 +1,281 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>コース作くん v1.3.2 by Popolo App.com</title>
-    <style>
-        body { font-family: sans-serif; margin: 0; padding: 0; background: #fdfaf6; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .app-header { background: #e67e22; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
-        .ui-panel { background: white; padding: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1000; flex-shrink: 0; }
-        
-        /* コース作成用入力エリア */
-        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-        .input-group { display: flex; flex-direction: column; }
-        .input-group label { font-size: 0.7rem; font-weight: bold; color: #7f8c8d; margin-bottom: 2px; }
-        .input-group input { padding: 10px; border: 2px solid #e67e22; border-radius: 6px; font-size: 1rem; font-weight: bold; text-align: center; }
-        
-        .main-btn { background: #e67e22; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 1.2rem; width: 100%; cursor: pointer; }
-        .main-btn:active { background: #d35400; transform: scale(0.98); }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>コース作るくん v7.1.1 by Popolo App.com</title>
+// 水深測っ太郎のマップをかさねる
 
-        #map-container { flex-grow: 1; position: relative; border-top: 2px solid #eee; }
-        #map { width: 100%; height: 100%; }
 
-        /* 凡例（水深データ用） */
-        .depth-legend { position: absolute; top: 10px; right: 10px; background: rgba(255, 255, 255, 0.9); padding: 8px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 10; font-size: 0.7rem; pointer-events: none; }
-        .legend-item { display: flex; align-items: center; margin-bottom: 3px; }
-        .color-box { width: 10px; height: 10px; margin-right: 5px; border: 1px solid #333; }
+<style>
+:root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
+body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; background:#f8f9fa; }
+h2 { margin:0 0 8px 0; font-size:18px; }
+#version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
 
-        .gps-button { position: absolute; bottom: 20px; right: 10px; width: 50px; height: 50px; background: white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; z-index: 10; cursor: pointer; font-size: 24px; }
-        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.7); display: none; justify-content: center; align-items: center; z-index: 5000; font-weight: bold; color: #e67e22; }
-    </style>
+.input-row { display: flex; gap: 5px; width: 100%; margin-bottom: 10px; }
+.input-group { flex: 1; display: flex; flex-direction: column; }
+.input-group label { font-size: 11px; font-weight: bold; margin-bottom: 2px; }
+.input-group input { font-size: 24px; padding: 8px 4px; width: 100%; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; text-align: center; }
+
+#courseSelect { font-size: 24px; padding: 8px; width: 100%; border-radius:6px; margin-bottom:10px; }
+.compact-input { font-size: 18px !important; padding: 6px 2px !important; width: 55px !important; text-align:center; border-radius:6px; border:1px solid #ccc; }
+#sausageSettings, #jwsaSettings, #jwsa2Settings, #jwsa3Settings { display:none; flex-wrap:nowrap; align-items:center; gap:4px; background:#f0f0f0; padding:5px; border-radius:8px; margin-bottom:10px; width: 100%; box-sizing: border-box; overflow-x: auto; }
+
+.main-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; width: 100%; margin: 10px 0; }
+.main-buttons button { font-size: 18px; padding: 15px 5px; border-radius: 10px; border: none; color: white; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.16); }
+#btnShareAll { background: var(--gray); }
+#btnStarboard { background: var(--green); }
+#btnPort { background: var(--orange); }
+
+#inputsMode { margin:15px 0; padding:12px; background:#f0f7ff; border-radius:8px; font-size: 16px; color:#333; border:1px solid #d0e0f0; }
+#btnSetCurrent { background: var(--red); color:white; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; margin-top:10px; width:100%; font-size:18px; }
+
+#map { width:100%; height:500px; border-radius:8px; margin-top:10px; box-shadow:0 1px 4px rgba(0,0,0,0.2); }
+#coordsContainer { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; justify-content: space-between; }
+.pointBox { border-radius:50%; width:40px; height:40px; display:flex; justify-content:center; align-items:center; color:white; font-weight:bold; cursor:pointer; font-size: 0.9em; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+
+/* 水深データ用のステータス表示 */
+#depthStatus { font-size: 12px; color: #007AFF; font-weight: bold; text-align: right; margin-bottom: 4px; }
+#loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.7); display: none; justify-content: center; align-items: center; z-index: 2000; font-weight: bold; }
+</style>
 </head>
 <body>
 
-<div id="loading">📡 通信中...</div>
-<div class="app-header">コース作くん v1.3.2 by Popolo App.com</div>
+<div id="loading">📡 水深データ同期中...</div>
+<h2>コース作るくん <span style="font-size:0.7em;">v7.1.1 by Popolo App.com</span></h2>
+<div id="version">v7.1.1</div>
 
-<div class="ui-panel">
-    <div class="input-grid">
-        <div class="input-group">
-            <label>角D (°)</label>
-            <input type="number" id="angle-d" value="30">
-        </div>
-        <div class="input-group">
-            <label>角B (°)</label>
-            <input type="number" id="angle-b" value="45">
-        </div>
-        <div class="input-group">
-            <label>AS距離 (m)</label>
-            <input type="number" id="as-dist" value="100">
-        </div>
-        <div class="input-group">
-            <label>コース名</label>
-            <input type="text" id="course-name" placeholder="第1コース">
-        </div>
-    </div>
-    <button class="main-btn" onclick="recordCourse()">現在地でコース作成・記録</button>
+<div id="depthStatus">📡 水深データ: 読込中...</div>
+
+<div class="input-row">
+  <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
+  <div class="input-group"><label>距離(m)</label><input type="number" id="dist" value="500"></div>
+  <div class="input-group"><label>角度(°)</label><input type="number" id="theta" value="5"></div>
 </div>
 
-<div id="map-container">
-    <div id="map"></div>
-    <div class="depth-legend">
-        <div class="legend-item"><div class="color-box" style="background:#ff0000;"></div>浅い</div>
-        <div class="legend-item"><div class="color-box" style="background:#00ff00;"></div>普通</div>
-        <div class="legend-item"><div class="color-box" style="background:#0000ff;"></div>深い</div>
-    </div>
-    <div class="gps-button" onclick="updateMyLocation(true)">📍</div>
+<select id="courseSelect">
+  <option value="mcourse">Ｍコース</option>
+  <option value="figure8">フィギア８</option>
+  <option value="sausage">ソーセージ</option>
+  <option value="5jibe">５ジャイブ</option>
+  <option value="jwsa">JWSA1</option>
+  <option value="jwsa2">JWSA2</option>
+  <option value="jwsa3">JWSA3</option>
+  <option value="jwsa5">JWSA5</option>
+</select>
+
+<div id="sausageSettings">
+  <label>上<br><input type="number" id="upDist" class="compact-input" value="1000"></label>
+  <label>下<br><input type="number" id="downDist" class="compact-input" value="100"></label>
+  <label>AS距離<br><input type="number" id="distAS" class="compact-input" value="100"></label>
+  <label>S角度<br><input type="number" id="sAngle" class="compact-input" value="0"></label>
 </div>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
+<div id="jwsaSettings">
+  <label>AB<br><input type="number" id="distAB2" class="compact-input" value="500"></label>
+  <label>BG<br><input type="number" id="distBC2" class="compact-input" value="500"></label>
+  <label>GK<br><input type="number" id="distCD2" class="compact-input" value="500"></label>
+  <label>角G<br><input type="number" id="theta2_2" class="compact-input" value="60"></label>
+</div>
+
+<div id="jwsa2Settings">
+  <label>AB<br><input type="number" id="distAB3" class="compact-input" value="500"></label>
+  <label>BF<br><input type="number" id="distBC3" class="compact-input" value="400"></label>
+  <label>FG<br><input type="number" id="distCD3" class="compact-input" value="500"></label>
+  <label>GK<br><input type="number" id="distDE3" class="compact-input" value="500"></label> 
+  <label>角B<br><input type="number" id="theta3_3" class="compact-input" value="45"></label> 
+  <label>角D<br><input type="number" id="theta2_3" class="compact-input" value="30"></label>
+</div>
+
+<div class="main-buttons">
+  <button id="btnShareAll">データ送信</button>
+  <button id="btnStarboard">スタボー</button>
+  <button id="btnPort">ポート</button>
+</div>
+
+<div id="map"></div>
+
+<div id="coordsContainer">
+  <div class="pointBox" id="btnA" style="background:var(--red);">A</div>
+  <div class="pointBox" id="btnB" style="background:var(--blue);">B</div>
+  <div class="pointBox" id="btnC" style="background:var(--yellow); color:#000;">C</div>
+  <div class="pointBox" id="btnD" style="background:var(--green);">D</div>
+  <div class="pointBox" id="btnE" style="background:var(--purple);">E</div>
+  <div class="pointBox" id="btnF" style="background:var(--pink); display:none;">F</div>
+  <div class="pointBox" id="btnG" style="background:var(--navy); display:none;">G</div>
+  <div class="pointBox" id="btnK" style="background:var(--teal); display:none;">K</div>
+  <div class="pointBox" id="btnS" style="background:var(--blue); display:none;">S</div>
+</div>
+
+<input type="hidden" id="latA"><input type="hidden" id="lngA">
 
 <script>
-    const COURSE_APP_URL = "https://script.google.com/macros/s/AKfycbzpDclmR7P8N_MvW-Yid089UoR9yG6i_HByU-N3wL0-FzN-Y1M0X_R3_8H-T0B_9/exec";
-    const DEPTH_APP_URL = "https://script.google.com/macros/s/AKfycbw1wg_a28-_dOyLbik9VnYfbzKEHPNBWwaVVeyc4gcibovUIQ5BUGNw1esYy0beyZVf3g/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxnc1lgELgFHBh41zYKm0nCRIbGks3AeMgR75G0VCEfOA_RcebeToLBtcs5BhJx_iNVkg/exec";
+let map, circles={}, markersLabel={}, polylines=[], depthMarkers=[];
+let points = {A:null,B:null,C:null,D:null,E:null,F:null,G:null,S:null,K:null};
+const COLORS = { A:'#ff3b30', B:'#0000ff', C:'#ffff00', D:'#28a745', E:'#6a1b9a', F:'#ff2d55', G:'#000080', S:'#0000ff', K:'#5ac8fa' };
+let currentIsPort = true;
+let tideMaster = [], currentTide = 0;
 
-    let map, gridLines = [], myLocationMarker = null;
+function initMap(){
+  let centerPos = { lat: 26.3318, lng: 127.9179 };
+  map = new google.maps.Map(document.getElementById('map'), { 
+    center: centerPos, zoom: 16, gestureHandling: 'greedy', disableDefaultUI: true, zoomControl: true, mapTypeId: 'roadmap'
+  });
+  
+  // 起動時に現在地取得
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      const p = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+      map.setCenter(p);
+      updateAPos(p.lat, p.lng);
+    });
+  }
 
-    async function initMap() {
-        map = new google.maps.Map(document.getElementById("map"), {
-            zoom: 18, center: { lat: 26.3318, lng: 127.9288 }, 
-            mapTypeId: 'roadmap', gestureHandling: 'greedy'
-        });
+  syncDepthData();
+}
 
-        map.addListener('idle', drawGrid);
-        
-        // 両方のデータを読み込む
-        await loadDepthMarkers(); 
-        
-        updateMyLocation(true);
-        navigator.geolocation.watchPosition(updateMyLocation, null, {enableHighAccuracy: true});
+// 測ったろうのデータを取得
+async function syncDepthData() {
+  document.getElementById('loading').style.display = 'flex';
+  try {
+    const res = await fetch(WEB_APP_URL);
+    const data = await res.json();
+    tideMaster = data.allTideData || [];
+    calculateTide();
+    renderDepthPoints(data.points || []);
+    document.getElementById('depthStatus').textContent = `✅ 水深データ同期済 (潮位:${currentTide.toFixed(1)}cm)`;
+  } catch (e) {
+    document.getElementById('depthStatus').textContent = "❌ 水深同期失敗";
+  }
+  document.getElementById('loading').style.display = 'none';
+}
+
+function calculateTide() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth()+1, d = now.getDate(), h = now.getHours(), min = now.getMinutes();
+  const row = tideMaster.find(r => {
+    const rd = new Date(r[0]);
+    return rd.getFullYear()===y && (rd.getMonth()+1)===m && rd.getDate()===d;
+  });
+  if (row) {
+    const t1 = parseFloat(row[1+h]), t2 = (h<23)?parseFloat(row[1+h+1]):t1;
+    currentTide = t1 + (t2-t1)*(min/60);
+  }
+}
+
+function renderDepthPoints(allPoints) {
+  depthMarkers.forEach(m => m.setMap(null));
+  depthMarkers = [];
+  allPoints.forEach(p => {
+    const baseDepth = parseFloat(p[4]) || 0;
+    const simDepth = baseDepth + currentTide;
+    const lat = parseFloat(p[1]), lng = parseFloat(p[2]), type = p[6];
+
+    let sym = google.maps.SymbolPath.CIRCLE;
+    let scale = 3;
+    if(type === "岩") { sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; scale = 5; }
+    else if(type === "杭") { sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z"; scale = 5; }
+
+    const marker = new google.maps.Marker({
+      position: {lat, lng},
+      map: map,
+      icon: {
+        path: sym, fillColor: getDepthColor(simDepth), fillOpacity: 0.7,
+        scale: scale, strokeColor: "#333", strokeWeight: 1
+      },
+      clickable: false
+    });
+    depthMarkers.push(marker);
+  });
+}
+
+function getDepthColor(b) {
+  if (b < 20) return "#ff0000"; if (b < 50) return "#ff8c00"; if (b < 80) return "#ffff00";
+  if (b < 100) return "#adff2f"; if (b < 120) return "#00ffff"; if (b < 150) return "#0000ff";
+  if (b < 180) return "#000080"; return "#8e44ad";
+}
+
+function movePoint(lat,lng,dist,bearing){
+  const R=6378137, brng=(bearing%360)*Math.PI/180;
+  const φ1=lat*Math.PI/180, λ1=lng*Math.PI/180, δ=dist/R;
+  const φ2=Math.asin(Math.sin(φ1)*Math.cos(δ)+Math.cos(φ1)*Math.sin(δ)*Math.cos(brng));
+  const λ2=λ1+Math.atan2(Math.sin(brng)*Math.sin(δ)*Math.cos(φ1), Math.cos(δ)-Math.sin(φ1)*Math.sin(φ2));
+  return {lat: φ2*180/Math.PI, lng: λ2*180/Math.PI};
+}
+
+function calculateCourse(isPort){
+  currentIsPort = isPort;
+  const latA=parseFloat(document.getElementById('latA').value), lngA=parseFloat(document.getElementById('lngA').value);
+  if(isNaN(latA)||isNaN(lngA)) return;
+  const wind=parseFloat(document.getElementById('wind').value)||0, dist=parseFloat(document.getElementById('dist').value)||0, theta=parseFloat(document.getElementById('theta').value)||0, course=document.getElementById('courseSelect').value;
+  
+  polylines.forEach(pl => pl.setMap(null)); polylines = [];
+  Object.keys(points).forEach(k => { if(circles[k])circles[k].setMap(null); if(markersLabel[k])markersLabel[k].setMap(null); points[k]=null; });
+
+  let p = {A: {lat:latA, lng:lngA}};
+  const isS = (course==='sausage'), isJW = (course.startsWith('jwsa')), is5J = (course==='5jibe'), isF8 = (course==='figure8');
+
+  if(isS){
+    const dAS = 100; // デフォルト100
+    const sAng = parseFloat(document.getElementById('sAngle').value) || 0;
+    p.S = movePoint(p.A.lat, p.A.lng, dAS, wind + (isPort ? 90+theta+sAng : 270-theta-sAng));
+    const mid = {lat:(p.A.lat+p.S.lat)/2, lng:(p.A.lng+p.S.lng)/2};
+    p.B = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('upDist').value)||1000, wind);
+    p.C = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('downDist').value)||100, wind + 180); 
+  } else if(isJW){
+    const sfx = (course==='jwsa') ? '2' : '3';
+    const dAB=parseFloat(document.getElementById('distAB'+sfx).value)||500, dBC=parseFloat(document.getElementById('distBC'+sfx).value)||400, 
+          dCD=parseFloat(document.getElementById('distCD'+sfx).value)||500, dDE=parseFloat(document.getElementById('distDE'+sfx).value)||500,
+          thD=parseFloat(document.getElementById('theta2_3').value)||30, thB=parseFloat(document.getElementById('theta3_3').value)||45;
+
+    p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
+    p.F = movePoint(p.B.lat, p.B.lng, dBC, isPort ? wind+270+thB : wind+90-thB);
+    p.G = movePoint(p.F.lat, p.F.lng, dCD, wind);
+    if(course !== 'jwsa5') p.K = movePoint(p.G.lat, p.G.lng, dDE, isPort ? wind+270-thD : wind+90+thD);
+  } else {
+    p.B = movePoint(p.A.lat, p.A.lng, dist, isPort?wind+90+theta:wind+270-theta);
+    if(isF8) {
+      p.C = movePoint(p.B.lat, p.B.lng, dist * Math.cos(theta * Math.PI / 180), isPort?wind+270:wind+90);
+      p.E = movePoint(p.B.lat, p.B.lng, dist, isPort?wind+270-theta:wind+90+theta);
+    } else {
+      p.C = movePoint(p.B.lat, p.B.lng, dist, isPort?wind+270-theta:wind+90+theta);
+      p.D = movePoint(p.C.lat, p.C.lng, dist, isPort?wind+90+theta:wind+270-theta);
+      p.E = movePoint(p.D.lat, p.D.lng, dist, isPort?wind+270-theta:wind+90+theta);
     }
+  }
+  points = p;
 
-    // --- 水深データ表示機能 ---
-    async function loadDepthMarkers() {
-        try {
-            const res = await fetch(DEPTH_APP_URL);
-            const data = await res.json();
-            const points = data.points || [];
-            points.forEach(p => {
-                const baseDepth = parseFloat(p[4]) || 0;
-                const type = p[6];
-                let sym = google.maps.SymbolPath.CIRCLE;
-                if(type === "岩") sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; 
-                else if(type === "杭") sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z"; 
+  // 描画
+  Object.keys(points).forEach(k => { if(points[k]) drawPoint(k, points[k], COLORS[k]); });
+  let path = [points.A, points.B, points.C, points.D, points.E].filter(v => v);
+  polylines.push(new google.maps.Polyline({path, strokeColor:'#444', strokeWeight:2, map}));
+}
 
-                new google.maps.Marker({
-                    position: { lat: Number(p[1]), lng: Number(p[2]) },
-                    map: map,
-                    icon: {
-                        path: sym,
-                        fillColor: getDepthColor(baseDepth),
-                        fillOpacity: 0.4, // コース作成の邪魔にならないよう薄く
-                        scale: 5,
-                        strokeColor: "#666",
-                        strokeWeight: 1
-                    },
-                    clickable: false
-                });
-            });
-        } catch (e) { console.error("水深データ取得失敗"); }
-    }
+function updateAPos(lat, lng) {
+  document.getElementById('latA').value = lat.toFixed(6);
+  document.getElementById('lngA').value = lng.toFixed(6);
+}
 
-    function getDepthColor(b) {
-        if (b < 40) return "#ff0000"; if (b < 100) return "#00ff00"; return "#0000ff";
-    }
+function drawPoint(label,pos,color){
+  circles[label]=new google.maps.Circle({ map, center:pos, radius:12, strokeColor:color, fillColor:color, fillOpacity:0.8 });
+  markersLabel[label]=new google.maps.Marker({ position:pos, map, label:{text:label, color:'#fff', fontWeight:"bold"} });
+}
 
-    // --- コース記録機能 ---
-    async function recordCourse() {
-        showLoading(true);
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-            const data = {
-                method: 'POST',
-                lat: pos.coords.latitude,
-                lng: pos.coords.longitude,
-                angleD: document.getElementById('angle-d').value,
-                angleB: document.getElementById('angle-b').value,
-                asDist: document.getElementById('as-dist').value,
-                name: document.getElementById('course-name').value || "新規コース"
-            };
-            try {
-                const res = await fetch(COURSE_APP_URL, { method: 'POST', body: JSON.stringify(data) });
-                alert("コースを保存しました");
-            } catch (e) { alert("保存失敗"); }
-            showLoading(false);
-        }, () => { alert("位置情報エラー"); showLoading(false); }, {enableHighAccuracy: true});
-    }
-
-    // --- グリッド描画 (50m点線 / 100m実線) ---
-    function drawGrid() {
-        gridLines.forEach(line => line.setMap(null));
-        gridLines = [];
-        const zoom = map.getZoom();
-        if (zoom < 15) return;
-        const bounds = map.getBounds();
-        const ne = bounds.getNorthEast();
-        const sw = bounds.getSouthWest();
-        const step = 0.00045; 
-        const startLat = Math.floor(sw.lat() / step) * step;
-        const startLng = Math.floor(sw.lng() / step) * step;
-        for (let lat = startLat; lat <= ne.lat(); lat += step) {
-            const is100m = Math.round(lat / step) % 2 === 0;
-            drawCustomLine([{lat: lat, lng: sw.lng()}, {lat: lat, lng: ne.lng()}], is100m);
-        }
-        for (let lng = startLng; lng <= ne.lng(); lng += step) {
-            const is100m = Math.round(lng / step) % 2 === 0;
-            drawCustomLine([{lat: sw.lat(), lng: lng}, {lat: ne.lat(), lng: lng}], is100m);
-        }
-    }
-
-    function drawCustomLine(path, isBold) {
-        const line = new google.maps.Polyline({
-            path: path, geodesic: true, strokeColor: '#000',
-            strokeOpacity: isBold ? 0.3 : 0.1, strokeWeight: isBold ? 1 : 0.5,
-            icons: isBold ? [] : [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.5, scale: 1 }, offset: '0', repeat: '12px' }],
-            map: map, clickable: false
-        });
-        gridLines.push(line);
-    }
-
-    function updateMyLocation(panTo = false) {
-        navigator.geolocation.getCurrentPosition((pos) => {
-            const latLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            if (!myLocationMarker) {
-                myLocationMarker = new google.maps.Marker({
-                    position: latLng, map: map,
-                    icon: { path: google.maps.SymbolPath.CIRCLE, fillColor: '#e67e22', fillOpacity: 1, scale: 7, strokeColor: 'white', strokeWeight: 2 },
-                    zIndex: 999
-                });
-            } else { myLocationMarker.setPosition(latLng); }
-            if (panTo) map.panTo(latLng);
-        }, null, {enableHighAccuracy: true});
-    }
-
-    function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
+window.addEventListener('load', ()=>{ 
+  document.getElementById('btnStarboard').onclick=()=>calculateCourse(false);
+  document.getElementById('btnPort').onclick=()=>calculateCourse(true);
+  document.getElementById('courseSelect').onchange = (e) => {
+    const v = e.target.value;
+    document.getElementById('sausageSettings').style.display = (v==='sausage'?'flex':'none');
+    document.getElementById('jwsaSettings').style.display = (v==='jwsa'?'flex':'none');
+    document.getElementById('jwsa2Settings').style.display = (v.startsWith('jwsa') && v!=='jwsa'?'flex':'none');
+    calculateCourse(currentIsPort);
+  };
+  initMap();
+});
 </script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 </body>
 </html>
