@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+    <title>虎キング v1.6.3 by Popolo App.com</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; background: #000; overflow: hidden; }
+        #header { background: #1a1a1a; color: #ff9900; padding: 10px; text-align: center; font-weight: bold; position: fixed; width: 100%; height: 40px; z-index: 3000; border-bottom: 2px solid #ff9900; display: flex; justify-content: center; align-items: center; gap: 10px; box-sizing: border-box; }
+        #map { height: 100vh; width: 100vw; z-index: 1; background: #222; }
+        #unit-toggle { background: #333; color: #ff9900; border: 1px solid #ff9900; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold; }
+        #setup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 4000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
+        .setup-box { background: #222; padding: 20px; border-radius: 15px; border: 2px solid #ff9900; text-align: center; width: 80%; max-width: 300px; }
+        .color-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+        .color-btn { width: 100%; aspect-ratio: 1/1; border-radius: 50%; border: 2px solid #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; text-shadow: 1px 1px 2px #000; color: #fff; }
+        #user-list { position: fixed; top: 50px; right: 10px; z-index: 2000; background: rgba(0,0,0,0.8); color: #fff; padding: 8px; border-radius: 8px; width: 100px; max-height: 200px; overflow-y: auto; border: 1px solid #ff9900; font-size: 10px; }
+        .list-title { color: #ff9900; font-weight: bold; border-bottom: 1px solid #ff9900; margin-bottom: 5px; }
+        .user-item { border-bottom: 1px solid #444; padding: 4px 0; }
+        .user-item.me { color: #00ff00; font-weight: bold; }
+        .user-label { background: rgba(0,0,0,0.7); color: #fff; border: 1px solid #ff9900; font-size: 10px; font-weight: bold; padding: 2px 4px; border-radius: 3px; white-space: nowrap; }
+        .status-panel { position: fixed; bottom: 10px; left: 10px; z-index: 2000; background: rgba(0,0,0,0.7); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 9px; }
+        #recenter-btn, #name-btn, #logout-btn { position: fixed; right: 10px; z-index: 2000; background: #fff; border: 2px solid #ff9900; border-radius: 50%; width: 44px; height: 44px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        #recenter-btn { bottom: 70px; font-size: 20px; }
+        #name-btn { bottom: 125px; font-size: 18px; color: #333; }
+        #logout-btn { bottom: 180px; background: #ff4444; border-color: #fff; color: white; font-size: 18px; }
+        .popup-form { color: #333; min-width: 140px; font-size: 12px; }
+        .popup-form select, .popup-form input { width: 100%; margin: 4px 0; padding: 4px; box-sizing: border-box; }
+        .btn-save { background: #ff9900; color: white; border: none; width: 100%; padding: 6px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .btn-del { background: #ff4444; color: white; border: none; width: 100%; padding: 4px; margin-top: 8px; cursor: pointer; border-radius: 4px; font-size: 10px; }
+        .arrow-icon-wrapper { transition: transform 0.2s linear; }
+    </style>
+</head>
+<body>
+
+<div id="setup-overlay" style="display:none;">
+    <div class="setup-box">
+        <h3 style="margin-top:0; color:#ff9900; font-size:18px;">虎キング 設定</h3>
+        <input type="text" id="setup-name" placeholder="名前を入力" style="padding:10px; width:90%; border-radius:8px; border:1px solid #ccc; margin-bottom:10px; font-size:16px;">
+        <p style="font-size:12px; margin-bottom:10px;">色を選んでスタート！</p>
+        <div class="color-grid" id="color-grid"></div>
+    </div>
+</div>
+
+<div id="header">
+    <span style="font-size:14px;">虎キング v1.6.3</span>
+    <button id="unit-toggle" onclick="toggleSpeedUnit()">kt</button>
+</div>
+
+<div id="user-list"><div class="list-title">参加者</div><div id="list-content"></div></div>
+<div id="map"></div>
+<div class="status-panel" id="status">Waiting for GPS...</div>
+
+<button id="logout-btn" onclick="logout()" title="ログアウト">🏃</button>
+<button id="name-btn" onclick="resetUser()" title="再設定">👤</button>
+<button id="recenter-btn" onclick="goMe()">🎯</button>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk"></script>
+<script src="https://unpkg.com/leaflet.gridlayer.googlemutant@latest/dist/Leaflet.GoogleMutant.js"></script>
+
+<script>
+    const firebaseConfig = { 
+        apiKey: "AIzaSyB_OOgXiE1YkFzQK0Nujhnx3lNM_7dp66U", 
+        authDomain: "tra-king.firebaseapp.com", 
+        databaseURL: "https://tra-king-default-rtdb.firebaseio.com", 
+        projectId: "tra-king", 
+        storageBucket: "tra-king.firebasestorage.app", 
+        messagingSenderId: "355068381368", 
+        appId: "1:355068381368:web:440efbe59649791404cc4d" 
+    };
+
+
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+
+
+
+   
+
+    // --- ここから追加：コース作るくん連携処理 ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const pointsData = urlParams.get('points');
+
+    if (pointsData) {
+        // 既存の古いマークを一度リセットしたい場合は以下を有効にしてください
+        // db.ref('objects').remove(); 
+
+        const pts = pointsData.split('|');
+        pts.forEach(p => {
+            const [label, coords] = p.split(':');
+            if (label && coords) {
+                const [lat, lng] = coords.split(',');
+                // Firebaseの objects フォルダに各地点を保存
+                db.ref('objects/' + label).set({
+                    type: (label === 'S' || label.includes('ship')) ? 'ship' : 'buoy',
+                    color: (label === 'A' ? '#ff3b30' : '#ff9900'), // Aは赤、他はオレンジ
+                    lat: parseFloat(lat),
+                    lng: parseFloat(lng),
+                    comment: label + "点 (コース作るくん連携)",
+                    ts: Date.now()
+                });
+            }
+        });
+        // 読み込み終わったらURLからパラメータを消す（再読み込みでの重複登録を防止）
+        window.history.replaceState({}, '', location.pathname);
+        alert("コースデータ（" + pts.length + "地点）を同期しました！");
+    }
+    // --- ここまで追加 ---
+
+  
+    // ...以下、既存の処理へ続く
+
+
+
+
+
+
+    let myId = localStorage.getItem('tora_king_id') || "tiger_" + Math.floor(Math.random()*10000);
+    localStorage.setItem('tora_king_id', myId);
+
+    if (localStorage.getItem('tora_king_logout_pending') === 'true') {
+        db.ref('users/' + myId).remove().then(() => { localStorage.clear(); location.href = location.pathname; });
+        document.body.innerHTML = "<div style='color:white;text-align:center;padding:50px;'>Logout...</div>";
+        throw new Error("Logout");
+    }
+
+    let myName = localStorage.getItem('tora_king_name');
+    let myColor = localStorage.getItem('tora_king_color');
+    let speedUnitMode = parseInt(localStorage.getItem('tora_king_unit') || "0");
+    const units = ["kt", "km/h", "m/s"];
+    const colorPresets = {"赤":"#ff0000","青":"#0000ff","ピンク":"#ff66cc","紫":"#800080","橙":"#ff9900","黄":"#ffff00","緑":"#32cd32","黒":"#222222","白":"#ffffff"};
+
+    const savedPos = JSON.parse(localStorage.getItem('tora_king_pos')) || { lat: 35.0, lng: 135.0, zoom: 15 };
+    
+    // 地図初期化
+    const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([savedPos.lat, savedPos.lng], savedPos.zoom);
+
+    // Google Maps読み込み。エラー回避のためMutantプラグインを使用
+    try {
+        L.gridLayer.googleMutant({ type: 'roadmap' }).addTo(map);
+    } catch(e) {
+        console.error("Google Maps Load Error:", e);
+        alert("地図の読み込みに失敗しました。APIキーまたはネットワークを確認してください。");
+    }
+
+    L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+
+    let myMarker = null, isFollowing = false, watchId = null;
+    const userMarkers = {}, objectMarkers = {};
+
+    function createArrowIcon(color, heading, size = 30) {
+        const rotate = heading || 0;
+        const html = `<div class="arrow-icon-wrapper" style="transform: rotate(${rotate}deg); width:${size}px; height:${size}px;"><svg viewBox="0 0 100 100" width="${size}" height="${size}"><path d="M50 5 L90 90 L50 75 L10 90 Z" fill="${color}" stroke="white" stroke-width="5" stroke-linejoin="round" /></svg></div>`;
+        return L.divIcon({ html: html, className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
+    }
+
+    function updateUnitButton() {
+        document.getElementById('unit-toggle').innerText = units[speedUnitMode];
+    }
+    updateUnitButton();
+
+    window.toggleSpeedUnit = () => {
+        speedUnitMode = (speedUnitMode + 1) % 3;
+        localStorage.setItem('tora_king_unit', speedUnitMode);
+        updateUnitButton();
+        db.ref('users').once('value', () => {}); 
+    };
+
+    if (!myName || !myColor) {
+        const overlay = document.getElementById('setup-overlay');
+        const grid = document.getElementById('color-grid');
+        overlay.style.display = 'flex';
+        for (let label in colorPresets) {
+            const btn = document.createElement('div');
+            btn.className = 'color-btn';
+            btn.style.backgroundColor = colorPresets[label];
+            btn.innerText = label;
+            btn.onclick = () => {
+                const nameInp = document.getElementById('setup-name').value;
+                if (!nameInp) return alert("名前を入力してください");
+                myName = nameInp; myColor = colorPresets[label];
+                localStorage.setItem('tora_king_name', myName); localStorage.setItem('tora_king_color', myColor);
+                overlay.style.display = 'none'; startTracking();
+            };
+            grid.appendChild(btn);
+        }
+    } else { startTracking(); }
+
+    function startTracking() {
+        if (navigator.geolocation) {
+            watchId = navigator.geolocation.watchPosition(pos => {
+                const {latitude, longitude, speed, heading} = pos.coords;
+                if (localStorage.getItem('tora_king_logout_pending') !== 'true') {
+                    db.ref('users/'+myId).set({lat: latitude, lng: longitude, name: myName, color: myColor, speed: speed||0, heading: heading||0, ts: Date.now()});
+                }
+                const latlng = [latitude, longitude];
+                const trail = L.circleMarker(latlng, { radius: 2, color: myColor, weight: 0, fillOpacity: 0.4 }).addTo(map);
+                setTimeout(() => map.removeLayer(trail), 5000);
+
+                const mySize = 30; 
+                if (!myMarker) {
+                    myMarker = L.marker(latlng, { icon: createArrowIcon(myColor, heading, mySize) }).addTo(map);
+                    myMarker.bindTooltip(myName, {permanent: true, direction: 'top', className: 'user-label'}).openTooltip();
+                } else {
+                    myMarker.setLatLng(latlng);
+                    myMarker.setIcon(createArrowIcon(myColor, heading, mySize));
+                }
+                if (isFollowing) map.panTo(latlng);
+                document.getElementById('status').innerText = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+            }, e => {
+                console.warn(e.message);
+                document.getElementById('status').innerText = "GPS Error: " + e.message;
+            }, {enableHighAccuracy: true, timeout: 10000, maximumAge: 0});
+        }
+    }
+
+    db.ref('users').on('value', snap => {
+        const users = snap.val();
+        if (!users) { document.getElementById('list-content').innerHTML = ""; return; }
+        let listHtml = "";
+        const now = Date.now();
+        for (let id in users) {
+            const u = users[id];
+            if (!u.name || !u.lat) continue;
+            if (now - u.ts > 600000) {
+                if(userMarkers[id]) { map.removeLayer(userMarkers[id]); delete userMarkers[id]; }
+                continue; 
+            }
+            const isMe = (id === myId);
+            const speedMs = u.speed || 0;
+            let speedVal, unitLabel;
+            if (speedUnitMode === 0) { speedVal = (speedMs * 1.94384).toFixed(1); unitLabel = "kt"; }
+            else if (speedUnitMode === 1) { speedVal = (speedMs * 3.6).toFixed(1); unitLabel = "km/h"; }
+            else { speedVal = speedMs.toFixed(1); unitLabel = "m/s"; }
+
+            listHtml += `<div class="user-item ${isMe ? 'me' : ''}">
+                <span style="color:${u.color}">●</span> ${u.name} ${speedVal}${unitLabel}
+            </div>`;
+
+            if (!isMe) {
+                const otherSize = 20; 
+                if (!userMarkers[id]) {
+                    userMarkers[id] = L.marker([u.lat, u.lng], { icon: createArrowIcon(u.color, u.heading, otherSize) }).addTo(map);
+                    userMarkers[id].bindTooltip(u.name, {permanent: true, direction: 'top', className: 'user-label'}).openTooltip();
+                } else {
+                    userMarkers[id].setLatLng([u.lat, u.lng]);
+                    userMarkers[id].setIcon(createArrowIcon(u.color, u.heading, otherSize));
+                }
+            }
+        }
+        document.getElementById('list-content').innerHTML = listHtml;
+    });
+
+    db.ref('objects').on('value', snap => {
+        for (let key in objectMarkers) map.removeLayer(objectMarkers[key]);
+        const objects = snap.val();
+        if (!objects) return;
+        for (let key in objects) {
+            const obj = objects[key];
+            let iconHtml = (obj.type === 'ship') ? `<div style="font-size:16px;">🚤</div>` : `<svg width="12" height="15" viewBox="0 0 100 120"><path d="M50 5 L95 100 Q95 115 50 115 Q5 115 5 100 Z" fill="${obj.color||'#ff9900'}" stroke="white" stroke-width="6" /></svg>`;
+            const marker = L.marker([obj.lat, obj.lng], { icon: L.divIcon({ html: iconHtml, className: 'custom-icon', iconSize: [12, 15], iconAnchor: [6, 14] }) }).addTo(map);
+            marker.bindPopup(`<div class="popup-form" style="text-align:center;"><b>${obj.type==='ship'?'本部船':'ブイ'}</b><br>${obj.comment||''}<br><button class="btn-del" onclick="deleteObject('${key}')">🗑️ 削除</button></div>`);
+            objectMarkers[key] = marker;
+        }
+    });
+
+    map.on('click', e => {
+        const { lat, lng } = e.latlng;
+        const popupContent = `<div class="popup-form"><b>新規設置</b><select id="new_type" onchange="toggleColorSelect()"><option value="buoy">🚩 マークブイ</option><option value="ship">🚤 本部船</option></select><div id="color_area">色: <select id="new_color"><option value="pink">ピンク</option><option value="orange" selected>オレンジ</option><option value="red">赤</option><option value="green">緑</option><option value="yellow">黄色</option></select></div><input type="text" id="new_comment" placeholder="コメント"><button class="btn-save" onclick="saveObject(${lat}, ${lng})">共有</button></div>`;
+        L.popup().setLatLng(e.latlng).setContent(popupContent).openOn(map);
+    });
+    window.toggleColorSelect = () => { document.getElementById('color_area').style.display = (document.getElementById('new_type').value === 'ship') ? 'none' : 'block'; };
+    window.saveObject = (lat, lng) => {
+        const type = document.getElementById('new_type').value, cMap = { pink: "#ff66cc", orange: "#ff9900", red: "#ff0000", green: "#00ff00", yellow: "#ffff00" };
+        const color = cMap[document.getElementById('new_color').value], comment = document.getElementById('new_comment').value;
+        db.ref('objects').push({ type, color, lat, lng, comment, ts: Date.now() });
+        map.closePopup();
+    };
+    window.deleteObject = (key) => { if(confirm("削除しますか？")) db.ref('objects/' + key).remove().then(() => map.closePopup()); };
+    window.resetUser = () => { localStorage.removeItem('tora_king_name'); localStorage.removeItem('tora_king_color'); location.reload(); };
+    window.goMe = () => { isFollowing = true; if(myMarker) map.panTo(myMarker.getLatLng()); };
+    map.on('movestart', e => { if(!e.hard) isFollowing = false; });
+    window.logout = () => { if (confirm("ログアウトして地図から消えますか？")) { if (watchId !== null) navigator.geolocation.clearWatch(watchId); localStorage.setItem('tora_king_logout_pending', 'true'); location.reload(); } };
+    map.on('moveend', () => { const center = map.getCenter(); localStorage.setItem('tora_king_pos', JSON.stringify({ lat: center.lat, lng: center.lng, zoom: map.getZoom() })); });
+</script>
+</body>
+</html>
