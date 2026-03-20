@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.8.2 by Popolo App.com</title>
+<title>コース作るくん v6.8.3 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
@@ -53,7 +53,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body>
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.8.2 by Popolo App.com</span></h2>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.8.3 by Popolo App.com</span></h2>
 <div id="version">v6.8.2</div>
 
 <div class="input-row">
@@ -439,21 +439,42 @@ window.addEventListener('load', ()=>{
     if (navigator.share) navigator.share({ text: t }).catch(() => {}); else alert(t);
   };
 
+ 
+
+
   document.getElementById('btnOpenTora').onclick = () => {
     if (!points || !points.A) { 
       alert("地点データがありません。先にコースを作成してください。"); 
       return; 
     }
+    
+    // 送信先URL
     const toraUrl = "https://popolopoint.github.io/traking/traking_test.html"; 
+    
+    // 地点データを整形
     const pointStrings = Object.keys(points)
       .filter(key => points[key] !== null)
-      .map(key => `${key}:${points[key].lat.toFixed(6)},${points[key].lng.toFixed(6)}`)
+      .map(key => {
+        const lat = points[key].lat.toFixed(6);
+        const lng = points[key].lng.toFixed(6);
+        // ↓ここを修正しました（不要な { } を削除）
+        return `${key}:${lat},${lng}`;
+      })
       .join('|');
 
+    // 送出
     const finalUrl = `${toraUrl}?points=${encodeURIComponent(pointStrings)}`;
+    
+    console.log("虎キングへ送出:", finalUrl);
     window.open(finalUrl, '_blank');
   };
 
+
+
+
+
+
+  
   document.getElementById('btnSetCurrent').onclick = () => { 
     const mode = document.querySelector('input[name="aMode"]:checked').value; 
     if (mode === 'gps') { 
