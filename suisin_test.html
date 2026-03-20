@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.8.5 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.8.6 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
-        .ui-panel { background: white; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 1000; flex-shrink: 0; }
+        
+        /* UIパネルの出し入れ用設定 */
+        .ui-panel { background: white; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 1000; flex-shrink: 0; transition: margin-top 0.3s ease; }
+        .ui-panel.hidden { margin-top: -300px; } /* 数値はパネルの高さに合わせて調整 */
+
         .datetime-panel { background: #ebf5fb; padding: 8px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #aed6f1; }
         .datetime-row { display: flex; gap: 6px; align-items: center; }
         #target-datetime { flex: 1; padding: 10px; border: 1px solid #3498db; border-radius: 6px; font-size: 0.9rem; }
@@ -25,9 +29,14 @@
         #map-container { flex-grow: 1; position: relative; }
         #map { width: 100%; height: 100%; }
         
-        .depth-legend { position: absolute; top: 10px; right: 10px; background: rgba(255, 255, 255, 0.9); padding: 8px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 10; font-size: 0.7rem; font-weight: bold; pointer-events: none; }
+        /* 凡例のスタイル（クリック可能に） */
+        .depth-legend { position: absolute; top: 10px; right: 10px; background: rgba(255, 255, 255, 0.9); padding: 8px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 10; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
+        .legend-content.minimized { display: none; }
         .legend-item { display: flex; align-items: center; margin-bottom: 3px; }
         .color-box { width: 12px; height: 12px; margin-right: 6px; border: 1px solid #333; border-radius: 2px; }
+
+        /* 全画面・戻すボタン */
+        .view-toggle-btn { position: absolute; top: 10px; left: 10px; width: 44px; height: 44px; background: white; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; z-index: 2000; cursor: pointer; font-size: 20px; border: none; }
 
         .gps-button { position: absolute; bottom: 20px; right: 10px; width: 50px; height: 50px; background: white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; z-index: 10; cursor: pointer; font-size: 24px; }
         #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 4000; font-weight: bold; color: #3498db; }
@@ -36,9 +45,9 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.8.5 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.8.6 by Popolo App.com</div>
 
-<div class="ui-panel">
+<div class="ui-panel" id="ui-panel">
     <div class="datetime-panel">
         <div class="datetime-row">
             <input type="datetime-local" id="target-datetime">
@@ -61,44 +70,25 @@
     <input type="text" id="comment-input" placeholder="一言コメント（任意）">
 </div>
 
-
-
 <div id="map-container">
     <div id="map"></div>
     
+    <button class="view-toggle-btn" onclick="toggleUIPanel()" id="toggle-icon">🔭</button>
 
-
-<div class="depth-legend">
-    <div class="legend-item"><div class="color-box" style="background:#ff0000;"></div>20cm未満</div>
-    <div class="legend-item"><div class="color-box" style="background:#ff8c00;"></div>20-50cm</div>
-    <div class="legend-item"><div class="color-box" style="background:#ffff00;"></div>50-80cm</div>
-    <div class="legend-item"><div class="color-box" style="background:#adff2f;"></div>80-100cm</div>
-    <div class="legend-item"><div class="color-box" style="background:#00ffff;"></div>100-120cm</div>
-    <div class="legend-item"><div class="color-box" style="background:#0000ff;"></div>120-150cm</div>
-    <div class="legend-item"><div class="color-box" style="background:#000080;"></div>150-180cm</div>
-    <div class="legend-item"><div class="color-box" style="background:#8e44ad;"></div>180cm以上</div>
-    
-    <hr style="border: 0; border-top: 1px solid #ccc; margin: 8px 0;">
-    <div style="font-size: 0.65rem; color: #333;">
-        <div class="legend-item">
-            <div style="width: 12px; height: 0; border-top: 2px solid #000; margin-right: 6px;"></div>実線: 100m
-        </div>
-        <div class="legend-item">
-            <div style="width: 12px; height: 0; border-top: 2px dotted #666; margin-right: 6px;"></div>点線: 50m
+    <div class="depth-legend" onclick="toggleLegend()">
+        <div id="legend-header">📊 凡例 (タップで開閉)</div>
+        <div class="legend-content" id="legend-content">
+            <div class="legend-item"><div class="color-box" style="background:#ff0000;"></div>20cm未満</div>
+            <div class="legend-item"><div class="color-box" style="background:#ff8c00;"></div>20-50cm</div>
+            <div class="legend-item"><div class="color-box" style="background:#ffff00;"></div>50-80cm</div>
+            <div class="legend-item"><div class="color-box" style="background:#adff2f;"></div>80-100cm</div>
+            <div class="legend-item"><div class="color-box" style="background:#00ffff;"></div>100-120cm</div>
+            <div class="legend-item"><div class="color-box" style="background:#70a1ff;"></div>120-140cm (淡青)</div>
+            <div class="legend-item"><div class="color-box" style="background:#a29bfe;"></div>140-160cm (淡紫)</div>
+            <div class="legend-item"><div class="color-box" style="background:#000080;"></div>160cm以上 (紺)</div>
         </div>
     </div>
-</div>
 
-
-
-
-    
-    
-    
-    
-    
-    
-  
     <div class="gps-button" onclick="updateMyLocation(true)">📍</div>
 </div>
 
@@ -113,16 +103,12 @@
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
-
-
-
 <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxnc1lgELgFHBh41zYKm0nCRIbGks3AeMgR75G0VCEfOA_RcebeToLBtcs5BhJx_iNVkg/exec"; 
     let map, markers = [], allPointsData = [], currentSelectedTide = 0, adminPass = localStorage.getItem('popolo_pass') || "";
     let fullTideMasterData = [];
     let myLocationMarker = null;
     let selectedType = "平地";
-    let gridLines = []; // グリッド線管理用
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -131,108 +117,36 @@
         document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
     }
-    function saveAdminPass() {
-        adminPass = document.getElementById('pass-input').value.trim();
-        localStorage.setItem('popolo_pass', adminPass);
-        closeModal('admin-modal');
-        syncData();
+
+    // UIパネルの表示切り替え（全画面対応）
+    function toggleUIPanel() {
+        const panel = document.getElementById('ui-panel');
+        const icon = document.getElementById('toggle-icon');
+        panel.classList.toggle('hidden');
+        icon.innerText = panel.classList.contains('hidden') ? '📥' : '🔭';
     }
 
-    document.getElementById('target-datetime').addEventListener('change', calculateTideAndRefresh);
-
-    function setNow() {
-        const now = new Date();
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        document.getElementById('target-datetime').value = now.toISOString().slice(0, 16);
-        if (fullTideMasterData.length > 0) calculateTideAndRefresh();
+    // 凡例の表示切り替え
+    function toggleLegend() {
+        const content = document.getElementById('legend-content');
+        content.classList.toggle('minimized');
     }
 
     async function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
             zoom: 19, center: { lat: 26.3318, lng: 127.9288 }, 
             mapTypeId: 'roadmap', mapTypeControl: true,
-            gestureHandling: 'greedy'
+            gestureHandling: 'greedy',
+            scaleControl: true // スケール（縮尺）を表示
         });
         
-        // 地図移動完了時にグリッドを再描画
-        map.addListener('idle', drawGrid);
-
         setNow();
         await syncData();
         updateMyLocation(true);
         navigator.geolocation.watchPosition(updateMyLocation, null, {enableHighAccuracy: true});
     }
 
-    // グリッド線を描画する関数
-   // グリッド線を描画する関数 (50m点線 / 100m実線)
-    function drawGrid() {
-        gridLines.forEach(line => line.setMap(null));
-        gridLines = [];
-
-        const zoom = map.getZoom();
-        if (zoom < 15) return; // ズームが遠いときは非表示
-
-        const bounds = map.getBounds();
-        const ne = bounds.getNorthEast();
-        const sw = bounds.getSouthWest();
-
-        const step = 0.00045; // 約50m間隔
-        
-        const startLat = Math.floor(sw.lat() / step) * step;
-        const startLng = Math.floor(sw.lng() / step) * step;
-
-        for (let lat = startLat; lat <= ne.lat(); lat += step) {
-            const is100m = Math.round(lat / step) % 2 === 0;
-            drawCustomLine([{lat: lat, lng: sw.lng()}, {lat: lat, lng: ne.lng()}], is100m);
-        }
-        for (let lng = startLng; lng <= ne.lng(); lng += step) {
-            const is100m = Math.round(lng / step) % 2 === 0;
-            drawCustomLine([{lat: sw.lat(), lng: lng}, {lat: ne.lat(), lng: lng}], is100m);
-        }
-    }
-
-
-
-
-
-
-
-
-function drawCustomLine(path, isBold) {
-        const line = new google.maps.Polyline({
-            path: path,
-            geodesic: true,
-            strokeColor: '#000000',
-            // 100m実線は0.3（やや薄め）、50m点線は0.1（かなり薄く）
-            strokeOpacity: isBold ? 0.3 : 0.1, 
-            // 線の太さを 100mは1、50mは0.5（極細）に設定
-            strokeWeight: isBold ? 1 : 0.5,   
-            icons: isBold ? [] : [{
-                icon: { 
-                    path: 'M 0,-1 0,1', 
-                    strokeOpacity: 0.5, // 点線一つ一つの粒も薄く
-                    scale: 1            // 点線の粒を小さく
-                },
-                offset: '0',
-                repeat: '12px'          // 点の間隔を少し広げてスッキリさせる
-            }],
-            map: map,
-            clickable: false
-        });
-        gridLines.push(line);
-    }
-
-
-
-
-
-
-
-
-
-
-
- function updateMyLocation(panTo = false) {
+    function updateMyLocation(panTo = false) {
         navigator.geolocation.getCurrentPosition((pos) => {
             const latLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             if (!myLocationMarker) {
@@ -287,84 +201,81 @@ function drawCustomLine(path, isBold) {
         });
     }
 
-    
     function createMarker(d) {
-    let sym = google.maps.SymbolPath.CIRCLE;
-    let currentScale = 3.5; // 平地は 7 から 3.5（半分）に変更
+        let sym = google.maps.SymbolPath.CIRCLE;
+        let currentScale = 3.5;
 
-    if(d.type === "岩") {
-        sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z";
-        currentScale = 7; 
-    } else if(d.type === "杭") {
-        sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z";
-        currentScale = 7;
-    }
-
-    const marker = new google.maps.Marker({
-        position: {lat: Number(d.lat), lng: Number(d.lng)}, 
-        map: map,
-        icon: { 
-            path: sym, 
-            fillColor: getDepthColor(d.simDepth), 
-            fillOpacity: 0.9, 
-            scale: currentScale, 
-            strokeColor: "#333", 
-            strokeWeight: 1.5 
+        if(d.type === "岩") {
+            sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z";
+            currentScale = 7; 
+        } else if(d.type === "杭") {
+            sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z";
+            currentScale = 7;
         }
-    });
-    // 以降の InfoWindow 処理は変更なし
 
+        const marker = new google.maps.Marker({
+            position: {lat: Number(d.lat), lng: Number(d.lng)}, 
+            map: map,
+            icon: { 
+                path: sym, 
+                fillColor: getDepthColor(d.simDepth), 
+                fillOpacity: 0.9, 
+                scale: currentScale, 
+                strokeColor: "#333", 
+                strokeWeight: 1.5 
+            }
+        });
 
-
-
- 
-        // 修正ポイント：水深も input 要素に変更。IDは 'edit-depth-' + id
-       // createMarker内のInfo内容を以下に差し替え
-const info = new google.maps.InfoWindow({
-    content: `
-        <div style="font-size:24px; width:280px; padding:10px; line-height:1.4;">
-            <select id="edit-type-${d.id}" style="font-size:24px; font-weight:bold; margin-bottom:10px; width:100%; padding:5px; border:2px solid #3498db; border-radius:8px;">
-                <option value="平地" ${d.type === '平地' ? 'selected' : ''}>平地</option>
-                <option value="岩" ${d.type === '岩' ? 'selected' : ''}>岩</option>
-                <option value="杭" ${d.type === '杭' ? 'selected' : ''}>杭</option>
-            </select><br>
-            水深(cm): 
-            <input type="number" id="edit-depth-${d.id}" value="${d.simDepth.toFixed(1)}" 
-                   style="width:120px; font-size:24px; font-weight:bold; border:2px solid #3498db; border-radius:8px; padding:5px; text-align:center;">
-            <br>
-            <input type="text" id="edit-cmt-${d.id}" value="${d.comment}" 
-                   style="width:100%; margin-top:15px; font-size:20px; padding:10px; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;" 
-                   placeholder="コメント編集">
-            <div style="margin-top:20px; display:flex; gap:10px;">
-                <button onclick="updatePoint('${d.id}')" 
-                        style="flex:1; background:#3498db; color:white; border:none; padding:15px; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">
-                    保存
-                </button>
-                <button onclick="deletePoint('${d.id}')" 
-                        style="flex:1; background:white; border:2px solid red; color:red; padding:15px; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">
-                    削除
-                </button>
-            </div>
-        </div>`
-});
+        const info = new google.maps.InfoWindow({
+            content: `
+                <div style="font-size:24px; width:280px; padding:10px; line-height:1.4;">
+                    <select id="edit-type-${d.id}" style="font-size:24px; font-weight:bold; margin-bottom:10px; width:100%; padding:5px; border:2px solid #3498db; border-radius:8px;">
+                        <option value="平地" ${d.type === '平地' ? 'selected' : ''}>平地</option>
+                        <option value="岩" ${d.type === '岩' ? 'selected' : ''}>岩</option>
+                        <option value="杭" ${d.type === '杭' ? 'selected' : ''}>杭</option>
+                    </select><br>
+                    水深(cm): 
+                    <input type="number" id="edit-depth-${d.id}" value="${d.simDepth.toFixed(1)}" 
+                           style="width:120px; font-size:24px; font-weight:bold; border:2px solid #3498db; border-radius:8px; padding:5px; text-align:center;">
+                    <br>
+                    <input type="text" id="edit-cmt-${d.id}" value="${d.comment}" 
+                           style="width:100%; margin-top:15px; font-size:20px; padding:10px; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;" 
+                           placeholder="コメント編集">
+                    <div style="margin-top:20px; display:flex; gap:10px;">
+                        <button onclick="updatePoint('${d.id}')" 
+                                style="flex:1; background:#3498db; color:white; border:none; padding:15px; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">
+                            保存
+                        </button>
+                        <button onclick="deletePoint('${d.id}')" 
+                                style="flex:1; background:white; border:2px solid red; color:red; padding:15px; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">
+                            削除
+                        </button>
+                    </div>
+                </div>`
+        });
 
         marker.addListener("click", () => info.open(map, marker));
         markers.push(marker);
     }
     
-    
+    // 修正：凡例の色の指定を反映
     function getDepthColor(b) {
-    if (b < 20) return "#ff0000";    // 赤
-    if (b < 50) return "#ff8c00";    // オレンジ
-    if (b < 80) return "#ffff00";    // 黄色
-    if (b < 100) return "#adff2f";   // 黄緑 (GreenYellow)
-    if (b < 120) return "#00ffff";   // 水色 (Cyan)
-    if (b < 150) return "#0000ff";   // 青
-    if (b < 180) return "#000080";   // 紺 (Navy)
-    return "#8e44ad";                // 紫
-}
-    
-   
+        if (b < 20) return "#ff0000";    // 赤
+        if (b < 50) return "#ff8c00";    // オレンジ
+        if (b < 80) return "#ffff00";    // 黄色
+        if (b < 100) return "#adff2f";   // 黄緑
+        if (b < 120) return "#00ffff";   // 水色
+        if (b < 140) return "#70a1ff";   // やや白を混ぜた青
+        if (b < 160) return "#a29bfe";   // やや白を混ぜた紫
+        return "#000080";                // 紺色
+    }
+
+    function setNow() {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('target-datetime').value = now.toISOString().slice(0, 16);
+        if (fullTideMasterData.length > 0) calculateTideAndRefresh();
+    }
 
     function recordAtCurrentLocation() {
         navigator.geolocation.getCurrentPosition((pos) => {
@@ -387,47 +298,21 @@ const info = new google.maps.InfoWindow({
         showLoading(false);
     }
 
- // 既存の updateComment を削除して、この updatePoint に差し替えてください
     async function updatePoint(id) {
         const newDepth = document.getElementById(`edit-depth-${id}`).value;
         const newCmt = document.getElementById(`edit-cmt-${id}`).value;
-        
         if (!newDepth) return alert("水深を入力してください");
-
-        // 入力された現在の水深(cm)から、現在の潮位を引いて「基準水深」を再計算
         const newBaseDepth = parseFloat(newDepth) - currentSelectedTide;
-
         showLoading(true);
         try {
             const response = await fetch(WEB_APP_URL, { 
                 method: 'POST', 
-                body: JSON.stringify({ 
-                    method: 'UPDATE_POINT', // GAS側の新しい条件分岐に合わせる
-                    password: adminPass, 
-                    id: id, 
-                    rawDepth: newDepth,    // 画面で入力したcm
-                    baseDepth: newBaseDepth, // 計算後の基準値
-                    comment: newCmt 
-                }) 
+                body: JSON.stringify({ method: 'UPDATE_POINT', password: adminPass, id: id, rawDepth: newDepth, baseDepth: newBaseDepth, comment: newCmt }) 
             });
-            
-            const result = await response.text();
-            if (result.trim() === "success") {
-                await syncData(); // 最新データを再取得して地図を更新
-                alert("更新しました！");
-            } else {
-                alert("保存に失敗しました（パスワード違いなど）");
-            }
-        } catch (e) { 
-            alert("通信エラーが発生しました"); 
-        }
+            if ((await response.text()).trim() === "success") { await syncData(); alert("更新しました！"); }
+        } catch (e) { alert("通信エラーが発生しました"); }
         showLoading(false);
     }
-
-
-
-
-
 
     async function deletePoint(id) {
         if (!confirm("削除しますか？")) return;
@@ -440,6 +325,12 @@ const info = new google.maps.InfoWindow({
     }
 
     function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
+    function saveAdminPass() {
+        adminPass = document.getElementById('pass-input').value.trim();
+        localStorage.setItem('popolo_pass', adminPass);
+        closeModal('admin-modal');
+        syncData();
+    }
 </script>
 </body>
 </html>
