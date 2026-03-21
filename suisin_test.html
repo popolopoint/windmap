@@ -138,19 +138,28 @@
         content.classList.toggle('minimized');
     }
 
-    async function initMap() {
-        map = new google.maps.Map(document.getElementById("map"), {
-            zoom: 19, center: { lat: 26.3318, lng: 127.9288 }, 
-            mapTypeId: 'roadmap', mapTypeControl: true,
-            gestureHandling: 'greedy',
-            scaleControl: true // スケール（縮尺）を表示
-        });
+/* 106行目付近 */
+async function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 19, 
+        center: { lat: 26.3318, lng: 127.9288 }, 
+        mapTypeId: 'roadmap', 
         
-        setNow();
-        await syncData();
-        updateMyLocation(true);
-        navigator.geolocation.watchPosition(updateMyLocation, null, {enableHighAccuracy: true});
-    }
+        /* --- 修正箇所：ここから --- */
+        disableDefaultUI: true,  /* すべてのデフォルトUI（矢印、±ボタン、ストリートビューなど）を無効化 */
+        zoomControl: false,      /* ズームボタンを明示的に非表示 */
+        scaleControl: true       /* 縮尺（スケール）だけは残す */
+        /* --- 修正箇所：ここまで --- */
+    });
+    
+    setNow();
+    await syncData();
+    updateMyLocation(true);
+    navigator.geolocation.watchPosition(updateMyLocation, null, {enableHighAccuracy: true});
+}
+
+
+
 
     function updateMyLocation(panTo = false) {
         navigator.geolocation.getCurrentPosition((pos) => {
