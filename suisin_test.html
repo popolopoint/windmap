@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.8.7f by Popolo App.com</title>
+    <title>水深測っ太郎 v2.1.1 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -45,7 +45,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.8.7f by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v2.1.1 by Popolo App.com</div>
 
 <div class="ui-panel" id="ui-panel">
     <div class="datetime-panel">
@@ -56,11 +56,15 @@
         <div id="status-display" class="status-bar">⏳ 起動中...</div>
     </div>
 
-    <div class="type-selector">
-        <button class="type-btn active" onclick="selectType('平地', this)">平地</button>
-        <button class="type-btn" onclick="selectType('岩', this)">岩</button>
-        <button class="type-btn" onclick="selectType('杭', this)">杭</button>
-    </div>
+
+<div class="type-selector">
+    <button class="type-btn active" onclick="selectType('平地', this)">平地</button>
+    <button class="type-btn" onclick="selectType('岩', this)">岩</button>
+    <button class="type-btn" id="btn-big-rock" onclick="selectType('大きい岩', this)">大きい岩</button> 
+    <button class="type-btn" onclick="selectType('杭', this)">杭</button>
+</div>
+
+ 
 
     <div class="input-row">
         <input type="text" id="depth-input" placeholder="今測った水深(cm)">
@@ -216,17 +220,28 @@ async function initMap() {
         });
     }
 
-    function createMarker(d) {
-        let sym = google.maps.SymbolPath.CIRCLE;
-        let currentScale = 3.5;
 
-        if(d.type === "岩") {
-            sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z";
-            currentScale = 7; 
-        } else if(d.type === "杭") {
-            sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z";
-            currentScale = 7;
-        }
+
+    /* 217行目付近 */
+function createMarker(d) {
+    let sym = google.maps.SymbolPath.CIRCLE;
+    let currentScale = 3.5;
+
+    if (d.type === "大きい岩") {
+        sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; // 岩と同じ三角形
+        currentScale = 12; // 通常の岩(7)より大きく設定
+    } else if (d.type === "岩") {
+        sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z";
+        currentScale = 7; 
+    } else if (d.type === "杭") {
+        sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z";
+        currentScale = 7;
+    }
+    // ...以下、InfoWindow内のセレクトボックスにも「大きい岩」の選択肢を追加...
+
+
+
+  
 
         const marker = new google.maps.Marker({
             position: {lat: Number(d.lat), lng: Number(d.lng)}, 
@@ -244,11 +259,20 @@ async function initMap() {
         const info = new google.maps.InfoWindow({
             content: `
                 <div style="font-size:24px; width:280px; padding:10px; line-height:1.4;">
-                    <select id="edit-type-${d.id}" style="font-size:24px; font-weight:bold; margin-bottom:10px; width:100%; padding:5px; border:2px solid #3498db; border-radius:8px;">
-                        <option value="平地" ${d.type === '平地' ? 'selected' : ''}>平地</option>
-                        <option value="岩" ${d.type === '岩' ? 'selected' : ''}>岩</option>
-                        <option value="杭" ${d.type === '杭' ? 'selected' : ''}>杭</option>
-                    </select><br>
+                    
+                    
+                    /* 240行目付近（InfoWindowのコンテンツ内） */
+<select id="edit-type-${d.id}" style="font-size:24px; font-weight:bold; margin-bottom:10px; width:100%; padding:5px; border:2px solid #3498db; border-radius:8px;">
+    <option value="平地" ${d.type === '平地' ? 'selected' : ''}>平地</option>
+    <option value="岩" ${d.type === '岩' ? 'selected' : ''}>岩</option>
+    <option value="大きい岩" ${d.type === '大きい岩' ? 'selected' : ''}>大きい岩</option> <option value="杭" ${d.type === '杭' ? 'selected' : ''}>杭</option>
+</select>
+                    
+                    
+                    
+                    
+                    
+                <br>
                     水深(cm): 
                     <input type="number" id="edit-depth-${d.id}" value="${d.simDepth.toFixed(1)}" 
                            style="width:120px; font-size:24px; font-weight:bold; border:2px solid #3498db; border-radius:8px; padding:5px; text-align:center;">
