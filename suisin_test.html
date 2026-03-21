@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v1.8.7 by Popolo App.com</title>
+    <title>水深測っ太郎 v1.8.7c by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -45,7 +45,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v1.8.7 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v1.8.7c by Popolo App.com</div>
 
 <div class="ui-panel" id="ui-panel">
     <div class="datetime-panel">
@@ -77,16 +77,31 @@
 
     <div class="depth-legend" onclick="toggleLegend()">
         <div id="legend-header">📊 凡例 (タップで開閉)</div>
-        <div class="legend-content" id="legend-content">
-            <div class="legend-item"><div class="color-box" style="background:#ff0000;"></div>20cm未満</div>
-            <div class="legend-item"><div class="color-box" style="background:#ff8c00;"></div>20-50cm</div>
-            <div class="legend-item"><div class="color-box" style="background:#ffff00;"></div>50-80cm</div>
-            <div class="legend-item"><div class="color-box" style="background:#adff2f;"></div>80-100cm</div>
-            <div class="legend-item"><div class="color-box" style="background:#00ffff;"></div>100-120cm</div>
-            <div class="legend-item"><div class="color-box" style="background:#70a1ff;"></div>120-140cm (淡青)</div>
-            <div class="legend-item"><div class="color-box" style="background:#a29bfe;"></div>140-160cm (淡紫)</div>
-            <div class="legend-item"><div class="color-box" style="background:#000080;"></div>160cm以上 (紺)</div>
-        </div>
+    
+
+
+
+
+<div class="legend-content" id="legend-content">
+    <div class="legend-item"><div class="color-box" style="background:#800000;"></div>20cm未満</div>
+    <div class="legend-item"><div class="color-box" style="background:#ff4500;"></div>20-40cm</div>
+    <div class="legend-item"><div class="color-box" style="background:#ffa500;"></div>40-60cm</div>
+    <div class="legend-item"><div class="color-box" style="background:#ffff00;"></div>60-80cm</div>
+    <div class="legend-item"><div class="color-box" style="background:#adff2f;"></div>80-100cm</div>
+    <div class="legend-item"><div class="color-box" style="background:#00ffff;"></div>100-120cm</div>
+    <div class="legend-item"><div class="color-box" style="background:#70a1ff;"></div>120-140cm</div>
+    <div class="legend-item"><div class="color-box" style="background:#a29bfe;"></div>140-160cm</div>
+    <div class="legend-item"><div class="color-box" style="background:#000080;"></div>160cm以上</div>
+</div>
+
+
+
+
+
+
+
+
+
     </div>
 
     <div class="gps-button" onclick="updateMyLocation(true)">📍</div>
@@ -259,16 +274,22 @@
     }
     
     // 修正：凡例の色の指定を反映
-    function getDepthColor(b) {
-        if (b < 20) return "#ff0000";    // 赤
-        if (b < 50) return "#ff8c00";    // オレンジ
-        if (b < 80) return "#ffff00";    // 黄色
-        if (b < 100) return "#adff2f";   // 黄緑
-        if (b < 120) return "#00ffff";   // 水色
-        if (b < 140) return "#70a1ff";   // やや白を混ぜた青
-        if (b < 160) return "#a29bfe";   // やや白を混ぜた紫
-        return "#000080";                // 紺色
-    }
+ 
+function getDepthColor(b) {
+    if (b < 20) return "#800000";    // 20未満：暗い赤（DarkRed）
+    if (b < 40) return "#ff4500";    // 20〜40：赤に近いオレンジ（OrangeRed）
+    if (b < 60) return "#ffa500";
+    if (b < 80) return "#ffff00";
+    if (b < 100) return "#adff2f";
+    if (b < 120) return "#00ffff";
+    if (b < 140) return "#70a1ff";
+    if (b < 160) return "#a29bfe";
+    return "#000080";
+}
+
+
+
+
 
     function setNow() {
         const now = new Date();
