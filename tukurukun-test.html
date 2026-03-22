@@ -3,9 +3,10 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>コース作るくん v7.2.3 by Popolo App.com</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <title>コース作るくん v7.2.4 by Popolo App.com</title>
+   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
+
+
     <style>
         :root {
             --blue: #007AFF; --red: #FF3B30; --green: #28a745; --gray: #8e8e93;
@@ -178,7 +179,7 @@
 
 <div class="header">
     <span class="title">コース作るくん</span>
-    <span class="version">v7.2.3 by Popolo App.com</span>
+    <span class="version">v7.2.4 by Popolo App.com</span>
 </div>
 
 <div class="config-panel">
@@ -328,22 +329,25 @@ const COLOR_MAP = {
     orange: 'var(--buoy-orange)', white: 'var(--buoy-white)', purple: 'var(--buoy-purple)', skyblue: 'var(--buoy-skyblue)'
 };
 
-// Leaflet初期化
+
 function initMap() {
-    map = L.map('map', { zoomControl: false }).setView([26.3318, 127.9179], 15);
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; Popolo App.com'
-    }).addTo(map);
-
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-    // マップクリックで地点をセット
-    map.on('click', function(e) {
-        setPoint(activePoint, e.latlng);
+    // Googleマップの初期設定
+    map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 26.3318, lng: 127.9179 }, // うるま市近辺
+        zoom: 15,
+        mapTypeId: 'roadmap',    // 普通の地図モード
+        disableDefaultUI: true,  // 余計なボタンを隠す
+        zoomControl: true,       // ズームボタンだけ出す
+        gestureHandling: 'greedy' // スマホでスイスイ動かせる設定
     });
 
-    // ポイント切り替え
+    // マップをクリックした時に地点(A, Bなど)を置く命令
+    map.addListener('click', function(e) {
+        // Googleマップでは e.latLng で座標が取れます
+        setPoint(activePoint, e.latLng);
+    });
+
+    // ポイント切り替えボタン（A〜J, S, N）のクリック設定
     document.querySelectorAll('.btn-point').forEach(btn => {
         btn.onclick = function() {
             document.querySelectorAll('.btn-point').forEach(b => b.classList.remove('active'));
@@ -352,6 +356,8 @@ function initMap() {
         };
     });
 }
+
+
 
 // 動的アイコンを生成する関数
 function createCustomIcon(label, data) {
