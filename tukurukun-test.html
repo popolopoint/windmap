@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>コース作るくん vz7.1.1 by Popolo App.com</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root { --blue: #007AFF; --red: #FF3B30; --green: #28a745; --navy: #000080; }
+        body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f4f4f7; }
+        
+        /* ヘッダー */
+        .header { padding: 10px; background: white; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .version { font-size: 11px; color: #666; }
+
+        /* 入力パネル */
+        .config-panel { padding: 10px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; background: #fff; }
+        .input-group { display: flex; flex-direction: column; }
+        .input-group label { font-size: 10px; font-weight: bold; color: #888; margin-bottom: 2px; }
+        .input-group input { font-size: 18px; padding: 6px; border: 1px solid #ccc; border-radius: 6px; text-align: center; }
+
+        /* 地点選択ボタン (A-J) */
+        .point-selector { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px; justify-content: center; background: #fff; border-bottom: 1px solid #ddd; }
+        .btn-point { 
+            width: 38px; height: 38px; border-radius: 50%; border: 1px solid #ccc; 
+            background: white; font-weight: bold; cursor: pointer; font-size: 14px;
+        }
+        .btn-point.active { border: 2px solid var(--blue); background: var(--blue); color: white; box-shadow: 0 0 8px rgba(0,122,255,0.4); }
+
+        /* マップエリア */
+        #map { flex: 1; width: 100%; }
+
+        /* フッター操作 */
+        .controls { padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #fff; }
+        .btn-main { padding: 12px; border-radius: 8px; border: none; color: white; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .btn-starboard { background: var(--green); }
+        .btn-port { background: #f57c00; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <strong>コース作るくん</strong>
+    <span class="version">v7z.1.1 by Popolo App.com</span>
+</div>
+
+<div class="config-panel">
+    <div class="input-group"><label>風向(TWD)</label><input type="number" id="wind" value="0"></div>
+    <div class="input-group"><label>距離(m)</label><input type="number" id="dist" value="500"></div>
+    <div class="input-group"><label>角度(°)</label><input type="number" id="theta" value="5"></div>
+</div>
+
+<div class="point-selector" id="selector">
+    <button class="btn-point active" data-point="A">A</button>
+    <button class="btn-point" data-point="B">B</button>
+    <button class="btn-point" data-point="C">C</button>
+    <button class="btn-point" data-point="D">D</button>
+    <button class="btn-point" data-point="E">E</button>
+    <button class="btn-point" data-point="F">F</button>
+    <button class="btn-point" data-point="G">G</button>
+    <button class="btn-point" data-point="H">H</button>
+    <button class="btn-point" data-point="I">I</button>
+    <button class="btn-point" data-point="J">J</button>
+</div>
+
+<div id="map"></div>
+
+<div class="controls">
+    <button class="btn-main btn-starboard" onclick="calculate(false)">スタボー</button>
+    <button class="btn-main btn-port" onclick="calculate(true)">ポート</button>
+</div>
+
+<script>
+let map, activePoint = 'A';
+let markers = {}; 
+let points = { A:null, B:null, C:null, D:null, E:null, F:null, G:null, H:null, I:null, J:null };
+let polyline = null;
+
+// Leaflet初期化
+function initMap() {
+    // 初期位置: 以前のデータを参考に沖縄付近
+    map = L.map('map', { zoomControl: false }).setView([26.3318, 127.9179], 15);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    // マップクリックで地点をセット
+    map.on('click', function(e) {
+        setPoint(activePoint, e.latlng);
+    });
+
+    // ポイント切り替え
+    document.querySelectorAll('.btn-point').forEach(btn => {
+        btn.onclick = function() {
+            document.querySelectorAll('.btn-point').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            activePoint = this.dataset.point;
+        };
+    });
+}
+
+function setPoint(label, latlng) {
+    points[label] = { lat: latlng.lat, lng: latlng.lng };
+    
+    // マーカー更新
+    if (markers[label]) {
+        markers[label].setLatLng(latlng);
+    } else {
+        markers[label] = L.marker(latlng, {
+            icon: L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background:var(--navy); color:white; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; border:2px solid white;">${label}</div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            })
+        }).addTo(map);
+    }
+    
+    drawLines();
+}
+
+// 2点間の移動計算
+function movePoint(base, dist, brngDeg) {
+    const R = 6378137;
+    const brng = brngDeg * Math.PI / 180;
+    const φ1 = base.lat * Math.PI / 180;
+    const λ1 = base.lng * Math.PI / 180;
+    const δ = dist / R;
+
+    const φ2 = Math.asin(Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(brng));
+    const λ2 = λ1 + Math.atan2(Math.sin(brng) * Math.sin(δ) * Math.cos(φ1), Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2));
+
+    return { lat: φ2 * 180 / Math.PI, lng: λ2 * 180 / Math.PI };
+}
+
+function drawLines() {
+    if (polyline) map.removeLayer(polyline);
+    
+    // 現在セットされているA-Jを順番に結ぶ（データがあるものだけ）
+    const path = Object.keys(points)
+        .filter(k => points[k] !== null)
+        .map(k => [points[k].lat, points[k].lng]);
+
+    if (path.length > 1) {
+        polyline = L.polyline(path, { color: '#444', weight: 2, dashArray: '5, 5' }).addTo(map);
+    }
+}
+
+function calculate(isPort) {
+    if (!points.A) {
+        alert("まずA点を地図上でタップして決めてください。");
+        return;
+    }
+
+    const wind = parseFloat(document.getElementById('wind').value) || 0;
+    const dist = parseFloat(document.getElementById('dist').value) || 500;
+    const theta = parseFloat(document.getElementById('theta').value) || 0;
+
+    // A点を基準に理想のB点を計算する例（ポート/スタボー対応）
+    const brngB = isPort ? (wind + 90 + theta) : (wind + 270 - theta);
+    const idealB = movePoint(points.A, dist, brngB);
+
+    // 計算結果をB点に強制反映
+    setPoint('B', L.latLng(idealB.lat, idealB.lng));
+    
+    // 自動的に「B」ボタンをアクティブにして、次の「C」入力を促すなどの拡張も可能
+}
+
+window.onload = initMap;
+</script>
+</body>
+</html>
