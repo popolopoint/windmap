@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v2.1.1 by Popolo App.com</title>
+    <title>水深測っ太郎 v2.1.2 by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -45,7 +45,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v2.1.1 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v2.1.2 by Popolo App.com</div>
 
 <div class="ui-panel" id="ui-panel">
     <div class="datetime-panel">
@@ -56,14 +56,14 @@
         <div id="status-display" class="status-bar">⏳ 起動中...</div>
     </div>
 
-
 <div class="type-selector">
     <button class="type-btn active" onclick="selectType('平地', this)">平地</button>
-     <button class="type-btn" id="btn-big-rock" onclick="selectType('大きい岩', this)">大きい岩</button> 
     <button class="type-btn" onclick="selectType('岩', this)">岩</button>
-   
+    <button class="type-btn" onclick="selectType('岩大', this)">岩大</button> 
     <button class="type-btn" onclick="selectType('杭', this)">杭</button>
 </div>
+
+
 
  
 
@@ -224,51 +224,50 @@ async function initMap() {
 
 
     /* 217行目付近 */
+
+/* 217行目付近：createMarker内 */
 function createMarker(d) {
     let sym = google.maps.SymbolPath.CIRCLE;
     let currentScale = 3.5;
 
-    if (d.type === "大きい岩") {
-        sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; // 岩と同じ三角形
-        currentScale = 12; // 通常の岩(7)より大きく設定
-    } else if (d.type === "岩") {
+    // 判定ロジックを「岩大」基準に集約
+    const isBigRock = (d.type === "岩大" || d.type === "大きい岩" || d.type === "大岩");
+    const isRock = (d.type === "岩");
+    const isPost = (d.type === "杭");
+
+    if (isBigRock) {
+        sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; 
+        currentScale = 12; 
+    } else if (isRock) {
         sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z";
         currentScale = 7; 
-    } else if (d.type === "杭") {
+    } else if (isPost) {
         sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z";
         currentScale = 7;
     }
-    // ...以下、InfoWindow内のセレクトボックスにも「大きい岩」の選択肢を追加...
 
+    const marker = new google.maps.Marker({
+        position: {lat: Number(d.lat), lng: Number(d.lng)}, 
+        map: map,
+        icon: { path: sym, fillColor: getDepthColor(d.simDepth), fillOpacity: 0.9, scale: currentScale, strokeColor: "#333", strokeWeight: 1.5 }
+    });
 
+    // 詳細パネル（InfoWindow）内のセレクトボックス
+    const info = new google.maps.InfoWindow({
+        content: `
+            <div style="font-size:24px; width:280px; padding:10px; line-height:1.4;">
+                <select id="edit-type-${d.id}" style="font-size:24px; font-weight:bold; margin-bottom:10px; width:100%; padding:5px; border:2px solid #3498db; border-radius:8px;">
+                    <option value="平地" ${(!isBigRock && !isRock && !isPost) ? 'selected' : ''}>平地</option>
+                    <option value="岩" ${isRock ? 'selected' : ''}>岩</option>
+                    <option value="岩大" ${isBigRock ? 'selected' : ''}>岩大</option>
+                    <option value="杭" ${isPost ? 'selected' : ''}>杭</option>
+                </select><br>
+                <button onclick="updatePoint('${d.id}')" ...>保存</button>
+            </div>`
+    });
+    // ...以下略 
 
-  
-
-        const marker = new google.maps.Marker({
-            position: {lat: Number(d.lat), lng: Number(d.lng)}, 
-            map: map,
-            icon: { 
-                path: sym, 
-                fillColor: getDepthColor(d.simDepth), 
-                fillOpacity: 0.9, 
-                scale: currentScale, 
-                strokeColor: "#333", 
-                strokeWeight: 1.5 
-            }
-        });
-
-        const info = new google.maps.InfoWindow({
-            content: `
-                <div style="font-size:24px; width:280px; padding:10px; line-height:1.4;">
-                    
-                    
-                    /* 240行目付近（InfoWindowのコンテンツ内） */
-<select id="edit-type-${d.id}" style="font-size:24px; font-weight:bold; margin-bottom:10px; width:100%; padding:5px; border:2px solid #3498db; border-radius:8px;">
-    <option value="平地" ${d.type === '平地' ? 'selected' : ''}>平地</option>
-    <option value="岩" ${d.type === '岩' ? 'selected' : ''}>岩</option>
-    <option value="大きい岩" ${d.type === '大きい岩' ? 'selected' : ''}>大きい岩</option> <option value="杭" ${d.type === '杭' ? 'selected' : ''}>杭</option>
-</select>
-                    
+         
                     
                     
                     
@@ -343,21 +342,42 @@ function getDepthColor(b) {
         showLoading(false);
     }
 
-    async function updatePoint(id) {
-        const newDepth = document.getElementById(`edit-depth-${id}`).value;
-        const newCmt = document.getElementById(`edit-cmt-${id}`).value;
-        if (!newDepth) return alert("水深を入力してください");
-        const newBaseDepth = parseFloat(newDepth) - currentSelectedTide;
-        showLoading(true);
-        try {
-            const response = await fetch(WEB_APP_URL, { 
-                method: 'POST', 
-                body: JSON.stringify({ method: 'UPDATE_POINT', password: adminPass, id: id, rawDepth: newDepth, baseDepth: newBaseDepth, comment: newCmt }) 
-            });
-            if ((await response.text()).trim() === "success") { await syncData(); alert("更新しました！"); }
-        } catch (e) { alert("通信エラーが発生しました"); }
-        showLoading(false);
-    }
+
+
+/* 314行目付近：updatePoint関数 */
+async function updatePoint(id) {
+    const newDepth = document.getElementById(`edit-depth-${id}`).value;
+    const newCmt = document.getElementById(`edit-cmt-${id}`).value;
+    const newType = document.getElementById(`edit-type-${id}`).value; // 追加：選択された種類を取得
+
+    if (!newDepth) return alert("水深を入力してください");
+    const newBaseDepth = parseFloat(newDepth) - currentSelectedTide;
+    
+    showLoading(true);
+    try {
+        const response = await fetch(WEB_APP_URL, { 
+            method: 'POST', 
+            body: JSON.stringify({ 
+                method: 'UPDATE_POINT', 
+                password: adminPass, 
+                id: id, 
+                rawDepth: newDepth, 
+                baseDepth: newBaseDepth, 
+                comment: newCmt,
+                type: newType // 追加：スプレッドシートへ送る
+            }) 
+        });
+        if ((await response.text()).trim() === "success") { 
+            await syncData(); 
+            alert("更新しました！"); 
+        }
+    } catch (e) { alert("通信エラーが発生しました"); }
+    showLoading(false);
+}
+
+
+      
+        
 
     async function deletePoint(id) {
         if (!confirm("削除しますか？")) return;
