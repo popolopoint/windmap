@@ -223,36 +223,40 @@ async function initMap() {
 
 
 
-    /* 217行目付近 */
-
-/* 217行目付近：createMarker内 */
-function createMarker(d) {
+ function createMarker(d) {
     let sym = google.maps.SymbolPath.CIRCLE;
     let currentScale = 3.5;
 
-    // 判定ロジックを「岩大」基準に集約
+    // 判定ロジックを「岩大」基準に集約（スプレッドシートの表記揺れもカバー）
     const isBigRock = (d.type === "岩大" || d.type === "大きい岩" || d.type === "大岩");
     const isRock = (d.type === "岩");
     const isPost = (d.type === "杭");
 
     if (isBigRock) {
-        sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; 
-        currentScale = 12; 
+        sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; // 三角形
+        currentScale = 12; // 通常より大きく
     } else if (isRock) {
-        sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z";
+        sym = "M 0,-1.1 L 1.2,1 L -1.2,1 Z"; // 三角形
         currentScale = 7; 
     } else if (isPost) {
-        sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z";
+        sym = "M 0,-1.2 L 1,0 L 0,1.2 L -1,0 Z"; // 菱形
         currentScale = 7;
     }
 
     const marker = new google.maps.Marker({
         position: {lat: Number(d.lat), lng: Number(d.lng)}, 
         map: map,
-        icon: { path: sym, fillColor: getDepthColor(d.simDepth), fillOpacity: 0.9, scale: currentScale, strokeColor: "#333", strokeWeight: 1.5 }
+        icon: { 
+            path: sym, 
+            fillColor: getDepthColor(d.simDepth), 
+            fillOpacity: 0.9, 
+            scale: currentScale, 
+            strokeColor: "#333", 
+            strokeWeight: 1.5 
+        }
     });
 
-    // 詳細パネル（InfoWindow）内のセレクトボックス
+    // 詳細パネル（InfoWindow）
     const info = new google.maps.InfoWindow({
         content: `
             <div style="font-size:24px; width:280px; padding:10px; line-height:1.4;">
@@ -261,42 +265,38 @@ function createMarker(d) {
                     <option value="岩" ${isRock ? 'selected' : ''}>岩</option>
                     <option value="岩大" ${isBigRock ? 'selected' : ''}>岩大</option>
                     <option value="杭" ${isPost ? 'selected' : ''}>杭</option>
-                </select><br>
-                <button onclick="updatePoint('${d.id}')" ...>保存</button>
+                </select>
+                <br>
+                水深(cm): 
+                <input type="number" id="edit-depth-${d.id}" value="${d.simDepth.toFixed(1)}" 
+                       style="width:120px; font-size:24px; font-weight:bold; border:2px solid #3498db; border-radius:8px; padding:5px; text-align:center;">
+                <br>
+                <input type="text" id="edit-cmt-${d.id}" value="${d.comment}" 
+                       style="width:100%; margin-top:15px; font-size:20px; padding:10px; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;" 
+                       placeholder="コメント編集">
+                
+                <div style="margin-top:20px; display:flex; gap:10px;">
+                    <button onclick="updatePoint('${d.id}')" 
+                            style="flex:1; background:#3498db; color:white; border:none; padding:15px; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">
+                        保存
+                    </button>
+                    <button onclick="deletePoint('${d.id}')" 
+                            style="flex:1; background:white; border:2px solid red; color:red; padding:15px; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">
+                        削除
+                    </button>
+                </div>
             </div>`
     });
-    // ...以下略 
 
-         
-                    
-                    
-                    
-                    
-                <br>
-                    水深(cm): 
-                    <input type="number" id="edit-depth-${d.id}" value="${d.simDepth.toFixed(1)}" 
-                           style="width:120px; font-size:24px; font-weight:bold; border:2px solid #3498db; border-radius:8px; padding:5px; text-align:center;">
-                    <br>
-                    <input type="text" id="edit-cmt-${d.id}" value="${d.comment}" 
-                           style="width:100%; margin-top:15px; font-size:20px; padding:10px; border:2px solid #ccc; border-radius:8px; box-sizing:border-box;" 
-                           placeholder="コメント編集">
-                    <div style="margin-top:20px; display:flex; gap:10px;">
-                        <button onclick="updatePoint('${d.id}')" 
-                                style="flex:1; background:#3498db; color:white; border:none; padding:15px; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">
-                            保存
-                        </button>
-                        <button onclick="deletePoint('${d.id}')" 
-                                style="flex:1; background:white; border:2px solid red; color:red; padding:15px; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">
-                            削除
-                        </button>
-                    </div>
-                </div>`
-        });
+    marker.addListener("click", () => info.open(map, marker));
+    markers.push(marker);
+}
 
-        marker.addListener("click", () => info.open(map, marker));
-        markers.push(marker);
-    }
-    
+
+
+
+
+
     // 修正：凡例の色の指定を反映
 function getDepthColor(b) {
     if (b < 20) return "#ff0000";    // 赤
