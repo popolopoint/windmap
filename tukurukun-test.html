@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>コース作るくん v7.1.9 by Popolo App.com</title>
+    <title>コース作るくん v7.2.0 by Popolo App.com</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -154,7 +154,7 @@
 
 <div class="header">
     <span class="title">コース作るくん</span>
-    <span class="version">v7.1.9 by Popolo App.com</span>
+    <span class="version">v7.2.0 by Popolo App.com</span>
 </div>
 
 <div class="config-panel">
@@ -177,8 +177,12 @@
     <button class="btn-point" data-point="I">I</button>
     <button class="btn-point" data-point="J">J</button>
     <button class="btn-point" data-point="N">N</button>
+
 </div>
 
+<div class="controls">
+    <button class="btn-main" style="background: #8e8e93; grid-column: span 2;" onclick="drawRaceLines()">ラインを表示</button>
+</div>
 
 
 <div id="map"></div>
@@ -246,6 +250,13 @@ let map, activePoint = 'A';
 let markers = {}; 
 let polyline = null;
 let currentEditingPoint = null; // 現在モーダルで編集中のポイント
+
+let startLine = null;   // S-Aを結ぶ実線
+let finishLine = null;  // 相手マークとNを結ぶ実線
+let finishTarget = 'J'; // フィニッシュラインの相手（デフォルトはJ）
+
+
+
 
 // 地点データ構造 (座標 + 属性)
 // 全ての地点を「ブイ・三角・オレンジ」で初期化
@@ -517,6 +528,40 @@ function deleteTargetPoint() {
         closeModal();
     }
 }
+
+function drawRaceLines() {
+    // 既に線がある場合は、二重に描画されないよう一旦消去
+    if (startLine) map.removeLayer(startLine);
+    if (finishLine) map.removeLayer(finishLine);
+
+    // 【スタートライン】 S と A が地図上にあれば線を引く
+    if (pointData.S.latlng && pointData.A.latlng) {
+        const sPath = [
+            [pointData.S.latlng.lat, pointData.S.latlng.lng],
+            [pointData.A.latlng.lat, pointData.A.latlng.lng]
+        ];
+        startLine = L.polyline(sPath, { 
+            color: '#FF3B30', // 赤色
+            weight: 5,        // 太くして目立たせる
+            opacity: 0.9 
+        }).addTo(map);
+    }
+
+    // 【フィニッシュライン】 指定したマーク(finishTarget) と N があれば線を引く
+    if (pointData[finishTarget].latlng && pointData.N.latlng) {
+        const fPath = [
+            [pointData[finishTarget].latlng.lat, pointData[finishTarget].latlng.lng],
+            [pointData.N.latlng.lat, pointData.N.latlng.lng]
+        ];
+        finishLine = L.polyline(fPath, { 
+            color: '#FF3B30', // 赤色
+            weight: 5, 
+            opacity: 0.9 
+        }).addTo(map);
+    }
+}
+
+
 
 
 
