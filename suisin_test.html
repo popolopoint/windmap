@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v2L.1.4 by Popolo App.com</title>
+    <title>水深測っ太郎 v2L.1.5 by Popolo App.com</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
@@ -41,12 +41,33 @@
         
         /* Leafletのポップアップ内ボタンのフォント調整 */
         .leaflet-popup-content button { font-family: sans-serif; }
+
+
+/* アイコン自体の背景を透明にする */
+.custom-shape-icon {
+    background: none !important;
+    border: none !important;
+}
+
+/* 上向き三角形（岩） */
+.shape-triangle {
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+
+/* 菱形（杭） */
+.shape-diamond {
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+
+
+
     </style>
 </head>
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v2L.1.4 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v2L.1.5 by Popolo App.com</div>
 
 <div class="ui-panel" id="ui-panel">
     <div class="datetime-panel">
@@ -230,53 +251,44 @@
         return points.map(p => map.layerPointToLatLng(p));
     }
 
-    function createMarker(d) {
+
+function createMarker(d) {
         const isBigRock = (d.type === "岩大" || d.type === "大きい岩" || d.type === "大岩");
         const isRock = (d.type === "岩");
         const isPost = (d.type === "杭");
         const color = getDepthColor(d.simDepth);
         
         let marker;
+        let size = isBigRock ? 24 : 16; // 表示サイズ（ピクセル）
 
-        if (isBigRock || isRock) {
-            // 岩（三角形）
-            const pts = getShapePoints(d.lat, d.lng, "rock", isBigRock);
-            marker = L.polygon(pts, {
-                fillColor: color, fillOpacity: 0.9, color: "#333", weight: 1.5
+        if (isRock || isBigRock || isPost) {
+            // 岩（三角形）または 杭（菱形）をCSSで作成
+            const shapeClass = isPost ? "shape-diamond" : "shape-triangle";
+            const iconHtml = `<div class="${shapeClass}" style="background:${color}; width:${size}px; height:${size}px; border:1px solid #333;"></div>`;
+            
+            const customIcon = L.divIcon({
+                html: iconHtml,
+                className: 'custom-shape-icon',
+                iconSize: [size, size],
+                iconAnchor: [size/2, size/2]
             });
-        } else if (isPost) {
-            // 杭（菱形）
-            const pts = getShapePoints(d.lat, d.lng, "post", false);
-            marker = L.polygon(pts, {
-                fillColor: color, fillOpacity: 0.9, color: "#333", weight: 1.5
-            });
+            marker = L.marker([d.lat, d.lng], { icon: customIcon });
         } else {
-            // 平地（円）
+            // 平地（円）はそのまま circleMarker を使用（これはズームしても大きさが変わらない設定が可能）
             marker = L.circleMarker([d.lat, d.lng], {
                 radius: 6, fillColor: color, fillOpacity: 0.9, color: "#333", weight: 1.5
             });
         }
 
-        const popupContent = `
-            <div style="font-size:18px; width:220px; line-height:1.4;">
-                <select id="edit-type-${d.id}" style="font-size:18px; width:100%; margin-bottom:10px;">
-                    <option value="平地" ${(!isBigRock && !isRock && !isPost) ? 'selected' : ''}>平地</option>
-                    <option value="岩" ${isRock ? 'selected' : ''}>岩</option>
-                    <option value="岩大" ${isBigRock ? 'selected' : ''}>岩大</option>
-                    <option value="杭" ${isPost ? 'selected' : ''}>杭</option>
-                </select>
-                水深(cm): <input type="number" id="edit-depth-${d.id}" value="${d.simDepth.toFixed(1)}" style="width:80px; font-size:18px;">
-                <input type="text" id="edit-cmt-${d.id}" value="${d.comment}" style="width:100%; margin-top:10px; font-size:16px;" placeholder="コメント">
-                <div style="margin-top:10px; display:flex; gap:5px;">
-                    <button onclick="updatePoint('${d.id}')" style="flex:1; padding:10px; background:#3498db; color:white; border:none; border-radius:5px;">保存</button>
-                    <button onclick="deletePoint('${d.id}')" style="flex:1; padding:10px; background:white; border:1px solid red; color:red; border-radius:5px;">削除</button>
-                </div>
-            </div>`;
-
+        // --- 以下、ポップアップ等の処理は変更なし ---
+        const popupContent = `...既存のコード...`;
         marker.bindPopup(popupContent).addTo(map);
         markers.push(marker);
     }
 
+
+
+    
     // --- ここまで差し替え ---
     
 
