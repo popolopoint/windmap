@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v2L.1.2 by Popolo App.com</title>
+    <title>水深測っ太郎 v2L.1.3 by Popolo App.com</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
@@ -46,7 +46,7 @@
 <body>
 
 <div id="loading">📡 通信中...</div>
-<div class="app-header">水深測っ太郎 v2L.1.2 by Popolo App.com</div>
+<div class="app-header">水深測っ太郎 v2L.1.3 by Popolo App.com</div>
 
 <div class="ui-panel" id="ui-panel">
     <div class="datetime-panel">
@@ -199,38 +199,62 @@
         });
     }
 
+
+
+
+// --- ここから差し替え ---
+
+    // 多角形の頂点座標を計算する補助関数
+    function getShapePoints(lat, lng, type, isBig) {
+        if (!map) return [];
+        const center = map.latLngToLayerPoint([lat, lng]);
+        let points = [];
+        let size = isBig ? 15 : 10; // 岩大は15、それ以外は10
+
+        if (type === "rock") {
+            // 三角形 (上向き)
+            points = [
+                L.point(center.x, center.y - size),         // 上
+                L.point(center.x - size, center.y + size),  // 左下
+                L.point(center.x + size, center.y + size)   // 右下
+            ];
+        } else if (type === "post") {
+            // 菱形
+            points = [
+                L.point(center.x, center.y - size),         // 上
+                L.point(center.x + size, center.y),         // 右
+                L.point(center.x, center.y + size),         // 下
+                L.point(center.x - size, center.y)          // 左
+            ];
+        }
+        return points.map(p => map.layerPointToLatLng(p));
+    }
+
     function createMarker(d) {
         const isBigRock = (d.type === "岩大" || d.type === "大きい岩" || d.type === "大岩");
         const isRock = (d.type === "岩");
         const isPost = (d.type === "杭");
-
-        let marker;
         const color = getDepthColor(d.simDepth);
+        
+        let marker;
 
         if (isBigRock || isRock) {
-            // 三角形 (岩)
-            const size = isBigRock ? 22 : 14;
-            marker = L.polygon([
-                [0, size], [size, -size], [-size, -size]
-            ].map(p => {
-                const res = map.options.crs.project(L.latLng(d.lat, d.lng));
-                return map.options.crs.unproject(L.point(res.x + p[0], res.y + p[1]));
-            }), { fillColor: color, fillOpacity: 0.9, color: "#333", weight: 1.5 });
-            
-            // シンプルにSVGパスで描画 (Leafletで扱いやすいCircleMarkerベースのカスタム)
-            marker = L.circleMarker([d.lat, d.lng], {
-                radius: isBigRock ? 12 : 8,
-                fillColor: color, fillOpacity: 0.9, color: "#333", weight: 1.5,
-                className: "custom-rock" 
+            // 岩（三角形）
+            const pts = getShapePoints(d.lat, d.lng, "rock", isBigRock);
+            marker = L.polygon(pts, {
+                fillColor: color, fillOpacity: 0.9, color: "#333", weight: 1.5
             });
-            // 岩と杭は形を変えるためにRendererをいじる代わりに、簡易的にCircleMarkerの角数を変える手法もありますが、
-            // 互換性のため、ここでは通常のマーカーとして配置
         } else if (isPost) {
-            // 菱形
-            marker = L.circleMarker([d.lat, d.lng], { radius: 8, fillColor: color, fillOpacity: 0.9, color: "#333", weight: 1.5 });
+            // 杭（菱形）
+            const pts = getShapePoints(d.lat, d.lng, "post", false);
+            marker = L.polygon(pts, {
+                fillColor: color, fillOpacity: 0.9, color: "#333", weight: 1.5
+            });
         } else {
-            // 平地 (円)
-            marker = L.circleMarker([d.lat, d.lng], { radius: 6, fillColor: color, fillOpacity: 0.9, color: "#333", weight: 1.5 });
+            // 平地（円）
+            marker = L.circleMarker([d.lat, d.lng], {
+                radius: 6, fillColor: color, fillOpacity: 0.9, color: "#333", weight: 1.5
+            });
         }
 
         const popupContent = `
@@ -252,6 +276,9 @@
         marker.bindPopup(popupContent).addTo(map);
         markers.push(marker);
     }
+
+    // --- ここまで差し替え ---
+    
 
     function getDepthColor(b) {
         if (b < 20) return "#ff0000";
