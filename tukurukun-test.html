@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>コース作るくん v7.2.4 by Popolo App.com</title>
+    <title>コース作るくん v7.2.4b by Popolo App.com</title>
    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
 
@@ -179,7 +179,7 @@
 
 <div class="header">
     <span class="title">コース作るくん</span>
-    <span class="version">v7.2.4 by Popolo App.com</span>
+    <span class="version">v7.2.4b by Popolo App.com</span>
 </div>
 
 <div class="config-panel">
@@ -395,38 +395,36 @@ iconHtml = `<div class="marker-base buoy-triangle" style="background: ${colorVal
     });
 }
 
-function setPoint(label, latlng) {
-    pointData[label].latlng = { lat: latlng.lat, lng: latlng.lng };
+function setPoint(label, latLng) {
+    // 座標データを保存（GoogleマップのlatLngオブジェクトから数値を取り出す）
+    pointData[label].latlng = { lat: latLng.lat(), lng: latLng.lng() };
     
-    // UIボタンの状態更新
+    // ボタンの見た目を「設置済み」にする
     const btn = document.querySelector(`.btn-point[data-point="${label}"]`);
     if(btn) btn.classList.add('set');
 
-    // マーカー更新
+    // すでにピンがある場合は場所を移動、ない場合は新しく作る
     if (markers[label]) {
-        markers[label].setLatLng(latlng);
-        // アイコン属性も更新
-        markers[label].setIcon(createCustomIcon(label, pointData[label]));
+        markers[label].setPosition(latLng);
     } else {
-        markers[label] = L.marker(latlng, {
-            icon: createCustomIcon(label, pointData[label]),
-            draggable: true // ドラッグ可能にする
-        }).addTo(map);
+        markers[label] = new google.maps.Marker({
+            position: latLng,
+            map: map,
+            label: label, // ピンの上に文字を出す（とりあえず簡易版）
+            draggable: true
+        });
 
-        // マーカークリックで設定モーダルを開く
-        markers[label].on('click', function() {
+        // ピンをクリックしたら設定画面（モーダル）を開く
+        markers[label].addListener('click', function() {
             openModal(label);
         });
 
-        // ドラッグ終了時に座標を更新（ここでは線を引かない）
-        markers[label].on('dragend', function(e) {
-            pointData[label].latlng = e.target.getLatLng();
+        // ピンをドラッグし終わったら座標を更新する
+        markers[label].addListener('dragend', function(e) {
+            pointData[label].latlng = { lat: e.latLng.lat(), lng: e.latLng.lng() };
         });
     }
-    
-    // ここにあった drawLines(); を削除しました
 }
-
 
 
 // アクティブなポイントを削除
