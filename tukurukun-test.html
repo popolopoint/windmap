@@ -55,7 +55,48 @@
         /* ブイの形 */
         .buoy-circle { border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
        
+/* 1. 丸いブイ：サイズを20pxに縮小 */
+.buoy-circle { 
+    width: 20px; 
+    height: 20px; 
+    border-radius: 50%; 
+    border: 2px solid white; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3); 
+}
 
+/* 2. 四角いブイ：以前のまま (幅20px, 高さ30px) */
+.buoy-square { 
+    width: 20px; 
+    height: 30px; 
+    border-radius: 4px; 
+    border: 2px solid white; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3); 
+}
+
+/* 3. 三角ブイ：角丸＋白縁取りへの変更 */
+.buoy-triangle { 
+    width: 20px; 
+    height: 30px; 
+    background: black; /* ここはJavaScriptで各色に塗り替えられます */
+    /* 角を丸くする魔法の設定 */
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    border-radius: 5px; 
+    position: relative;
+}
+
+/* 三角に白い縁取りをつけるための設定 */
+.buoy-triangle::before {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px; right: 2px; bottom: 2px;
+    background: inherit;
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    z-index: -1;
+}
+/* 外側に白い枠線を模した影をつけます */
+.marker-base.buoy-triangle {
+    filter: drop-shadow(0 0 1px white) drop-shadow(0 0 1px white) drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+}
 
 /* 四角いブイ：幅20px、高さ30px */
 .buoy-square { 
@@ -66,16 +107,6 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.3); 
 }
 
-/* 三角のブイ：底辺20px、高さ30px */
-.buoy-triangle { 
-    width: 0; height: 0; 
-    background: none !important; 
-    /* 左右10pxずつで合計20px、下に30px伸ばす */
-    border-left: 10px solid transparent; 
-    border-right: 10px solid transparent; 
-    border-bottom: 30px solid black; 
-    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
-}
 
 
 
@@ -200,17 +231,18 @@ let polyline = null;
 let currentEditingPoint = null; // 現在モーダルで編集中のポイント
 
 // 地点データ構造 (座標 + 属性)
+// 全ての地点を「ブイ・三角・オレンジ」で初期化
 const pointData = {
-    A: { latlng: null, type: 'buoy', shape: 'circle', color: 'red' },
-    B: { latlng: null, type: 'buoy', shape: 'circle', color: 'yellow' },
-    C: { latlng: null, type: 'buoy', shape: 'triangle', color: 'pink' },
-    D: { latlng: null, type: 'buoy', shape: 'square', color: 'orange' },
-    E: { latlng: null, type: 'buoy', shape: 'circle', color: 'white' },
-    F: { latlng: null, type: 'buoy', shape: 'circle', color: 'purple' },
-    G: { latlng: null, type: 'buoy', shape: 'circle', color: 'skyblue' },
-    H: { latlng: null, type: 'boat', shape: 'rib', color: 'black' },
-    I: { latlng: null, type: 'boat', shape: 'fishing', color: 'black' },
-    J: { latlng: null, type: 'buoy', shape: 'circle', color: 'red' }
+    A: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
+    B: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
+    C: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
+    D: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
+    E: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
+    F: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
+    G: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
+    H: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
+    I: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
+    J: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' }
 };
 
 // 色の定義 (CSS変数に対応)
