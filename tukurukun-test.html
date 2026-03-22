@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>コース作るくん v7.2.0 by Popolo App.com</title>
+    <title>コース作るくん v7.2.1 by Popolo App.com</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -154,7 +154,7 @@
 
 <div class="header">
     <span class="title">コース作るくん</span>
-    <span class="version">v7.2.0 by Popolo App.com</span>
+    <span class="version">v7.2.1 by Popolo App.com</span>
 </div>
 
 <div class="config-panel">
@@ -238,6 +238,14 @@
                 </div>
             </div>
         </div>
+
+
+<div id="finishTargetSettings" style="display:none; margin-bottom: 12px;">
+    <div class="modal-section-title">フィニッシュの相手マーク</div>
+    <div class="selector-group" id="finishPartnerSelector">
+        </div>
+</div>
+
 
         <button class="btn-action btn-delete" onclick="deleteTargetPoint()" style="width: 100%; margin-top: 10px; padding: 10px;">このマークを削除</button>
 
@@ -435,28 +443,54 @@ function closeModal() {
 // モーダル内の選択状態をデータに合わせる
 function updateModalUI() {
     const data = pointData[currentEditingPoint];
-    
-    // タイプ
+    const isN = (currentEditingPoint === 'N'); // 現在開いているのがNかどうか
+
+    // --- N専用：フィニッシュ相手選択エリアの表示制御 ---
+    const finishSettings = document.getElementById('finishTargetSettings');
+    if (finishSettings) {
+        finishSettings.style.display = isN ? 'block' : 'none';
+        if (isN) {
+            const container = document.getElementById('finishPartnerSelector');
+            container.innerHTML = ''; // ボタンを一旦リセット
+            ['A','B','C','D','E','F','G','H','I','J'].forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-point' + (finishTarget === p ? ' active' : '');
+                btn.style.width = '30px'; btn.style.height = '30px'; btn.style.fontSize = '12px'; btn.style.margin = '2px';
+                btn.innerText = p;
+                btn.onclick = () => {
+                    finishTarget = p; // 相手を上書き
+                    updateModalUI();  // ボタンの見た目(active)を更新するために自分を再呼出
+                };
+                container.appendChild(btn);
+            });
+        }
+    }
+
+    // --- 以下、既存のタイプ/ブイ/船の設定表示処理 ---
     document.getElementById('typeBuoy').classList.toggle('active', data.type === 'buoy');
     document.getElementById('typeBoat').classList.toggle('active', data.type === 'boat');
     document.getElementById('buoySettings').style.display = data.type === 'buoy' ? 'block' : 'none';
     document.getElementById('boatSettings').style.display = data.type === 'boat' ? 'block' : 'none';
     
     if (data.type === 'buoy') {
-        // ブイの形
         ['circle','square','triangle'].forEach(s => {
-            document.getElementById('shape'+s.charAt(0).toUpperCase()+s.slice(1)).classList.toggle('active', data.shape === s);
+            const el = document.getElementById('shape'+s.charAt(0).toUpperCase()+s.slice(1));
+            if(el) el.classList.toggle('active', data.shape === s);
         });
-        // ブイの色
         ['red','yellow','pink','orange','white','purple','skyblue'].forEach(c => {
-            document.getElementById('color'+c.charAt(0).toUpperCase()+c.slice(1)).classList.toggle('active', data.color === c);
+            const el = document.getElementById('color'+c.charAt(0).toUpperCase()+c.slice(1));
+            if(el) el.classList.toggle('active', data.color === c);
         });
     } else {
-        // 船の種類
-        document.getElementById('shapeRib').classList.toggle('active', data.shape === 'rib');
-        document.getElementById('shapeFishing').classList.toggle('active', data.shape === 'fishing');
+        const rib = document.getElementById('shapeRib');
+        const fish = document.getElementById('shapeFishing');
+        if(rib) rib.classList.toggle('active', data.shape === 'rib');
+        if(fish) fish.classList.toggle('active', data.shape === 'fishing');
     }
 }
+
+
+
 
 function setMarkType(type) {
     pointData[currentEditingPoint].type = type;
@@ -529,35 +563,27 @@ function deleteTargetPoint() {
     }
 }
 
+
 function drawRaceLines() {
-    // 既に線がある場合は、二重に描画されないよう一旦消去
     if (startLine) map.removeLayer(startLine);
     if (finishLine) map.removeLayer(finishLine);
 
-    // 【スタートライン】 S と A が地図上にあれば線を引く
+    // ラインのデザイン設定（黒、細い、点線）
+    const raceLineStyle = { 
+        color: '#333333', 
+        weight: 1.5, 
+        dashArray: '5, 5', 
+        opacity: 0.8 
+    };
+
+    // スタートライン (S - A)
     if (pointData.S.latlng && pointData.A.latlng) {
-        const sPath = [
-            [pointData.S.latlng.lat, pointData.S.latlng.lng],
-            [pointData.A.latlng.lat, pointData.A.latlng.lng]
-        ];
-        startLine = L.polyline(sPath, { 
-            color: '#FF3B30', // 赤色
-            weight: 5,        // 太くして目立たせる
-            opacity: 0.9 
-        }).addTo(map);
+        startLine = L.polyline([pointData.S.latlng, pointData.A.latlng], raceLineStyle).addTo(map);
     }
 
-    // 【フィニッシュライン】 指定したマーク(finishTarget) と N があれば線を引く
-    if (pointData[finishTarget].latlng && pointData.N.latlng) {
-        const fPath = [
-            [pointData[finishTarget].latlng.lat, pointData[finishTarget].latlng.lng],
-            [pointData.N.latlng.lat, pointData.N.latlng.lng]
-        ];
-        finishLine = L.polyline(fPath, { 
-            color: '#FF3B30', // 赤色
-            weight: 5, 
-            opacity: 0.9 
-        }).addTo(map);
+    // フィニッシュライン (任意点 - N)
+    if (pointData[finishTarget] && pointData[finishTarget].latlng && pointData.N.latlng) {
+        finishLine = L.polyline([pointData[finishTarget].latlng, pointData.N.latlng], raceLineStyle).addTo(map);
     }
 }
 
