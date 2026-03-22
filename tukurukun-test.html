@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>コース作るくん v7.2.4b by Popolo App.com</title>
+    <title>コース作るくん v7.2.4c by Popolo App.com</title>
    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 
 
@@ -40,20 +40,43 @@
         .btn-point.set.active { border-color: var(--blue); background: var(--blue); }
 
         /* マップエリア */
-        #map { flex: 1; width: 100%; z-index: 10; }
+       #map { 
+    height: 100%; /* 高さを100%にする */
+    width: 100%; 
+    position: absolute; /* 画面に固定する */
+    top: 0; 
+    left: 0; 
+}
+
+/* マップを入れる箱の設定も調整 */
+#map-container { 
+    position: relative; 
+    flex: 1; 
+    width: 100%; 
+    overflow: hidden; 
+}
 
         /* フッター操作 */
 
-/* 修正：ボタンの間隔を詰め、高さを抑える */
 .controls { 
-    padding: 5px 10px; /* 余白を半分にする */
+    padding: 8px; 
     display: grid; 
     grid-template-columns: 1fr 1fr; 
-    gap: 5px;          /* ボタン同士の隙間を狭くする */
-    background: #fff; 
+    gap: 8px; 
+    background: rgba(255, 255, 255, 0.9); /* 少し透けさせて地図を見やすく */
     border-top: 1px solid #ddd; 
-    z-index: 100; 
+    z-index: 2000; /* マップより必ず上にくるように大きな数字にする */
 }
+
+/* ついでに、全体の枠組みが崩れないよう body も再確認 */
+body { 
+    display: flex; 
+    flex-direction: column; 
+    height: 100vh; 
+    margin: 0; 
+    overflow: hidden; 
+}
+
 
 /* 追加：ボタン自体の高さを少し低くして、画面を節約する */
 .btn-main { 
@@ -179,7 +202,7 @@
 
 <div class="header">
     <span class="title">コース作るくん</span>
-    <span class="version">v7.2.4b by Popolo App.com</span>
+    <span class="version">v7.2.4c by Popolo App.com</span>
 </div>
 
 <div class="config-panel">
