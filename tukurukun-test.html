@@ -56,15 +56,16 @@
 
 /* マップを入れる箱の設定も調整 */
 #map-container { 
-    flex: 1; /* これで上下のパネル以外の隙間を埋めます */
+    flex: 1;            /* これで上下のパネル以外の「余り」を地図にします */
     width: 100%; 
     position: relative; 
-    overflow: hidden; 
+    overflow: hidden;
+    min-height: 200px;  /* スマホで地図が潰れすぎないための最低限の高さ */
 }
-
 #map { 
     height: 100%; 
-    width: 100%; 
+    width: 100%;
+    /* 余計な absolute などの設定を消して、箱の中に収まるようにします */
 }
 
         /* フッター操作 */
@@ -77,7 +78,7 @@
     background: #fff; 
     border-top: 1px solid #ddd; 
     z-index: 100;
-    flex-shrink: 0; /* ボタンエリアが潰されないように固定 */
+    flex-shrink: 0; /* ← これが重要！ボタンが潰されるのを防ぎます */
 }
 
 /* ついでに、全体の枠組みが崩れないよう body も再確認 */
@@ -260,7 +261,7 @@ body {
     <canvas id="draw-canvas" style="position:absolute; top:0; left:0; z-index:1000; display:none; touch-action:none;"></canvas>
 </div>
 
-<div id="map"></div>
+
 
 <div class="controls">
     <button class="btn-main btn-starboard" onclick="calculate(false)">スタボー</button>
