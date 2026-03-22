@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>コース作るくん v7.2.1 by Popolo App.com</title>
+    <title>コース作るくん v7.2.2 by Popolo App.com</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -154,7 +154,7 @@
 
 <div class="header">
     <span class="title">コース作るくん</span>
-    <span class="version">v7.2.1 by Popolo App.com</span>
+    <span class="version">v7.2.2 by Popolo App.com</span>
 </div>
 
 <div class="config-panel">
@@ -184,6 +184,21 @@
     <button class="btn-main" style="background: #8e8e93; grid-column: span 2;" onclick="drawRaceLines()">ラインを表示</button>
 </div>
 
+<div class="controls" style="grid-template-columns: 1fr 1fr 1fr;">
+    <button id="drawModeBtn" class="btn-main" style="background: var(--gray);" onclick="toggleDrawMode()">手書き: OFF</button>
+    <div id="drawControls" style="display:none; gap:5px; align-items:center; justify-content:center;">
+        <div onclick="setPenColor('red')" style="width:25px; height:25px; background:red; border-radius:50%; border:2px solid #fff; cursor:pointer;"></div>
+        <div onclick="setPenColor('blue')" style="width:25px; height:25px; background:blue; border-radius:50%; border:2px solid #fff; cursor:pointer;"></div>
+        <div onclick="setPenColor('black')" style="width:25px; height:25px; background:black; border-radius:50%; border:2px solid #fff; cursor:pointer;"></div>
+        <button onclick="clearCanvas()" style="font-size:10px; padding:5px; border-radius:4px; border:1px solid #ccc;">消去</button>
+    </div>
+    <button class="btn-main" style="background: var(--gray);" onclick="drawRaceLines()">ラインを表示</button>
+</div>
+
+<div id="map-container" style="position:relative; flex:1; width:100%; overflow:hidden;">
+    <div id="map" style="width:100%; height:100%;"></div>
+    <canvas id="draw-canvas" style="position:absolute; top:0; left:0; z-index:1000; display:none; touch-action:none;"></canvas>
+</div>
 
 <div id="map"></div>
 
@@ -587,6 +602,109 @@ function drawRaceLines() {
     }
 }
 
+
+
+let isDrawing = false;
+let drawMode = false;
+let ctx = null;
+let penColor = 'red';
+
+// 手書きモードの切り替え
+// 手書きモードの切り替え
+function toggleDrawMode() {
+    drawMode = !drawMode;
+    const btn = document.getElementById('drawModeBtn');
+    const canvas = document.getElementById('draw-canvas');
+    const controls = document.getElementById('drawControls');
+    
+    if (drawMode) {
+        btn.innerText = "手書き: ON";
+        btn.style.background = "var(--red)";
+        canvas.style.display = "block";
+        controls.style.display = "flex";
+
+        // ★追加：地図を動かせないように固定する
+        map.dragging.disable();
+
+        initCanvas();
+    } else {
+        btn.innerText = "手書き: OFF";
+        btn.style.background = "var(--gray)";
+        canvas.style.display = "none";
+        controls.style.display = "none";
+
+        // ★追加：地図を再び動かせるようにする
+        map.dragging.enable();
+    }
+}
+
+// キャンバスの初期化
+function initCanvas() {
+    const canvas = document.getElementById('draw-canvas');
+    const mapDiv = document.getElementById('map');
+    canvas.width = mapDiv.clientWidth;
+    canvas.height = mapDiv.clientHeight;
+    ctx = canvas.getContext('2d');
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = penColor;
+
+    // マウス・タッチイベント
+    const start = (e) => {
+        isDrawing = true;
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+    };
+    const move = (e) => {
+        if (!isDrawing) return;
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+    };
+    const stop = () => { isDrawing = false; };
+
+    // PCイベント
+    canvas.onmousedown = start;
+    canvas.onmousemove = move;
+    window.onmouseup = stop;
+
+    // スマホイベント
+    canvas.ontouchstart = (e) => { 
+        const touch = e.touches[0];
+        start(touch);
+        e.preventDefault(); 
+    };
+    canvas.ontouchmove = (e) => { 
+        const touch = e.touches[0];
+        move(touch);
+        e.preventDefault(); 
+    };
+    canvas.ontouchend = stop;
+}
+
+// 座標取得
+function getPos(e) {
+    const rect = document.getElementById('draw-canvas').getBoundingClientRect();
+    return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+    };
+}
+
+// 色の変更
+function setPenColor(color) {
+    penColor = color;
+    if (ctx) ctx.strokeStyle = color;
+}
+
+// 全消去
+function clearCanvas() {
+    if (ctx) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    }
+}
 
 
 
