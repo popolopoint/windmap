@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>コース作るくん v7.1.4 by Popolo App.com</title>
+    <title>コース作るくん v7.1.5 by Popolo App.com</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -73,16 +73,34 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.3); 
 }
 
-/* 三角ブイ：背景色を固定せず、白縁取りと角丸を両立 */
+
+
+
+/* 三角ブイ：角丸と白縁取りを両立 */
 .buoy-triangle { 
     width: 20px; 
     height: 30px; 
-    /* 背景色はJavaScriptの inline style から受け取るためここでは指定しません */
     clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
     position: relative;
-    /* 白い縁取りを擬似的に作るための影（ドロップシャドウ） */
-    filter: drop-shadow(0 0 1.5px white) drop-shadow(0 0 1.5px white);
+    border-radius: 6px; /* 角を丸くする */
 }
+
+/* 三角の中の文字位置を調整 */
+.buoy-triangle .marker-label {
+    top: 14px;
+    font-size: 10px;
+}
+
+/* 白い縁取りを出すための影設定 */
+.marker-base.buoy-triangle {
+    filter: 
+        drop-shadow(1px 0 0 white) 
+        drop-shadow(-1px 0 0 white) 
+        drop-shadow(0 1px 0 white) 
+        drop-shadow(0 -1px 0 white)
+        drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+}
+
 
 /* マーカー全体の影と位置微調整 */
 .marker-base.buoy-triangle {
@@ -136,13 +154,36 @@
 
 <div class="header">
     <span class="title">コース作るくん</span>
-    <span class="version">v7.1.4 by Popolo App.com</span>
+    <span class="version">v7.1.5 by Popolo App.com</span>
 </div>
 
 <div class="config-panel">
     <div class="input-group"><label>風向(TWD)</label><input type="number" id="wind" value="0"></div>
     <div class="input-group"><label>距離(m)</label><input type="number" id="dist" value="500"></div>
     <div class="input-group"><label>角度(°)</label><input type="number" id="theta" value="5"></div>
+
+
+function deleteTargetPoint() {
+    if (!currentEditingPoint) return;
+    const label = currentEditingPoint;
+    
+    if (confirm(`マーク ${label} を削除しますか？`)) {
+        pointData[label].latlng = null;
+        if (markers[label]) {
+            map.removeLayer(markers[label]);
+            delete markers[label];
+        }
+        const btn = document.querySelector(`.btn-point[data-point="${label}"]`);
+        if(btn) btn.classList.remove('set');
+        drawLines();
+        closeModal();
+    }
+}
+
+
+
+
+
     <button class="btn-action btn-delete" onclick="deleteActivePoint()" title="選択中のマークを削除">削除</button>
 </div>
 
@@ -278,7 +319,14 @@ function createCustomIcon(label, data) {
     if (data.type === 'buoy') {
         const colorVal = COLOR_MAP[data.color];
         if (data.shape === 'triangle') {
-            iconHtml = `<div class="marker-base buoy-triangle" style="border-bottom-color: ${colorVal};"><span class="marker-label">${label}</span></div>`;
+           
+
+// styleに background: ${colorVal} を追加します
+iconHtml = `<div class="marker-base buoy-triangle" style="background: ${colorVal};"><span class="marker-label">${label}</span></div>`;
+
+
+
+
             iconSize = [30, 30]; iconAnchor = [15, 25]; // 三角形は下部が基準
         } else {
             const shapeClass = data.shape === 'square' ? 'buoy-square' : 'buoy-circle';
