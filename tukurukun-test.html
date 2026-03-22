@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>コース作るくん v7.1.8 by Popolo App.com</title>
+    <title>コース作るくん v7.1.9 by Popolo App.com</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -154,7 +154,7 @@
 
 <div class="header">
     <span class="title">コース作るくん</span>
-    <span class="version">v7.1.8 by Popolo App.com</span>
+    <span class="version">v7.1.9 by Popolo App.com</span>
 </div>
 
 <div class="config-panel">
@@ -165,6 +165,7 @@
 </div>
 
 <div class="point-selector" id="selector">
+    <button class="btn-point" data-point="S">S</button> 
     <button class="btn-point active" data-point="A">A</button>
     <button class="btn-point" data-point="B">B</button>
     <button class="btn-point" data-point="C">C</button>
@@ -175,7 +176,10 @@
     <button class="btn-point" data-point="H">H</button>
     <button class="btn-point" data-point="I">I</button>
     <button class="btn-point" data-point="J">J</button>
+    <button class="btn-point" data-point="N">N</button>
 </div>
+
+
 
 <div id="map"></div>
 
@@ -246,6 +250,7 @@ let currentEditingPoint = null; // 現在モーダルで編集中のポイント
 // 地点データ構造 (座標 + 属性)
 // 全ての地点を「ブイ・三角・オレンジ」で初期化
 const pointData = {
+    S: { latlng: null, type: 'buoy', shape: 'circle', color: 'red' },    // スタート（赤丸）
     A: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
     B: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
     C: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
@@ -255,7 +260,8 @@ const pointData = {
     G: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
     H: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
     I: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
-    J: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' }
+    J: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
+    N: { latlng: null, type: 'buoy', shape: 'circle', color: 'red' }     // フィニッシュ（赤丸）
 };
 
 // 色の定義 (CSS変数に対応)
@@ -384,15 +390,19 @@ function deleteActivePoint() {
 // 理想コース（点線）を描画
 function drawLines() {
     if (polyline) map.removeLayer(polyline);
+   
     
-    // データがある地点をA-J順に結ぶ
-    const path = ['A','B','C','D','E','F','G','H','I','J']
-        .filter(k => pointData[k].latlng !== null)
-        .map(k => [pointData[k].latlng.lat, pointData[k].latlng.lng]);
+// drawLines関数内のpath定義を修正
+const path = ['S','A','B','C','D','E','F','G','H','I','J','N']
+    .filter(k => pointData[k].latlng !== null)
+    .map(k => [pointData[k].latlng.lat, pointData[k].latlng.lng]);
 
-    if (path.length > 1) {
-        polyline = L.polyline(path, { color: '#333', weight: 2, dashArray: '5, 8', opacity: 0.5 }).addTo(map);
-    }
+
+
+
+
+
+
 }
 
 // --- モーダル関連ロジック ---
