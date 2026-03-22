@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>コース作るくん v7.2.2 by Popolo App.com</title>
+    <title>コース作るくん v7.2.3 by Popolo App.com</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -42,8 +42,32 @@
         #map { flex: 1; width: 100%; z-index: 10; }
 
         /* フッター操作 */
-        .controls { padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #fff; border-top: 1px solid #ddd; z-index: 100; }
-        .btn-main { padding: 12px; border-radius: 8px; border: none; color: white; font-weight: bold; font-size: 16px; cursor: pointer; }
+
+/* 修正：ボタンの間隔を詰め、高さを抑える */
+.controls { 
+    padding: 5px 10px; /* 余白を半分にする */
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 5px;          /* ボタン同士の隙間を狭くする */
+    background: #fff; 
+    border-top: 1px solid #ddd; 
+    z-index: 100; 
+}
+
+/* 追加：ボタン自体の高さを少し低くして、画面を節約する */
+.btn-main { 
+    padding: 8px;      /* 12pxから8pxに小さくする */
+    border-radius: 8px; 
+    border: none; 
+    color: white; 
+    font-weight: bold; 
+    font-size: 14px;   /* 文字も少しだけ小さく */
+    cursor: pointer; 
+}
+
+
+
+        
         .btn-starboard { background: var(--green); }
         .btn-port { background: #f57c00; }
 
@@ -154,7 +178,7 @@
 
 <div class="header">
     <span class="title">コース作るくん</span>
-    <span class="version">v7.2.2 by Popolo App.com</span>
+    <span class="version">v7.2.3 by Popolo App.com</span>
 </div>
 
 <div class="config-panel">
