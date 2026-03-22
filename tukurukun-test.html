@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>コース作るくん v7.1.6 by Popolo App.com</title>
+    <title>コース作るくん v7.1.8 by Popolo App.com</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -154,7 +154,7 @@
 
 <div class="header">
     <span class="title">コース作るくん</span>
-    <span class="version">v7.1.6 by Popolo App.com</span>
+    <span class="version">v7.1.8 by Popolo App.com</span>
 </div>
 
 <div class="config-panel">
@@ -348,15 +348,16 @@ function setPoint(label, latlng) {
             openModal(label);
         });
 
-        // ドラッグ終了時に座標を更新
+        // ドラッグ終了時に座標を更新（ここでは線を引かない）
         markers[label].on('dragend', function(e) {
             pointData[label].latlng = e.target.getLatLng();
-            drawLines();
         });
     }
     
-    drawLines();
+    // ここにあった drawLines(); を削除しました
 }
+
+
 
 // アクティブなポイントを削除
 function deleteActivePoint() {
