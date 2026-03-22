@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>コース作るくん v7.1.5 by Popolo App.com</title>
+    <title>コース作るくん v7.1.6 by Popolo App.com</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -154,37 +154,14 @@
 
 <div class="header">
     <span class="title">コース作るくん</span>
-    <span class="version">v7.1.5 by Popolo App.com</span>
+    <span class="version">v7.1.6 by Popolo App.com</span>
 </div>
 
 <div class="config-panel">
     <div class="input-group"><label>風向(TWD)</label><input type="number" id="wind" value="0"></div>
     <div class="input-group"><label>距離(m)</label><input type="number" id="dist" value="500"></div>
     <div class="input-group"><label>角度(°)</label><input type="number" id="theta" value="5"></div>
-
-
-function deleteTargetPoint() {
-    if (!currentEditingPoint) return;
-    const label = currentEditingPoint;
     
-    if (confirm(`マーク ${label} を削除しますか？`)) {
-        pointData[label].latlng = null;
-        if (markers[label]) {
-            map.removeLayer(markers[label]);
-            delete markers[label];
-        }
-        const btn = document.querySelector(`.btn-point[data-point="${label}"]`);
-        if(btn) btn.classList.remove('set');
-        drawLines();
-        closeModal();
-    }
-}
-
-
-
-
-
-    <button class="btn-action btn-delete" onclick="deleteActivePoint()" title="選択中のマークを削除">削除</button>
 </div>
 
 <div class="point-selector" id="selector">
@@ -253,6 +230,8 @@ function deleteTargetPoint() {
                 </div>
             </div>
         </div>
+
+        <button class="btn-action btn-delete" onclick="deleteTargetPoint()" style="width: 100%; margin-top: 10px; padding: 10px;">このマークを削除</button>
 
         <button class="btn-modal-close" onclick="closeModal()">決定</button>
     </div>
@@ -510,6 +489,26 @@ function calculate(isPort) {
 }
 
 window.onload = initMap;
+
+function deleteTargetPoint() {
+    if (!currentEditingPoint) return;
+    const label = currentEditingPoint;
+    
+    if (confirm(`マーク ${label} を削除しますか？`)) {
+        pointData[label].latlng = null;
+        if (markers[label]) {
+            map.removeLayer(markers[label]);
+            delete markers[label];
+        }
+        const btn = document.querySelector(`.btn-point[data-point="${label}"]`);
+        if(btn) btn.classList.remove('set');
+        drawLines();
+        closeModal();
+    }
+}
+
+
+
 </script>
 </body>
 </html>
