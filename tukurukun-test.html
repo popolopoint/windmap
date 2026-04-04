@@ -1,778 +1,533 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <title>コース作るくん v7.2.4e by Popolo App.com</title>
-   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>コース作るくん v6.8.3b by Popolo App.com</title>
+<style>
+:root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
+body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
+h2 { margin:0 0 8px 0; font-size:18px; }
+#version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
 
+.input-row { display: flex; dap: 5px; width: 100%; margin-bottom: 10px; }
+.input-group { flex: 1; display: flex; flex-direction: column; }
+.input-group label { font-size: 11px; font-weight: bold; margin-bottom: 2px; }
+.input-group input { font-size: 24px; padding: 8px 4px; width: 100%; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; text-align: center; }
 
-    <style>
-        :root {
-            --blue: #007AFF; --red: #FF3B30; --green: #28a745; --gray: #8e8e93;
-            /* ブイカラー定義 */
-            --buoy-red: #ff3b30; --buoy-yellow: #ffcc00; --buoy-pink: #ff2d55;
-            --buoy-orange: #ff9500; --buoy-white: #ffffff; --buoy-purple: #af52de; --buoy-skyblue: #5ac8fa;
-        }
-        body { 
-    display: flex; 
-    flex-direction: column; 
-    height: 100vh; /* 画面の高さぴったりに固定 */
-    margin: 0; 
-    overflow: hidden; /* 画面全体がスクロールしないようにする */
-}
+#courseSelect { font-size: 24px; padding: 8px; width: 100%; border-radius:6px; margin-bottom:10px; }
 
-        /* ヘッダー */
-        .header { padding: 10px; background: white; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
-        .title { font-weight: bold; font-size: 16px; }
-        .version { font-size: 11px; color: #666; }
+.compact-input { font-size: 18px !important; padding: 6px 2px !important; width: 55px !important; text-align:center; border-radius:6px; border:1px solid #ccc; }
+#sausageSettings, #jwsaSettings, #jwsa2Settings, #jwsa3Settings { display:none; flex-wrap:nowrap; align-items:center; gap:4px; background:#f0f0f0; padding:5px; border-radius:8px; margin-bottom:10px; width: 100%; box-sizing: border-box; overflow-x: auto; }
 
-        /* 入力パネル */
-        .config-panel { padding: 8px 10px; display: grid; grid-template-columns: 1fr 1fr 1fr 0.5fr; gap: 6px; background: #fff; border-bottom: 1px solid #eee; z-index: 100; }
-        .input-group { display: flex; flex-direction: column; }
-        .input-group label { font-size: 9px; font-weight: bold; color: #888; margin-bottom: 2px; text-align: center; }
-        .input-group input { font-size: 16px; padding: 5px; border: 1px solid #ccc; border-radius: 6px; text-align: center; width: 100%; box-sizing: border-box; }
-        .btn-action { background: #eee; border: 1px solid #ccc; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; height: 100%; }
-        .btn-delete { background: var(--red); color: white; border: none; }
+.main-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; width: 100%; margin: 10px 0; }
+.main-buttons button { font-size: 18px; padding: 15px 5px; border-radius: 10px; border: none; color: white; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.16); }
+#btnShareAll { background: var(--gray); }
+#btnStarboard { background: var(--green); }
+#btnPort { background: var(--orange); }
 
-        /* 地点選択ボタン (A-J) */
-        .point-selector { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; justify-content: center; background: #fff; border-bottom: 1px solid #ddd; z-index: 100; }
-        .btn-point { 
-            width: 36px; height: 36px; border-radius: 50%; border: 1px solid #ccc; 
-            background: white; font-weight: bold; cursor: pointer; font-size: 14px; transition: all 0.2s;
-        }
-        .btn-point.active { border: 2px solid var(--blue); background: var(--blue); color: white; box-shadow: 0 0 8px rgba(0,122,255,0.4); transform: scale(1.05); }
-        .btn-point.set { border-color: #555; background: #f0f0f0; } /* 設置済みマークの薄い色表示 */
-        .btn-point.set.active { border-color: var(--blue); background: var(--blue); }
+#inputsMode { margin:15px 0; padding:12px; background:#f0f7ff; border-radius:8px; font-size: 16px; color:#333; border:1px solid #d0e0f0; }
+#inputsMode select { font-size: 22px; padding: 5px; margin: 0 5px; }
+.radio-group { margin: 10px 0; display: flex; gap: 15px; align-items: center; }
+#btnSetCurrent { background: var(--red); color:white; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; margin-top:10px; width:100%; font-size:18px; }
 
-        /* マップエリア */
-       #map { 
-    height: 100%; /* 高さを100%にする */
-    width: 100%; 
-    position: absolute; /* 画面に固定する */
-    top: 0; 
-    left: 0; 
-}
+#map { width:100%; height:675px; border-radius:8px; margin-top:10px; box-shadow:0 1px 4px rgba(0,0,0,0.2); }
 
-/* マップを入れる箱の設定も調整 */
-#map-container { 
-    flex: 1;            /* これで上下のパネル以外の「余り」を地図にします */
-    width: 100%; 
-    position: relative; 
-    overflow: hidden;
-    min-height: 200px;  /* スマホで地図が潰れすぎないための最低限の高さ */
-}
-#map { 
-    height: 100%; 
-    width: 100%;
-    /* 余計な absolute などの設定を消して、箱の中に収まるようにします */
-}
+#coordsContainer { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; justify-content: space-between; }
+.pointBox { border-radius:50%; width:40px; height:40px; display:flex; justify-content:center; align-items:center; color:white; font-weight:bold; cursor:pointer; font-size: 0.9em; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 
-        /* フッター操作 */
+.sub-button-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.btn-sub { background:#f8f8f8; border:1px solid #ccc; padding:6px 10px; border-radius:6px; font-size:12px; cursor:pointer; font-weight: bold; color: #444; }
 
-.controls { 
-    padding: 10px; 
-    display: grid; 
-    grid-template-columns: 1fr 1fr; 
-    gap: 10px; 
-    background: #fff; 
-    border-top: 1px solid #ddd; 
-    z-index: 100;
-    flex-shrink: 0; /* ← これが重要！ボタンが潰されるのを防ぎます */
-}
+#modalOverlay, #distModalOverlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center; }
+.modalContent { background:white; padding:20px; border-radius:12px; width:90%; max-width:400px; box-shadow:0 4px 20px rgba(0,0,0,0.3); }
+.modalContent h3 { margin-top:0; font-size:18px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+.modal-input-group { margin-bottom:15px; }
+.modal-input-group label { display:block; font-size:12px; font-weight:bold; margin-bottom:4px; }
+.modal-input-group input { width:100%; font-size:20px; padding:8px; box-sizing:border-box; border-radius:6px; border:1px solid #ccc; }
+.modal-close-btn { background:var(--blue); color:white; border:none; padding:12px; border-radius:8px; width:100%; font-size:18px; font-weight:bold; margin-top: 10px; }
 
-/* ついでに、全体の枠組みが崩れないよう body も再確認 */
-body { 
-    display: flex; 
-    flex-direction: column; 
-    height: 100vh; 
-    margin: 0; 
-    overflow: hidden; 
-}
-
-
-/* 追加：ボタン自体の高さを少し低くして、画面を節約する */
-.btn-main { 
-    padding: 8px;      /* 12pxから8pxに小さくする */
-    border-radius: 8px; 
-    border: none; 
-    color: white; 
-    font-weight: bold; 
-    font-size: 14px;   /* 文字も少しだけ小さく */
-    cursor: pointer; 
-}
-
-
-
-        
-        .btn-starboard { background: var(--green); }
-        .btn-port { background: #f57c00; }
-
-        /* CSS Icon Styles */
-        .custom-div-icon { background: none; border: none; }
-        .marker-base { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; position: relative; }
-        .marker-label { position: absolute; color: white; font-weight: bold; font-size: 12px; z-index: 10; text-shadow: 0 0 2px rgba(0,0,0,0.8); }
-        
-        /* ブイの形 */
-        .buoy-circle { border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-       
-/* 1. 丸いブイ：サイズを20pxに縮小 */
-.buoy-circle { 
-    width: 20px; 
-    height: 20px; 
-    border-radius: 50%; 
-    border: 2px solid white; 
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3); 
-}
-
-/* 2. 四角いブイ：以前のまま (幅20px, 高さ30px) */
-.buoy-square { 
-    width: 20px; 
-    height: 30px; 
-    border-radius: 4px; 
-    border: 2px solid white; 
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3); 
-}
-
-
-
-
-/* 三角ブイ：角丸と白縁取りを両立 */
-.buoy-triangle { 
-    width: 20px; 
-    height: 30px; 
-    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
-    position: relative;
-    border-radius: 6px; /* 角を丸くする */
-}
-
-/* 三角の中の文字位置を調整 */
-.buoy-triangle .marker-label {
-    top: 14px;
-    font-size: 10px;
-}
-
-/* 白い縁取りを出すための影設定 */
-.marker-base.buoy-triangle {
-    filter: 
-        drop-shadow(1px 0 0 white) 
-        drop-shadow(-1px 0 0 white) 
-        drop-shadow(0 1px 0 white) 
-        drop-shadow(0 -1px 0 white)
-        drop-shadow(0 2px 3px rgba(0,0,0,0.4));
-}
-
-
-/* マーカー全体の影と位置微調整 */
-.marker-base.buoy-triangle {
-    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
-    /* 角を少し丸く見せるための設定 */
-    border-radius: 4px; 
-}
-
-/* 四角いブイ：幅20px、高さ30px */
-.buoy-square { 
-    width: 20px; 
-    height: 30px; 
-    border-radius: 4px; 
-    border: 2px solid white; 
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3); 
-}
-
-
-
-
-        /* 三角形のラベル位置調整 */
-        .buoy-triangle .marker-label { top: 12px; }
-
-        /* 船の形 (簡易) */
-        .boat-rib { width: 36px; height: 16px; border-radius: 8px; background: #333; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-        .boat-fishing { 
-            width: 40px; height: 18px; background: #f8f8f8; border: 2px solid #555; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            border-radius: 2px 15px 2px 2px; /* 漁船っぽい舳先 */
-        }
-        .boat-fishing::after { content:''; position:absolute; top:4px; right:8px; width:10px; height:6px; background:#555; border-radius:2px; } /* キャビン */
-
-        /* 設定モーダル */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 85%; max-width: 320px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .modal-header { font-weight: bold; font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 8px; display: flex; justify-content: space-between; }
-        .modal-section { margin-bottom: 12px; }
-        .modal-section-title { font-size: 12px; font-weight: bold; color: #888; margin-bottom: 5px; }
-        .selector-group { display: flex; flex-wrap: wrap; gap: 8px; }
-        
-        /* 色・形選択ボタン */
-        .select-item { width: 30px; height: 30px; border: 2px solid #ccc; cursor: pointer; box-sizing: border-box; transition: 0.1s; position: relative; }
-        .select-item.active { border-color: var(--blue); transform: scale(1.1); box-shadow: 0 0 5px rgba(0,122,255,0.5); }
-        
-        /* 形のプレビュー (モーダル内) */
-        .shape-preview { width: 20px; height: 20px; background: #555; position: absolute; top: 3px; left: 3px; }
-
-        .btn-modal-close { width: 100%; padding: 12px; background: var(--blue); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin-top: 10px; cursor: pointer; }
-    </style>
+.dist-list { list-style: none; padding: 0; margin: 0; }
+.dist-item { background: #f9f9f9; padding: 10px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: bold; }
+</style>
 </head>
 <body>
 
-<div class="header">
-    <span class="title">コース作るくん</span>
-    <span class="version">v7.2.4e by Popolo App.com</span>
+<h2>コース作るくん <span style="font-size:0.7em;">v6.8.3b by Popolo App.com</span></h2>
+<div id="version">v6.8.3b</div>
+
+<div class="input-row">
+  <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
+  <div class="input-group"><label>距離(m)</label><input type="number" id="dist" value="500"></div>
+  <div class="input-group"><label>角度(°)</label><input type="number" id="theta" value="5"></div>
 </div>
 
-<div class="config-panel">
-    <div class="input-group"><label>風向(TWD)</label><input type="number" id="wind" value="0"></div>
-    <div class="input-group"><label>距離(m)</label><input type="number" id="dist" value="500"></div>
-    <div class="input-group"><label>角度(°)</label><input type="number" id="theta" value="5"></div>
-    
-</div>
+<select id="courseSelect">
+  <option value="mcourse">Ｍコース</option>
+  <option value="figure8">フィギア８</option>
+  <option value="sausage">ソーセージ</option>
+  <option value="5jibe">５ジャイブ</option>
+  <option value="jwsa">JWSA1</option>
+  <option value="jwsa2">JWSA2</option>
+  <option value="jwsa3">JWSA3</option>
+<option value="jwsa5">JWSA5</option>
+</select>
 
-<div class="point-selector" id="selector">
-    <button class="btn-point" data-point="S">S</button> 
-    <button class="btn-point active" data-point="A">A</button>
-    <button class="btn-point" data-point="B">B</button>
-    <button class="btn-point" data-point="C">C</button>
-    <button class="btn-point" data-point="D">D</button>
-    <button class="btn-point" data-point="E">E</button>
-    <button class="btn-point" data-point="F">F</button>
-    <button class="btn-point" data-point="G">G</button>
-    <button class="btn-point" data-point="H">H</button>
-    <button class="btn-point" data-point="I">I</button>
-    <button class="btn-point" data-point="J">J</button>
-    <button class="btn-point" data-point="N">N</button>
-
-</div>
-
-<div class="controls">
-    <button class="btn-main" style="background: #8e8e93; grid-column: span 2;" onclick="drawRaceLines()">ラインを表示</button>
-</div>
-
-<div class="controls" style="grid-template-columns: 1fr 1fr 1fr;">
-    <button id="drawModeBtn" class="btn-main" style="background: var(--gray);" onclick="toggleDrawMode()">手書き: OFF</button>
-    <div id="drawControls" style="display:none; gap:5px; align-items:center; justify-content:center;">
-        <div onclick="setPenColor('red')" style="width:25px; height:25px; background:red; border-radius:50%; border:2px solid #fff; cursor:pointer;"></div>
-        <div onclick="setPenColor('blue')" style="width:25px; height:25px; background:blue; border-radius:50%; border:2px solid #fff; cursor:pointer;"></div>
-        <div onclick="setPenColor('black')" style="width:25px; height:25px; background:black; border-radius:50%; border:2px solid #fff; cursor:pointer;"></div>
-        <button onclick="clearCanvas()" style="font-size:10px; padding:5px; border-radius:4px; border:1px solid #ccc;">消去</button>
-    </div>
-    <button class="btn-main" style="background: var(--gray);" onclick="drawRaceLines()">ラインを表示</button>
-</div>
-
-<div id="map-container" style="position:relative; flex:1; width:100%; overflow:hidden;">
-    <div id="map" style="width:100%; height:100%;"></div>
-    <canvas id="draw-canvas" style="position:absolute; top:0; left:0; z-index:1000; display:none; touch-action:none;"></canvas>
+<div id="sausageSettings">
+  <label>上<br><input type="number" id="upDist" class="compact-input" value="1000"></label>
+  <label>下<br><input type="number" id="downDist" class="compact-input" value="100"></label>
+  <label>AS距離<br><input type="number" id="distAS" class="compact-input" value="100"></label>
+  <label>S角度<br><input type="number" id="sAngle" class="compact-input" value="0"></label>
 </div>
 
 
 
-<div class="controls">
-    <button class="btn-main btn-starboard" onclick="calculate(false)">スタボー</button>
-    <button class="btn-main btn-port" onclick="calculate(true)">ポート</button>
-</div>
-
-<div class="modal-overlay" id="settingModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <span>マーク <span id="modalPointLabel"></span> 設定</span>
-        </div>
-        
-        <div class="modal-section">
-            <div class="modal-section-title">タイプ</div>
-            <div class="selector-group">
-                <button class="btn-action" id="typeBuoy" onclick="setMarkType('buoy')">ブイ</button>
-                <button class="btn-action" id="typeBoat" onclick="setMarkType('boat')">船</button>
-            </div>
-        </div>
-
-        <div id="buoySettings">
-            <div class="modal-section">
-                <div class="modal-section-title">形</div>
-                <div class="selector-group">
-                    <div class="select-item" onclick="setMarkShape('circle')" id="shapeCircle"><div class="shape-preview" style="border-radius:50%;"></div></div>
-                    <div class="select-item" onclick="setMarkShape('square')" id="shapeSquare"><div class="shape-preview" style="border-radius:4px;"></div></div>
-                    <div class="select-item" onclick="setMarkShape('triangle')" id="shapeTriangle"><div class="shape-preview" style="width:0; height:0; background:none; border-left:10px solid transparent; border-right:10px solid transparent; border-bottom:20px solid #555; border-radius:2px; top:1px; left:1px;"></div></div>
-                </div>
-            </div>
-            <div class="modal-section">
-                <div class="modal-section-title">色</div>
-                <div class="selector-group">
-                    <div class="select-item" onclick="setMarkColor('red')" style="background:var(--buoy-red);" id="colorRed"></div>
-                    <div class="select-item" onclick="setMarkColor('yellow')" style="background:var(--buoy-yellow);" id="colorYellow"></div>
-                    <div class="select-item" onclick="setMarkColor('pink')" style="background:var(--buoy-pink);" id="colorPink"></div>
-                    <div class="select-item" onclick="setMarkColor('orange')" style="background:var(--buoy-orange);" id="colorOrange"></div>
-                    <div class="select-item" onclick="setMarkColor('white')" style="background:var(--buoy-white);" id="colorWhite"></div>
-                    <div class="select-item" onclick="setMarkColor('purple')" style="background:var(--buoy-purple);" id="colorPurple"></div>
-                    <div class="select-item" onclick="setMarkColor('skyblue')" style="background:var(--buoy-skyblue);" id="colorSkyblue"></div>
-                </div>
-            </div>
-        </div>
-
-        <div id="boatSettings" style="display:none;">
-            <div class="modal-section">
-                <div class="modal-section-title">船種</div>
-                <div class="selector-group">
-                    <button class="btn-action" id="shapeRib" onclick="setMarkShape('rib')">ゴムボート</button>
-                    <button class="btn-action" id="shapeFishing" onclick="setMarkShape('fishing')">漁船</button>
-                </div>
-            </div>
-        </div>
 
 
-<div id="finishTargetSettings" style="display:none; margin-bottom: 12px;">
-    <div class="modal-section-title">フィニッシュの相手マーク</div>
-    <div class="selector-group" id="finishPartnerSelector">
-        </div>
+
+
+<div id="jwsaSettings">
+  <label>AB<br><input type="number" id="distAB" class="compact-input" value="500"></label>
+  <label>BG<br><input type="number" id="distBC" class="compact-input" value="500"></label>
+  <label>GK<br><input type="number" id="distCD" class="compact-input" value="500"></label>
+  <label>角G<br><input type="number" id="theta2" class="compact-input" value="60"></label>
 </div>
 
 
-        <button class="btn-action btn-delete" onclick="deleteTargetPoint()" style="width: 100%; margin-top: 10px; padding: 10px;">このマークを削除</button>
 
-        <button class="btn-modal-close" onclick="closeModal()">決定</button>
-    </div>
+<div id="jwsa2Settings">
+  <label>AB<br><input type="number" id="distAB2" class="compact-input" value="500"></label>
+  <label>BF<br><input type="number" id="distBC2" class="compact-input" value="400"></label>
+  <label>FG<br><input type="number" id="distCD2" class="compact-input" value="500"></label>
+  <label>GK<br><input type="number" id="distDE2" class="compact-input" value="500"></label> 
+  <label>角B<br><input type="number" id="theta3_2" class="compact-input" value="45"></label> 
+  <label>角G<br><input type="number" id="theta2_2" class="compact-input" value="60"></label>
 </div>
+
+
+
+
+
+<div id="jwsa3Settings">
+  <label>AB<br><input type="number" id="distAB3" class="compact-input" value="500"></label>
+  <label>BF<br><input type="number" id="distBC3" class="compact-input" value="400"></label>
+  <label>FG<br><input type="number" id="distCD3" class="compact-input" value="500"></label>
+  <label>GK<br><input type="number" id="distDE3" class="compact-input" value="500"></label>
+  <label>角B<br><input type="number" id="theta3_3" class="compact-input" value="30"></label>
+  <label>角G<br><input type="number" id="theta2_3" class="compact-input" value="60"></label>
+</div>
+
+
+
+
+
+
+<div class="main-buttons">
+  <button id="btnShareAll">データ送信</button>
+  <button id="btnOpenTora" style="background: #000; color: #ff9900; border: 2px solid #ff9900;">虎キング送出</button>
+  <button id="btnStarboard">スタボー</button>
+  <button id="btnPort">ポート</button>
+</div>
+
+  
+
+<div id="inputsMode">
+  <strong>基準点：</strong>
+  <select id="basePointSelect">
+    <option value="A" selected>A点</option><option value="B">B点</option><option value="C">C点</option>
+    <option value="D">D点</option><option value="E">E点</option><option value="F">F点</option><option value="G">G点</option><option value="S">S点</option><option value="K">K点</option>
+  </select>
+  <div class="radio-group">
+    <label><input type="radio" name="aMode" value="gps" checked> 現在地をセット</label>
+    <label><input type="radio" name="aMode" value="map"> マップ指定</label>
+  </div>
+  <button id="btnSetCurrent">反映</button>
+</div>
+
+<div id="coordsContainer">
+  <div class="pointBox" id="btnA" style="background:var(--red);">A</div>
+  <div class="pointBox" id="btnB" style="background:var(--blue);">B</div>
+  <div class="pointBox" id="btnC" style="background:var(--yellow); color:#000; text-shadow:none;">C</div>
+  <div class="pointBox" id="btnD" style="background:var(--green);">D</div>
+  <div class="pointBox" id="btnE" style="background:var(--purple);">E</div>
+  <div class="pointBox" id="btnF" style="background:var(--pink); display:none;">F</div>
+  <div class="pointBox" id="btnG" style="background:var(--navy); display:none;">G</div>
+  <div class="pointBox" id="btnK" style="background:var(--teal); display:none;">K</div>
+  <div class="pointBox" id="btnS" style="background:var(--blue); display:none;">S</div>
+</div>
+
+<div class="sub-button-row">
+  <button id="btnOpenDistModal" class="btn-sub">マーク距離</button>
+  <button id="btnOpenCoordModal" class="btn-sub">基準点緯度経度 修正/確認</button>
+</div>
+
+<div id="map"></div>
+
+<div id="modalOverlay">
+  <div class="modalContent">
+    <h3>基準点の緯度経度</h3>
+    <div class="modal-input-group"><label>緯度 (Lat)</label><input type="number" id="modalLat" step="any"></div>
+    <div class="modal-input-group"><label>経度 (Lng)</label><input type="number" id="modalLng" step="any"></div>
+    <button id="btnModalClose" class="modal-close-btn">決定・反映</button>
+  </div>
+</div>
+
+<div id="distModalOverlay">
+  <div class="modalContent">
+    <h3>マーク間距離 (m)</h3>
+    <div id="distResultArea" class="dist-list"></div>
+    <button id="btnDistModalClose" class="modal-close-btn">閉じる</button>
+  </div>
+</div>
+
+<input type="hidden" id="latA"><input type="hidden" id="lngA">
+
+
+
+
+
 
 <script>
-let map, activePoint = 'A';
-let markers = {}; 
-let polyline = null;
-let currentEditingPoint = null; // 現在モーダルで編集中のポイント
+let map, circles={}, markersLabel={}, polylines=[];
+let points = {A:null,B:null,C:null,D:null,E:null,F:null,G:null,S:null,K:null};
+const COLORS = { A:'#ff3b30', B:'#0000ff', C:'#ffff00', D:'#28a745', E:'#6a1b9a', F:'#ff2d55', G:'#000080', S:'#0000ff', K:'#5ac8fa' };
+let currentIsPort = true;
+let path = [];
 
-let startLine = null;   // S-Aを結ぶ実線
-let finishLine = null;  // 相手マークとNを結ぶ実線
-let finishTarget = 'J'; // フィニッシュラインの相手（デフォルトはJ）
+function checkUrlParams() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const lat = urlParams.get('lat');
+  const lng = urlParams.get('lng');
+  const twd = urlParams.get('heading');
+  const dist = urlParams.get('dist');
+  const theta = urlParams.get('theta');
+  const course = urlParams.get('course');
 
-
-
-
-// 地点データ構造 (座標 + 属性)
-// 全ての地点を「ブイ・三角・オレンジ」で初期化
-const pointData = {
-    S: { latlng: null, type: 'buoy', shape: 'circle', color: 'red' },    // スタート（赤丸）
-    A: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
-    B: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
-    C: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
-    D: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
-    E: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
-    F: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
-    G: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
-    H: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
-    I: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
-    J: { latlng: null, type: 'buoy', shape: 'triangle', color: 'orange' },
-    N: { latlng: null, type: 'buoy', shape: 'circle', color: 'red' }     // フィニッシュ（赤丸）
-};
-
-// 色の定義 (CSS変数に対応)
-const COLOR_MAP = {
-    red: 'var(--buoy-red)', yellow: 'var(--buoy-yellow)', pink: 'var(--buoy-pink)',
-    orange: 'var(--buoy-orange)', white: 'var(--buoy-white)', purple: 'var(--buoy-purple)', skyblue: 'var(--buoy-skyblue)'
-};
-
-
-function initMap() {
-    // Googleマップの初期設定
-    map = new google.maps.Map(document.getElementById('map'), {
-        center: { lat: 26.3318, lng: 127.9179 }, // うるま市近辺
-        zoom: 15,
-        mapTypeId: 'roadmap',    // 普通の地図モード
-        disableDefaultUI: true,  // 余計なボタンを隠す
-        zoomControl: true,       // ズームボタンだけ出す
-        gestureHandling: 'greedy' // スマホでスイスイ動かせる設定
-    });
-
-    // マップをクリックした時に地点(A, Bなど)を置く命令
-    map.addListener('click', function(e) {
-        // Googleマップでは e.latLng で座標が取れます
-        setPoint(activePoint, e.latLng);
-    });
-
-    // ポイント切り替えボタン（A〜J, S, N）のクリック設定
-    document.querySelectorAll('.btn-point').forEach(btn => {
-        btn.onclick = function() {
-            document.querySelectorAll('.btn-point').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            activePoint = this.dataset.point;
-        };
-    });
+  if (lat && lng) updateAPos(parseFloat(lat), parseFloat(lng));
+  if (twd) document.getElementById('wind').value = twd;
+  if (dist) document.getElementById('dist').value = dist;
+  if (theta) document.getElementById('theta').value = theta;
+  if (course) {
+    const sel = document.getElementById('courseSelect');
+    sel.value = course;
+    sel.dispatchEvent(new Event('change'));
+  }
 }
 
+function initMap(){
+  let centerPos = { lat: 26.3318, lng: 127.9179 };
+  const latA = parseFloat(document.getElementById('latA').value);
+  const lngA = parseFloat(document.getElementById('lngA').value);
+  if(!isNaN(latA) && !isNaN(lngA)) centerPos = { lat: latA, lng: lngA };
+  
+  map = new google.maps.Map(document.getElementById('map'), { 
+    center: centerPos, 
+    zoom: 14, 
+    gestureHandling: 'greedy', 
+    disableDefaultUI: true, 
+    zoomControl: true 
+  });
 
+  map.addListener('click', (e)=>{ 
+    if(document.querySelector('input[name="aMode"]:checked').value==='map'){ 
+      setBasePosition({lat:e.latLng.lat(), lng:e.latLng.lng()}); 
+    } 
+  });
 
-// 動的アイコンを生成する関数
-function createCustomIcon(label, data) {
-    let iconHtml = '';
-    let iconSize = [30, 30];
-    let iconAnchor = [15, 15];
+  let meMarker = new google.maps.Marker({
+    map: map,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 8,
+      fillColor: '#007AFF',
+      fillOpacity: 1,
+      strokeColor: 'white',
+      strokeWeight: 2
+    },
+    title: "現在地"
+  });
 
-    if (data.type === 'buoy') {
-        const colorVal = COLOR_MAP[data.color];
-        if (data.shape === 'triangle') {
-           
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(pos => {
+      const myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      meMarker.setPosition(myPos);
+    }, error => {
+      console.log("位置情報取得エラー:", error);
+    }, { 
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 5000 
+    });
+  }
 
-// styleに background: ${colorVal} を追加します
-iconHtml = `<div class="marker-base buoy-triangle" style="background: ${colorVal};"><span class="marker-label">${label}</span></div>`;
+  checkUrlParams();
+  if(document.getElementById('wind').value && !isNaN(latA)) setTimeout(() => calculateCourse(true), 500);
+}
 
+function movePoint(lat,lng,dist,bearing){
+  const R=6378137, brng=(bearing%360)*Math.PI/180;
+  const φ1=lat*Math.PI/180, λ1=lng*Math.PI/180, δ=dist/R;
+  const φ2=Math.asin(Math.sin(φ1)*Math.cos(δ)+Math.cos(φ1)*Math.sin(δ)*Math.cos(brng));
+  const λ2=λ1+Math.atan2(Math.sin(brng)*Math.sin(δ)*Math.cos(φ1), Math.cos(δ)-Math.sin(φ1)*Math.sin(φ2));
+  return {lat: φ2*180/Math.PI, lng: λ2*180/Math.PI};
+}
 
+function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
+  let p = {A: baseA};
+  const isS = (course==='sausage'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2'), 
+        isJW3 = (course==='jwsa3'), isJW5 = (course==='jwsa5'), 
+        is5J = (course==='5jibe'), isF8 = (course==='figure8');
 
-
-            iconSize = [30, 30]; iconAnchor = [15, 25]; // 三角形は下部が基準
-        } else {
-            const shapeClass = data.shape === 'square' ? 'buoy-square' : 'buoy-circle';
-            iconHtml = `<div class="marker-base ${shapeClass}" style="background: ${colorVal};"><span class="marker-label">${label}</span></div>`;
-        }
-    } else { // boat
-        const boatClass = data.shape === 'fishing' ? 'boat-fishing' : 'boat-rib';
-        iconHtml = `<div class="marker-base ${boatClass}"><span class="marker-label" style="color:#000; text-shadow:none; top:-15px;">${label}</span></div>`;
-        iconSize = [40, 40]; iconAnchor = [20, 20];
+  if(isS){
+    const dAS = 100;
+    const sAng = parseFloat(document.getElementById('sAngle').value) || 0;
+    const bS = wind + (isPort ? (90 + theta + sAng) : (270 - theta - sAng));
+    p.S = movePoint(p.A.lat, p.A.lng, dAS, bS);
+    const mid = {lat:(p.A.lat+p.S.lat)/2, lng:(p.A.lng+p.S.lng)/2};
+    p.B = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('upDist').value)||0, wind);
+    const dDown = parseFloat(document.getElementById('downDist').value)||0;
+    p.C = movePoint(mid.lat, mid.lng, dDown, wind); 
+  }
+  else if(isJW || isJW2 || isJW3 || isJW5){
+    const sfx = (isJW3 || isJW5) ? '3' : '2';
+    const dAB=parseFloat(document.getElementById('distAB'+sfx).value)||0, 
+          dBC=parseFloat(document.getElementById('distBC'+sfx).value)||0, 
+          dCD=parseFloat(document.getElementById('distCD'+sfx).value)||0, 
+          dDE=parseFloat(document.getElementById('distDE'+sfx).value)||0, 
+          thD=30, thB=45;
+    p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
+    const bF = isPort ? (wind+270+thB) : (wind+90-thB);
+    p.F = movePoint(p.B.lat, p.B.lng, dBC, bF);
+    p.G = movePoint(p.F.lat, p.F.lng, dCD, wind);
+    if(!isJW5) {
+      const bK = isPort ? (wind+270-thD) : (wind+90+thD);
+      p.K = movePoint(p.G.lat, p.G.lng, dDE, bK);
     }
-
-    return L.divIcon({
-        className: 'custom-div-icon',
-        html: iconHtml,
-        iconSize: iconSize,
-        iconAnchor: iconAnchor
-    });
-}
-
-function setPoint(label, latLng) {
-    // 座標データを保存（GoogleマップのlatLngオブジェクトから数値を取り出す）
-    pointData[label].latlng = { lat: latLng.lat(), lng: latLng.lng() };
-    
-    // ボタンの見た目を「設置済み」にする
-    const btn = document.querySelector(`.btn-point[data-point="${label}"]`);
-    if(btn) btn.classList.add('set');
-
-    // すでにピンがある場合は場所を移動、ない場合は新しく作る
-    if (markers[label]) {
-        markers[label].setPosition(latLng);
+    if(isJW3 || isJW5){
+      p.C = movePoint(p.B.lat, p.B.lng, dist, isPort?wind+270-theta:wind+90+theta);
+      p.D = movePoint(p.C.lat, p.C.lng, dist, isPort?wind+90+theta:wind+270-theta);
+      p.E = movePoint(p.D.lat, p.D.lng, dist, isPort?wind+270-theta:wind+90+theta);
+    }
+  } else {
+    p.B = movePoint(p.A.lat, p.A.lng, dist, isPort?wind+90+theta:wind+270-theta);
+    if(isF8) {
+      p.C = movePoint(p.B.lat, p.B.lng, dist * Math.cos(theta * Math.PI / 180), isPort?wind+270:wind+90);
+      p.E = movePoint(p.B.lat, p.B.lng, dist, isPort?wind+270-theta:wind+90+theta);
     } else {
-        markers[label] = new google.maps.Marker({
-            position: latLng,
-            map: map,
-            label: label, // ピンの上に文字を出す（とりあえず簡易版）
-            draggable: true
-        });
-
-        // ピンをクリックしたら設定画面（モーダル）を開く
-        markers[label].addListener('click', function() {
-            openModal(label);
-        });
-
-        // ピンをドラッグし終わったら座標を更新する
-        markers[label].addListener('dragend', function(e) {
-            pointData[label].latlng = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-        });
+      p.C = movePoint(p.B.lat, p.B.lng, dist, isPort?wind+270-theta:wind+90+theta);
+      p.D = movePoint(p.C.lat, p.C.lng, dist, isPort?wind+90+theta:wind+270-theta);
+      p.E = movePoint(p.D.lat, p.D.lng, dist, isPort?wind+270-theta:wind+90+theta);
+      if(is5J){ p.F = movePoint(p.E.lat, p.E.lng, dist, isPort?wind+90+theta:wind+270-theta); p.G = movePoint(p.F.lat, p.F.lng, dist, isPort?wind+270-theta:wind+90+theta); }
     }
+  }
+  return p;
 }
 
+function calculateCourse(isPort){
+  currentIsPort = isPort;
+  const latA=parseFloat(document.getElementById('latA').value), lngA=parseFloat(document.getElementById('lngA').value);
+  if(isNaN(latA)||isNaN(lngA)) return;
+  const wind=parseFloat(document.getElementById('wind').value)||0, dist=parseFloat(document.getElementById('dist').value)||0, theta=parseFloat(document.getElementById('theta').value)||0, course=document.getElementById('courseSelect').value;
+  polylines.forEach(pl => pl.setMap(null)); polylines = [];
+  Object.keys(points).forEach(k => { if(circles[k])circles[k].setMap(null); if(markersLabel[k])markersLabel[k].setMap(null); points[k]=null; });
+  points = getPointsStructure({lat:latA, lng:lngA}, wind, dist, theta, course, isPort);
 
-// アクティブなポイントを削除
-function deleteActivePoint() {
-    if (!pointData[activePoint].latlng) return;
-    
-    if (confirm(`マーク ${activePoint} を削除しますか？`)) {
-        // データ削除
-        pointData[activePoint].latlng = null;
-        
-        // マーカー削除
-        if (markers[activePoint]) {
-            map.removeLayer(markers[activePoint]);
-            delete markers[activePoint];
-        }
-        
-        // UI更新
-        const btn = document.querySelector(`.btn-point[data-point="${activePoint}"]`);
-        if(btn) btn.classList.remove('set');
-        
-        drawLines();
-    }
+  const is5J = (course==='5jibe'), isJW3 = (course==='jwsa3');
+  const isS = (course==='sausage'), isJW5 = (course==='jwsa5'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2');
+
+  document.getElementById('btnC').style.display = (points.C) ? 'flex' : 'none';
+  document.getElementById('btnD').style.display = (points.D) ? 'flex' : 'none';
+  document.getElementById('btnE').style.display = (points.E) ? 'flex' : 'none';
+  document.getElementById('btnF').style.display = (points.F) ? 'flex' : 'none';
+  document.getElementById('btnG').style.display = (points.G) ? 'flex' : 'none';
+  document.getElementById('btnK').style.display = (points.K) ? 'flex' : 'none';
+  document.getElementById('btnS').style.display = (points.S) ? 'flex' : 'none';
+
+  path = [];
+  if(isS) path = [points.S, points.A, points.B, points.C, points.B, points.C, points.A];
+  else if(isJW) path = [points.A, points.B, points.G, points.K, points.B, points.A];
+  else if(isJW2) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.A];
+  else if(isJW3) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.C, points.D, points.E];
+  else if(isJW5) path = [points.A, points.B, points.F, points.G, points.F, points.B, points.C, points.D, points.E];
+  else if(is5J) path = [points.A, points.B, points.C, points.D, points.E, points.F, points.G];
+  else path = [points.A, points.B, points.C, points.D, points.E].filter(v => v);
+
+  polylines.push(new google.maps.Polyline({path:path, strokeColor:'#444', strokeWeight:2, map}));
+  Object.keys(points).forEach(k => { if(points[k]) drawPoint(k, points[k], COLORS[k], k); });
+  updateDistModalContent(isJW3, is5J);
 }
 
-// 理想コース（点線）を描画
-function drawLines() {
-    if (polyline) map.removeLayer(polyline);
-   
-    
-// drawLines関数内のpath定義を修正
-const path = ['S','A','B','C','D','E','F','G','H','I','J','N']
-    .filter(k => pointData[k].latlng !== null)
-    .map(k => [pointData[k].latlng.lat, pointData[k].latlng.lng]);
-
-
-
-
-
-
-
+function updateDistModalContent(isJW3, is5J){
+  const area = document.getElementById('distResultArea');
+  if(!points.A || !points.C) return;
+  let html = `<div class="dist-item">A～C：${distanceBetween(points.A,points.C).toFixed(1)} m</div>`;
+  if(points.E) html += `<div class="dist-item">A～E：${distanceBetween(points.A,points.E).toFixed(1)} m</div>`;
+  if(is5J && points.G) html += `<div class="dist-item">A～G：${distanceBetween(points.A,points.G).toFixed(1)} m</div>`;
+  area.innerHTML = html;
 }
 
-// --- モーダル関連ロジック ---
-
-function openModal(label) {
-    currentEditingPoint = label;
-    const data = pointData[label];
-    document.getElementById('modalPointLabel').innerText = label;
-    document.getElementById('settingModal').style.display = 'flex';
-    
-    updateModalUI();
+function setBasePosition(pos) {
+  const baseLabel = document.getElementById('basePointSelect').value;
+  const wind=parseFloat(document.getElementById('wind').value)||0, dist=parseFloat(document.getElementById('dist').value)||0, theta=parseFloat(document.getElementById('theta').value)||0, course=document.getElementById('courseSelect').value;
+  const tempStructure = getPointsStructure({lat:0,lng:0}, wind, dist, theta, course, currentIsPort);
+  const targetRel = tempStructure[baseLabel];
+  if(!targetRel || (targetRel.lat === 0 && targetRel.lng === 0)) { updateAPos(pos.lat, pos.lng); }
+  else {
+    const R=6378137, dy=targetRel.lat*(Math.PI/180)*R, dx=targetRel.lng*(Math.PI/180)*R;
+    const d=Math.sqrt(dx*dx+dy*dy), brng=(Math.atan2(dx,dy)*180/Math.PI+360)%360;
+    const realA = movePoint(pos.lat, pos.lng, d, (brng+180)%360);
+    updateAPos(realA.lat, realA.lng);
+  }
+  calculateCourse(currentIsPort);
 }
 
-function closeModal() {
-    document.getElementById('settingModal').style.display = 'none';
-    currentEditingPoint = null;
+function updateAPos(lat, lng) {
+  document.getElementById('latA').value = lat.toFixed(6);
+  document.getElementById('lngA').value = lng.toFixed(6);
+  document.getElementById('modalLat').value = lat.toFixed(6);
+  document.getElementById('modalLng').value = lng.toFixed(6);
 }
 
-// モーダル内の選択状態をデータに合わせる
-function updateModalUI() {
-    const data = pointData[currentEditingPoint];
-    const isN = (currentEditingPoint === 'N'); // 現在開いているのがNかどうか
+function drawPoint(label,pos,color,displayText){
+  displayText=displayText||label;
+  circles[label]=new google.maps.Circle({ map, center:pos, radius:(label==='A'?16:12), strokeColor:color, strokeOpacity:1, strokeWeight:2, fillColor:color, fillOpacity:0.8 });
+  markersLabel[label]=new google.maps.Marker({ position:pos, map, icon:{path:google.maps.SymbolPath.CIRCLE, scale:0}, label:{text:displayText, color:(label==='C'&&displayText==='C'?'#000':'#fff'), fontWeight:"bold", fontSize:"13px"} });
+}
 
-    // --- N専用：フィニッシュ相手選択エリアの表示制御 ---
-    const finishSettings = document.getElementById('finishTargetSettings');
-    if (finishSettings) {
-        finishSettings.style.display = isN ? 'block' : 'none';
-        if (isN) {
-            const container = document.getElementById('finishPartnerSelector');
-            container.innerHTML = ''; // ボタンを一旦リセット
-            ['A','B','C','D','E','F','G','H','I','J'].forEach(p => {
-                const btn = document.createElement('button');
-                btn.className = 'btn-point' + (finishTarget === p ? ' active' : '');
-                btn.style.width = '30px'; btn.style.height = '30px'; btn.style.fontSize = '12px'; btn.style.margin = '2px';
-                btn.innerText = p;
-                btn.onclick = () => {
-                    finishTarget = p; // 相手を上書き
-                    updateModalUI();  // ボタンの見た目(active)を更新するために自分を再呼出
-                };
-                container.appendChild(btn);
-            });
-        }
-    }
+function distanceBetween(p1,p2){ if(!p1||!p2)return 0; const R=6378137, dφ=(p2.lat-p1.lat)*Math.PI/180, dλ=(p2.lng-p1.lng)*Math.PI/180; const a=Math.sin(dφ/2)**2 + Math.cos(p1.lat*Math.PI/180)*Math.cos(p2.lat*Math.PI/180)*Math.sin(dλ/2)**2; return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
 
-    // --- 以下、既存のタイプ/ブイ/船の設定表示処理 ---
-    document.getElementById('typeBuoy').classList.toggle('active', data.type === 'buoy');
-    document.getElementById('typeBoat').classList.toggle('active', data.type === 'boat');
-    document.getElementById('buoySettings').style.display = data.type === 'buoy' ? 'block' : 'none';
-    document.getElementById('boatSettings').style.display = data.type === 'boat' ? 'block' : 'none';
-    
-    if (data.type === 'buoy') {
-        ['circle','square','triangle'].forEach(s => {
-            const el = document.getElementById('shape'+s.charAt(0).toUpperCase()+s.slice(1));
-            if(el) el.classList.toggle('active', data.shape === s);
-        });
-        ['red','yellow','pink','orange','white','purple','skyblue'].forEach(c => {
-            const el = document.getElementById('color'+c.charAt(0).toUpperCase()+c.slice(1));
-            if(el) el.classList.toggle('active', data.color === c);
-        });
+function shareCoords(l, p) { 
+  if (!p) return; 
+  const lat = p.lat.toFixed(6);
+  const lng = p.lng.toFixed(6);
+  const t = l + "点\n" + lat + "," + lng;
+  const mapUrl = "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng + "&travelmode=walking";
+
+  if (confirm(l + "点へ向かいますか？\n(OKでGoogleマップのナビを起動します)")) {
+    window.open(mapUrl, '_blank');
+  } else {
+    if (navigator.share) {
+      navigator.share({text: t + "\n" + mapUrl}).catch(function(){});
     } else {
-        const rib = document.getElementById('shapeRib');
-        const fish = document.getElementById('shapeFishing');
-        if(rib) rib.classList.toggle('active', data.shape === 'rib');
-        if(fish) fish.classList.toggle('active', data.shape === 'fishing');
+      alert(t + "\n" + mapUrl);
     }
+  }
 }
 
+window.addEventListener('load', ()=>{ 
+  document.getElementById('btnStarboard').onclick=()=>calculateCourse(false);
+  document.getElementById('btnPort').onclick=()=>calculateCourse(true);
 
+  document.getElementById('btnShareAll').onclick = () => {
+    if (!points || !points.A) { alert("地点データがありません。"); return; }
+    const wind = document.getElementById('wind').value || 0;
+    const dist = document.getElementById('dist').value || 500;
+    const theta = document.getElementById('theta').value || 5;
+    const courseSelect = document.getElementById('courseSelect');
+    const courseValue = courseSelect.value;
+    const courseName = courseSelect.options[courseSelect.selectedIndex].text;
+    const baseUrl = window.location.origin + window.location.pathname;
 
+    const params = `?lat=${points.A.lat.toFixed(6)}&lng=${points.A.lng.toFixed(6)}&heading=${wind}&dist=${dist}&theta=${theta}&course=${courseValue}`;
+    const shareUrl = baseUrl + params;
 
-function setMarkType(type) {
-    pointData[currentEditingPoint].type = type;
-    // タイプを変えたら初期の形を設定
-    pointData[currentEditingPoint].shape = (type === 'buoy') ? 'circle' : 'rib';
-    pointData[currentEditingPoint].color = (type === 'buoy') ? 'red' : 'black';
-    updateMarkIcon();
-    updateModalUI();
-}
-
-function setMarkShape(shape) {
-    pointData[currentEditingPoint].shape = shape;
-    updateMarkIcon();
-    updateModalUI();
-}
-
-function setMarkColor(color) {
-    pointData[currentEditingPoint].color = color;
-    updateMarkIcon();
-    updateModalUI();
-}
-
-// 地図上のアイコンを編集内容で更新
-function updateMarkIcon() {
-    const label = currentEditingPoint;
-    if (markers[label]) {
-        markers[label].setIcon(createCustomIcon(label, pointData[label]));
-    }
-}
-
-
-// --- 計算ロジック (以前のものを継承・拡張用土台) ---
-
-function movePoint(base, dist, brngDeg) {
-    const R = 6378137; const brng = brngDeg * Math.PI / 180;
-    const φ1 = base.lat * Math.PI / 180; const λ1 = base.lng * Math.PI / 180; const δ = dist / R;
-    const φ2 = Math.asin(Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(brng));
-    const λ2 = λ1 + Math.atan2(Math.sin(brng) * Math.sin(δ) * Math.cos(φ1), Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2));
-    return { lat: φ2 * 180 / Math.PI, lng: λ2 * 180 / Math.PI };
-}
-
-function calculate(isPort) {
-    if (!pointData.A.latlng) { alert("まずA点を地図上でタップして決めてください。"); return; }
-    const wind = parseFloat(document.getElementById('wind').value) || 0;
-    const dist = parseFloat(document.getElementById('dist').value) || 500;
-    const theta = parseFloat(document.getElementById('theta').value) || 0;
-
-    // Aを基準に理想のBを計算して配置する例
-    const brngB = isPort ? (wind + 90 + theta) : (wind + 270 - theta);
-    const idealB = movePoint(pointData.A.latlng, dist, brngB);
-    setPoint('B', L.latLng(idealB.lat, idealB.lng));
-}
-
-window.onload = initMap;
-
-function deleteTargetPoint() {
-    if (!currentEditingPoint) return;
-    const label = currentEditingPoint;
+    let t = `【${courseName}】風向:${wind}°\n距離:${dist}m / 角度:${theta}°\n\n`;
+    const order = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'K', 'S'];
+    order.forEach(key => { if (points[key]) t += `${key}: ${points[key].lat.toFixed(6)},${points[key].lng.toFixed(6)}\n`; });
+    t += `\n▼アプリでコース図を再現\n${shareUrl}`;
     
-    if (confirm(`マーク ${label} を削除しますか？`)) {
-        pointData[label].latlng = null;
-        if (markers[label]) {
-            map.removeLayer(markers[label]);
-            delete markers[label];
-        }
-        const btn = document.querySelector(`.btn-point[data-point="${label}"]`);
-        if(btn) btn.classList.remove('set');
-        drawLines();
-        closeModal();
+    if (navigator.share) navigator.share({ text: t }).catch(() => {}); else alert(t);
+  };
+
+ 
+
+
+  document.getElementById('btnOpenTora').onclick = () => {
+    if (!points || !points.A) { 
+      alert("地点データがありません。先にコースを作成してください。"); 
+      return; 
     }
-}
-
-
-function drawRaceLines() {
-    if (startLine) map.removeLayer(startLine);
-    if (finishLine) map.removeLayer(finishLine);
-
-    // ラインのデザイン設定（黒、細い、点線）
-    const raceLineStyle = { 
-        color: '#333333', 
-        weight: 1.5, 
-        dashArray: '5, 5', 
-        opacity: 0.8 
-    };
-
-    // スタートライン (S - A)
-    if (pointData.S.latlng && pointData.A.latlng) {
-        startLine = L.polyline([pointData.S.latlng, pointData.A.latlng], raceLineStyle).addTo(map);
-    }
-
-    // フィニッシュライン (任意点 - N)
-    if (pointData[finishTarget] && pointData[finishTarget].latlng && pointData.N.latlng) {
-        finishLine = L.polyline([pointData[finishTarget].latlng, pointData.N.latlng], raceLineStyle).addTo(map);
-    }
-}
-
-
-
-let isDrawing = false;
-let drawMode = false;
-let ctx = null;
-let penColor = 'red';
-
-// 手書きモードの切り替え
-// 手書きモードの切り替え
-function toggleDrawMode() {
-    drawMode = !drawMode;
-    const btn = document.getElementById('drawModeBtn');
-    const canvas = document.getElementById('draw-canvas');
-    const controls = document.getElementById('drawControls');
     
-    if (drawMode) {
-        btn.innerText = "手書き: ON";
-        btn.style.background = "var(--red)";
-        canvas.style.display = "block";
-        controls.style.display = "flex";
+    // 送信先URL
+    const toraUrl = "https://popolopoint.github.io/traking/traking_test.html"; 
+    
+    // 地点データを整形
+    const pointStrings = Object.keys(points)
+      .filter(key => points[key] !== null)
+      .map(key => {
+        const lat = points[key].lat.toFixed(6);
+        const lng = points[key].lng.toFixed(6);
+        // ↓ここを修正しました（不要な { } を削除）
+        return `${key}:${lat},${lng}`;
+      })
+      .join('|');
 
-        // ★追加：地図を動かせないように固定する
-        map.dragging.disable();
-
-        initCanvas();
-    } else {
-        btn.innerText = "手書き: OFF";
-        btn.style.background = "var(--gray)";
-        canvas.style.display = "none";
-        controls.style.display = "none";
-
-        // ★追加：地図を再び動かせるようにする
-        map.dragging.enable();
-    }
-}
-
-// キャンバスの初期化
-function initCanvas() {
-    const canvas = document.getElementById('draw-canvas');
-    const mapDiv = document.getElementById('map');
-    canvas.width = mapDiv.clientWidth;
-    canvas.height = mapDiv.clientHeight;
-    ctx = canvas.getContext('2d');
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = penColor;
-
-    // マウス・タッチイベント
-    const start = (e) => {
-        isDrawing = true;
-        const pos = getPos(e);
-        ctx.beginPath();
-        ctx.moveTo(pos.x, pos.y);
-    };
-    const move = (e) => {
-        if (!isDrawing) return;
-        const pos = getPos(e);
-        ctx.lineTo(pos.x, pos.y);
-        ctx.stroke();
-    };
-    const stop = () => { isDrawing = false; };
-
-    // PCイベント
-    canvas.onmousedown = start;
-    canvas.onmousemove = move;
-    window.onmouseup = stop;
-
-    // スマホイベント
-    canvas.ontouchstart = (e) => { 
-        const touch = e.touches[0];
-        start(touch);
-        e.preventDefault(); 
-    };
-    canvas.ontouchmove = (e) => { 
-        const touch = e.touches[0];
-        move(touch);
-        e.preventDefault(); 
-    };
-    canvas.ontouchend = stop;
-}
-
-// 座標取得
-function getPos(e) {
-    const rect = document.getElementById('draw-canvas').getBoundingClientRect();
-    return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-    };
-}
-
-// 色の変更
-function setPenColor(color) {
-    penColor = color;
-    if (ctx) ctx.strokeStyle = color;
-}
-
-// 全消去
-function clearCanvas() {
-    if (ctx) {
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    }
-}
+    // 送出
+    const finalUrl = `${toraUrl}?points=${encodeURIComponent(pointStrings)}`;
+    
+    console.log("虎キングへ送出:", finalUrl);
+    window.open(finalUrl, '_blank');
+  };
 
 
 
 
+
+
+  
+  document.getElementById('btnSetCurrent').onclick = () => { 
+    const mode = document.querySelector('input[name="aMode"]:checked').value; 
+    if (mode === 'gps') { 
+      navigator.geolocation.getCurrentPosition(p => { setBasePosition({ lat: p.coords.latitude, lng: p.coords.longitude }); }, e => alert("取得失敗")); 
+    } else alert("地図上をタップしてください"); 
+  };
+
+  ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'K', 'S'].forEach(l => { 
+    const btn = document.getElementById('btn' + l); 
+    if (btn) btn.onclick = () => shareCoords(l, points[l]); 
+  });
+
+  document.getElementById('courseSelect').onchange = (e) => {
+    const v = e.target.value;
+    const dI = document.getElementById('dist'), tI = document.getElementById('theta');
+    dI.value = (v === 'sausage') ? 100 : 500;
+    tI.value = (v === 'sausage') ? 0 : 5; 
+    ['sausage', 'jwsa', 'jwsa2', 'jwsa3'].forEach(s => {
+      const el = document.getElementById(s + 'Settings');
+      if (el) {
+        if (v === 'jwsa5' && s === 'jwsa3') el.style.display = 'flex';
+        else el.style.display = (v === s) ? 'flex' : 'none';
+      }
+    });
+    calculateCourse(currentIsPort);
+  };
+
+  document.getElementById('btnOpenCoordModal').onclick = () => { document.getElementById('modalOverlay').style.display = 'flex'; };
+  document.getElementById('btnModalClose').onclick = () => {
+    const lat = parseFloat(document.getElementById('modalLat').value), lng = parseFloat(document.getElementById('modalLng').value);
+    if(!isNaN(lat) && !isNaN(lng)) { updateAPos(lat, lng); if(map) map.setCenter({lat, lng}); calculateCourse(currentIsPort); }
+    document.getElementById('modalOverlay').style.display = 'none';
+  };
+  document.getElementById('btnOpenDistModal').onclick = () => { document.getElementById('distModalOverlay').style.display = 'flex'; };
+  document.getElementById('btnDistModalClose').onclick = () => { document.getElementById('distModalOverlay').style.display = 'none'; };
+  
+  initMap();
+});
 </script>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
