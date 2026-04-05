@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水深測っ太郎 v2G.1.2d by Popolo App.com</title>
+    <title>水深測っ太郎 v2G.1.2c by Popolo App.com</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f4f8; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
         .app-header { background: #3498db; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0; }
@@ -102,7 +102,7 @@
 
     </div>
 
-    <div class="gps-button" onclick="updateMyLocation(true)">'現在位置'</div>
+    <div class="gps-button" onclick="updateMyLocation(true)">📍</div>
 </div>
 
 <div id="admin-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:5000; justify-content:center; align-items:center;">
@@ -136,7 +136,7 @@
         const panel = document.getElementById('ui-panel');
         const icon = document.getElementById('toggle-icon');
         panel.classList.toggle('hidden');
-        icon.innerText = panel.classList.contains('hidden') ? '縮小' : '全画面';
+        icon.innerText = panel.classList.contains('hidden') ? '📥' : '🔭';
     }
 
     // 凡例の表示切り替え
