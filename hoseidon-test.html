@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>hoseidon-v3.1.8-真の風向補正どんH</title>
+    <title>hoseidon-v3.1.9-真の風向補正どんH</title>
     <style>
         /* =======================================================
-           v3.1.6: ボタンとタイトル以外の文字サイズを約2倍に調整
+           v3.1.9 テストファイルにも送れる
            ======================================================= */
         body { 
             font-size: 250%; /* 基準サイズをv3.1.4の250%に戻す */
@@ -194,7 +194,7 @@
 <body>
     <h1>
         真の風向補正どんH
-        <span class="version-info">(hoseidon-v3.1.8) by Popolo</span>
+        <span class="version-info">(hoseidon-v3.1.9) by Popolo</span>
     </h1>
 
     <button id="setLocationButton">現在位置をA点に</button>
@@ -231,8 +231,10 @@ A点とB点を設定後、「方位決定」でコンパス誤差を記録</p>
     
     <button id="copyWindHButton" disabled>真の風向Hをコピー</button>
     <button id="sendWindHButton" disabled>真の風向Hを送る</button>
-    
+   
+    <button id="sendWindHTestButton" disabled style="background-color: #6c757d; color: white;">テストアプリに送る</button>
 
+    
     <div id="sensorContainer">
         <div id="compassWindow">
             <strong>リアルタイム方位 (未補正 / 補正済み)</strong>
@@ -436,37 +438,32 @@ A点とB点を設定後、「方位決定」でコンパス誤差を記録</p>
          /**
  * 補正済み風向HとA点の緯度経度を、別アプリ(windmap_latest.html=最新版)に送信・連携する
  */
-function sendWindH() {
-    if (correctedWindHeadingResult === null) {
-        alert('先に「風向Hを取得」ボタンを押して方位を決定してください。');
+// --- 共通の送信ルール ---
+function sendToApp(fileName, btnElement) {
+    if (correctedWindHeadingResult === null || currentOriginA === null) {
+        alert('設定が完了していません。');
         return;
     }
-    
-    if (currentOriginA === null) {
-        alert('先に「現在位置をA点に設定」ボタンを押して、A点の緯度経度を取得してください。');
-        return; 
-    }
-
     const valueToSend = correctedWindHeadingResult.toFixed(1);
+    const lat = currentOriginA.lat().toFixed(6);
+    const lng = currentOriginA.lng().toFixed(6);
     
-    // ★送信先を固定名「windmap_latest.html」にします
-    let targetUrl = `windmap_latest.html?heading=${valueToSend}`;
-
-    try {
-        const lat = currentOriginA.lat().toFixed(6); 
-        const lng = currentOriginA.lng().toFixed(6); 
-        targetUrl += `&lat=${lat}&lng=${lng}`;
-    } catch (e) {
-        alert('A点の緯度経度取得に失敗しました。');
-        return;
-    }
-
-    // 最新版として保存されている windmap_latest.html を開く
+    // 指定されたファイル名でURLを作る
+    const targetUrl = `${fileName}?heading=${valueToSend}&lat=${lat}&lng=${lng}`;
     window.open(targetUrl, '_blank');
-    
-    const sendButton = document.getElementById('sendWindHButton');
-    sendButton.textContent = '✅ 送信しました！';
-    setTimeout(() => { sendButton.textContent = '真の風向Hを送る'; }, 1500);
+
+    // ボタンの見た目を変える
+    const originalText = btnElement.textContent;
+    btnElement.textContent = '✅ 送信完了';
+    setTimeout(() => { btnElement.textContent = originalText; }, 1500);
+}
+
+// --- それぞれのボタンが呼ぶ命令 ---
+function sendWindH() {
+    sendToApp('windmap_latest.html', document.getElementById('sendWindHButton'));
+}
+function sendWindHTest() {
+    sendToApp('windmap_test.html', document.getElementById('sendWindHTestButton'));
 }
 
 
@@ -557,7 +554,11 @@ function sendWindH() {
              document.getElementById('captureWindHButton').addEventListener('click', captureWindHeading); 
              document.getElementById('copyWindHButton').addEventListener('click', copyWindH); 
              document.getElementById('sendWindHButton').addEventListener('click', sendWindH); 
-             
+            
+document.getElementById('sendWindHTestButton').addEventListener('click', sendWindHTest); // これを追加
+
+
+
              document.getElementsByName('b_option').forEach(radio => {
                  radio.addEventListener('change', handleBSelectionChange);
              });
