@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>hoseidon-v3.1.9-真の風向補正どんH</title>
+    <title>hoseidon-v3.2.0-真の風向補正どんH</title>
     <style>
         /* =======================================================
-           v3.1.9 テストファイルにも送れる
+           v3.2.0 テストファイルにも送れる
            ======================================================= */
         body { 
             font-size: 250%; /* 基準サイズをv3.1.4の250%に戻す */
@@ -33,22 +33,23 @@
            ボタンのスタイル (サイズ維持)
            ------------------------------------------------------- */
         /* ボタンの共通スタイル */
-        #setLocationButton, #captureHeadingButton, #startCompassButton, #captureWindHButton, #copyWindHButton, #sendWindHButton { 
-            padding: 20px 30px; 
-            font-size: 1.8em; /* サイズは維持 */
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-            margin-bottom: 20px; 
-            
-            display: block; 
-            width: 90%;     
-            margin-left: auto; 
-            margin-right: auto;
-            text-align: center;
-        }
+       
 
-
+/* 修正前：#sendWindHButton までしか書いていない箇所 */
+#setLocationButton, #captureHeadingButton, #startCompassButton, #captureWindHButton, #copyWindHButton, #sendWindHButton, #sendWindHTestButton { 
+    padding: 20px 30px; 
+    font-size: 1.8em; 
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    margin-bottom: 20px; 
+    
+    display: block; 
+    width: 90%;     
+    margin-left: auto; 
+    margin-right: auto;
+    text-align: center;
+}
 
 
 
@@ -194,7 +195,7 @@
 <body>
     <h1>
         真の風向補正どんH
-        <span class="version-info">(hoseidon-v3.1.9) by Popolo</span>
+        <span class="version-info">(hoseidon-v3.2.0) by Popolo</span>
     </h1>
 
     <button id="setLocationButton">現在位置をA点に</button>
@@ -357,6 +358,10 @@ A点とB点を設定後、「方位決定」でコンパス誤差を記録</p>
             const windHDisplay = document.getElementById('windHResultDisplay');
             const copyButton = document.getElementById('copyWindHButton');
             const sendButton = document.getElementById('sendWindHButton'); 
+            
+            const sendTestButton = document.getElementById('sendWindHTestButton'); // ★追加
+
+
 
             if (lastReadHeading === null || !isCompassRunning) {
                 windHDisplay.textContent = 'センサーを起動し、値を読み取ってください。';
@@ -381,6 +386,10 @@ A点とB点を設定後、「方位決定」でコンパス誤差を記録</p>
             correctedWindHeadingResult = correctedWindHeading;
             copyButton.disabled = false;
             sendButton.disabled = false; 
+
+             sendTestButton.disabled = false; // ★ここを追加！これで押せるようになります
+
+
 
             windHDisplay.innerHTML = `${correctedWindHeading.toFixed(1)}°`;
             document.getElementById('windHWindow').style.borderColor = '#007bff'; 
