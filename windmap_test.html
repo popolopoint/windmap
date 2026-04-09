@@ -3,17 +3,20 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.7.2 by Popolo App.com</title>
+<title>コース作るくん v6.7.3 by Popolo App.com</title>
 <style>
-:root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
+:root{ --red:#ff3b30; --blue:#007AFF; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
 body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; transition: margin 0.3s; }
 body.fullscreen-mode { margin: 0; }
 
 h2 { margin:0 0 8px 0; font-size:18px; }
 #version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
 
-/* 全画面切り替えボタン */
-#btnToggleUI { position: fixed; right: 10px; bottom: 80px; z-index: 2000; background: rgba(0,0,0,0.6); color: white; border: none; padding: 10px; border-radius: 50%; width: 50px; height: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.3); font-size: 12px; }
+/* 右下固定ボタン類 */
+.floating-controls { position: fixed; right: 15px; bottom: 85px; z-index: 2000; display: flex; flex-direction: column; gap: 12px; }
+.floating-btn { width: 54px; height: 54px; border-radius: 50%; border: none; color: white; font-weight: bold; cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,0.3); font-size: 12px; display: flex; justify-content: center; align-items: center; text-align: center; line-height: 1.2; }
+#btnMyLocation { background: white; color: var(--blue); border: 2px solid var(--blue); font-size: 20px; }
+#btnToggleUI { background: rgba(0,0,0,0.7); }
 
 .ui-hidden { display: none !important; }
 
@@ -61,11 +64,14 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 </head>
 <body id="body">
 
-<button id="btnToggleUI">全画面</button>
+<div class="floating-controls">
+  <button id="btnMyLocation" class="floating-btn" title="現在地に移動">⌖</button>
+  <button id="btnToggleUI" class="floating-btn">全画面</button>
+</div>
 
 <div id="ui-wrapper">
-  <h2>コース作るくん <span style="font-size:0.7em;">v6.7.2 by Popolo App.com</span></h2>
-  <div id="version">v6.7.2</div>
+  <h2>コース作るくん <span style="font-size:0.7em;">v6.7.3 by Popolo App.com</span></h2>
+  <div id="version">v6.7.3</div>
 
   <div class="input-row">
     <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
@@ -177,11 +183,12 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 <script>
 let map, circles={}, markersLabel={}, polylines=[];
 let points = {A:null,B:null,C:null,D:null,E:null,F:null,G:null,S:null,K:null};
+let userCurrentPos = null;
 const COLORS = { A:'#ff3b30', B:'#0000ff', C:'#ffff00', D:'#28a745', E:'#6a1b9a', F:'#ff2d55', G:'#000080', S:'#0000ff', K:'#5ac8fa' };
 let currentIsPort = true;
 let path = [];
 
-// UI切り替え機能
+// --- UI制御 ---
 document.getElementById('btnToggleUI').onclick = function() {
   const uiWrapper = document.getElementById('ui-wrapper');
   const mapElement = document.getElementById('map');
@@ -191,24 +198,23 @@ document.getElementById('btnToggleUI').onclick = function() {
   mapElement.classList.toggle('fullscreen');
   body.classList.toggle('fullscreen-mode');
   
-  if (uiWrapper.classList.contains('ui-hidden')) {
-    this.innerText = 'メニュー';
-  } else {
-    this.innerText = '全画面';
-  }
-  
-  // マップのリサイズ通知
+  this.innerText = uiWrapper.classList.contains('ui-hidden') ? 'メニュー' : '全画面';
   if(map) google.maps.event.trigger(map, "resize");
+};
+
+// 現在地へ移動
+document.getElementById('btnMyLocation').onclick = function() {
+  if (userCurrentPos && map) {
+    map.panTo(userCurrentPos);
+    map.setZoom(16);
+  } else {
+    alert("現在地を取得中です。少々お待ちください。");
+  }
 };
 
 function checkUrlParams() {
   const urlParams = new URLSearchParams(window.location.search);
-  const lat = urlParams.get('lat');
-  const lng = urlParams.get('lng');
-  const twd = urlParams.get('heading');
-  const dist = urlParams.get('dist');
-  const theta = urlParams.get('theta');
-  const course = urlParams.get('course');
+  const lat = urlParams.get('lat'), lng = urlParams.get('lng'), twd = urlParams.get('heading'), dist = urlParams.get('dist'), theta = urlParams.get('theta'), course = urlParams.get('course');
 
   if (lat && lng) updateAPos(parseFloat(lat), parseFloat(lng));
   if (twd) document.getElementById('wind').value = twd;
@@ -223,16 +229,11 @@ function checkUrlParams() {
 
 function initMap(){
   let centerPos = { lat: 26.3318, lng: 127.9179 };
-  const latA = parseFloat(document.getElementById('latA').value);
-  const lngA = parseFloat(document.getElementById('lngA').value);
+  const latA = parseFloat(document.getElementById('latA').value), lngA = parseFloat(document.getElementById('lngA').value);
   if(!isNaN(latA) && !isNaN(lngA)) centerPos = { lat: latA, lng: lngA };
   
   map = new google.maps.Map(document.getElementById('map'), { 
-    center: centerPos, 
-    zoom: 14, 
-    gestureHandling: 'greedy', 
-    disableDefaultUI: true, 
-    zoomControl: true 
+    center: centerPos, zoom: 14, gestureHandling: 'greedy', disableDefaultUI: true, zoomControl: true 
   });
 
   map.addListener('click', (e)=>{ 
@@ -243,28 +244,15 @@ function initMap(){
 
   let meMarker = new google.maps.Marker({
     map: map,
-    icon: {
-      path: google.maps.SymbolPath.CIRCLE,
-      scale: 8,
-      fillColor: '#007AFF',
-      fillOpacity: 1,
-      strokeColor: 'white',
-      strokeWeight: 2
-    },
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#007AFF', fillOpacity: 1, strokeColor: 'white', strokeWeight: 2 },
     title: "現在地"
   });
 
   if (navigator.geolocation) {
     navigator.geolocation.watchPosition(pos => {
-      const myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      meMarker.setPosition(myPos);
-    }, error => {
-      console.log("位置情報取得エラー:", error);
-    }, { 
-      enableHighAccuracy: true,
-      maximumAge: 0,
-      timeout: 5000 
-    });
+      userCurrentPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      meMarker.setPosition(userCurrentPos);
+    }, null, { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 });
   }
 
   checkUrlParams();
@@ -272,8 +260,7 @@ function initMap(){
 }
 
 function movePoint(lat,lng,dist,bearing){
-  const R=6378137, brng=(bearing%360)*Math.PI/180;
-  const φ1=lat*Math.PI/180, λ1=lng*Math.PI/180, δ=dist/R;
+  const R=6378137, brng=(bearing%360)*Math.PI/180, φ1=lat*Math.PI/180, λ1=lng*Math.PI/180, δ=dist/R;
   const φ2=Math.asin(Math.sin(φ1)*Math.cos(δ)+Math.cos(φ1)*Math.sin(δ)*Math.cos(brng));
   const λ2=λ1+Math.atan2(Math.sin(brng)*Math.sin(δ)*Math.cos(φ1), Math.cos(δ)-Math.sin(φ1)*Math.sin(φ2));
   return {lat: φ2*180/Math.PI, lng: λ2*180/Math.PI};
@@ -281,19 +268,15 @@ function movePoint(lat,lng,dist,bearing){
 
 function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
   let p = {A: baseA};
-  const isS = (course==='sausage'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2'), 
-        isJW3 = (course==='jwsa3'), isJW5 = (course==='jwsa5'), 
-        is5J = (course==='5jibe'), isF8 = (course==='figure8');
+  const isS = (course==='sausage'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2'), isJW3 = (course==='jwsa3'), isJW5 = (course==='jwsa5'), is5J = (course==='5jibe'), isF8 = (course==='figure8');
 
   if(isS){
-    const dAS = 100;
-    const sAng = parseFloat(document.getElementById('sAngle').value) || 0;
+    const dAS = 100, sAng = parseFloat(document.getElementById('sAngle').value) || 0;
     const bS = wind + (isPort ? (90 + theta + sAng) : (270 - theta - sAng));
     p.S = movePoint(p.A.lat, p.A.lng, dAS, bS);
     const mid = {lat:(p.A.lat+p.S.lat)/2, lng:(p.A.lng+p.S.lng)/2};
     p.B = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('upDist').value)||0, wind);
-    const dDown = parseFloat(document.getElementById('downDist').value)||0;
-    p.C = movePoint(mid.lat, mid.lng, dDown, wind); 
+    p.C = movePoint(mid.lat, mid.lng, parseFloat(document.getElementById('downDist').value)||0, wind); 
   }
   else if(isJW || isJW2 || isJW3 || isJW5){
     const sfx = (isJW3 || isJW5) ? '3' : '2';
@@ -399,19 +382,11 @@ function distanceBetween(p1,p2){ if(!p1||!p2)return 0; const R=6378137, dφ=(p2.
 
 function shareCoords(l, p) { 
   if (!p) return; 
-  const lat = p.lat.toFixed(6);
-  const lng = p.lng.toFixed(6);
-  const mapUrl = "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng + "&travelmode=walking";
-
-  if (confirm(l + "点へ向かいますか？\n(OKでGoogleマップのナビを起動します)")) {
-    window.open(mapUrl, '_blank');
-  } else {
+  const lat = p.lat.toFixed(6), lng = p.lng.toFixed(6), mapUrl = "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng + "&travelmode=walking";
+  if (confirm(l + "点へ向かいますか？\n(OKでGoogleマップのナビを起動します)")) window.open(mapUrl, '_blank');
+  else {
     const t = l + "点\n" + lat + "," + lng;
-    if (navigator.share) {
-      navigator.share({text: t + "\n" + mapUrl}).catch(function(){});
-    } else {
-      alert(t + "\n" + mapUrl);
-    }
+    if (navigator.share) navigator.share({text: t + "\n" + mapUrl}).catch(()=>{}); else alert(t + "\n" + mapUrl);
   }
 }
 
@@ -421,46 +396,31 @@ window.addEventListener('load', ()=>{
 
   document.getElementById('btnShareAll').onclick = () => {
     if (!points || !points.A) { alert("地点データがありません。"); return; }
-    const wind = document.getElementById('wind').value || 0;
-    const dist = document.getElementById('dist').value || 500;
-    const theta = document.getElementById('theta').value || 5;
-    const courseSelect = document.getElementById('courseSelect');
-    const courseValue = courseSelect.value;
-    const courseName = courseSelect.options[courseSelect.selectedIndex].text;
+    const wind = document.getElementById('wind').value || 0, dist = document.getElementById('dist').value || 500, theta = document.getElementById('theta').value || 5;
+    const courseSelect = document.getElementById('courseSelect'), courseValue = courseSelect.value, courseName = courseSelect.options[courseSelect.selectedIndex].text;
     const baseUrl = window.location.origin + window.location.pathname;
     const params = `?lat=${points.A.lat.toFixed(6)}&lng=${points.A.lng.toFixed(6)}&heading=${wind}&dist=${dist}&theta=${theta}&course=${courseValue}`;
     const shareUrl = baseUrl + params;
-
     let t = `【${courseName}】風向:${wind}°\n距離:${dist}m / 角度:${theta}°\n\n`;
-    const order = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'K', 'S'];
-    order.forEach(key => { if (points[key]) t += `${key}: ${points[key].lat.toFixed(6)},${points[key].lng.toFixed(6)}\n`; });
+    ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'K', 'S'].forEach(key => { if (points[key]) t += `${key}: ${points[key].lat.toFixed(6)},${points[key].lng.toFixed(6)}\n`; });
     t += `\n▼アプリでコース図を再現\n${shareUrl}`;
     if (navigator.share) navigator.share({ text: t }).catch(() => {}); else alert(t);
   };
 
   document.getElementById('btnSetCurrent').onclick = () => { 
     const mode = document.querySelector('input[name="aMode"]:checked').value; 
-    if (mode === 'gps') { 
-      navigator.geolocation.getCurrentPosition(p => { setBasePosition({ lat: p.coords.latitude, lng: p.coords.longitude }); }, e => alert("取得失敗")); 
-    } else alert("地図上をタップしてください"); 
+    if (mode === 'gps') navigator.geolocation.getCurrentPosition(p => setBasePosition({ lat: p.coords.latitude, lng: p.coords.longitude }), () => alert("取得失敗")); 
+    else alert("地図上をタップしてください"); 
   };
 
-  ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'K', 'S'].forEach(l => { 
-    const btn = document.getElementById('btn' + l); 
-    if (btn) btn.onclick = () => shareCoords(l, points[l]); 
-  });
+  ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'K', 'S'].forEach(l => { const btn = document.getElementById('btn' + l); if (btn) btn.onclick = () => shareCoords(l, points[l]); });
 
   document.getElementById('courseSelect').onchange = (e) => {
-    const v = e.target.value;
-    const dI = document.getElementById('dist'), tI = document.getElementById('theta');
-    dI.value = (v === 'sausage') ? 100 : 500;
-    tI.value = (v === 'sausage') ? 0 : 5; 
+    const v = e.target.value, dI = document.getElementById('dist'), tI = document.getElementById('theta');
+    dI.value = (v === 'sausage') ? 100 : 500; tI.value = (v === 'sausage') ? 0 : 5; 
     ['sausage', 'jwsa', 'jwsa2', 'jwsa3'].forEach(s => {
       const el = document.getElementById(s + 'Settings');
-      if (el) {
-        if (v === 'jwsa5' && s === 'jwsa3') el.style.display = 'flex';
-        else el.style.display = (v === s) ? 'flex' : 'none';
-      }
+      if (el) el.style.display = (v === s || (v === 'jwsa5' && s === 'jwsa3')) ? 'flex' : 'none';
     });
     calculateCourse(currentIsPort);
   };
@@ -477,6 +437,6 @@ window.addEventListener('load', ()=>{
   initMap();
 });
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
 </body>
 </html>
