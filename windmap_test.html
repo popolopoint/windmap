@@ -3,12 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>コース作るくん v6.8.3c by Popolo App.com</title>
+<title>コース作るくん v6.7.2 by Popolo App.com</title>
 <style>
 :root{ --red:#ff3b30; --blue:#0000ff; --yellow:#ffff00; --green:#28a745; --purple:#6a1b9a; --orange:#f57c00; --gray:#555; --navy:#000080; --pink:#ff2d55; --teal:#5ac8fa; }
-body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; }
+body { font-family: -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","メイリオ",Meiryo,sans-serif; margin:10px; color:#222; overflow-x: hidden; transition: margin 0.3s; }
+body.fullscreen-mode { margin: 0; }
+
 h2 { margin:0 0 8px 0; font-size:18px; }
 #version { position:absolute; right:12px; top:12px; color:#666; font-size:13px; }
+
+/* 全画面切り替えボタン */
+#btnToggleUI { position: fixed; right: 10px; bottom: 80px; z-index: 2000; background: rgba(0,0,0,0.6); color: white; border: none; padding: 10px; border-radius: 50%; width: 50px; height: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.3); font-size: 12px; }
+
+.ui-hidden { display: none !important; }
 
 .input-row { display: flex; gap: 5px; width: 100%; margin-bottom: 10px; }
 .input-group { flex: 1; display: flex; flex-direction: column; }
@@ -18,7 +25,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 #courseSelect { font-size: 24px; padding: 8px; width: 100%; border-radius:6px; margin-bottom:10px; }
 
 .compact-input { font-size: 18px !important; padding: 6px 2px !important; width: 55px !important; text-align:center; border-radius:6px; border:1px solid #ccc; }
-#sausageSettings, #jwsaSettings, #jwsa2Settings, #jwsa3Settings, #jwsa6Settings { display:none; flex-wrap:nowrap; align-items:center; gap:4px; background:#f0f0f0; padding:5px; border-radius:8px; margin-bottom:10px; width: 100%; box-sizing: border-box; overflow-x: auto; }
+#sausageSettings, #jwsaSettings, #jwsa2Settings, #jwsa3Settings { display:none; flex-wrap:nowrap; align-items:center; gap:4px; background:#f0f0f0; padding:5px; border-radius:8px; margin-bottom:10px; width: 100%; box-sizing: border-box; overflow-x: auto; }
 
 .main-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; width: 100%; margin: 10px 0; }
 .main-buttons button { font-size: 18px; padding: 15px 5px; border-radius: 10px; border: none; color: white; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.16); }
@@ -31,7 +38,8 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 .radio-group { margin: 10px 0; display: flex; gap: 15px; align-items: center; }
 #btnSetCurrent { background: var(--red); color:white; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; margin-top:10px; width:100%; font-size:18px; }
 
-#map { width:100%; height:675px; border-radius:8px; margin-top:10px; box-shadow:0 1px 4px rgba(0,0,0,0.2); }
+#map { width:100%; height:675px; border-radius:8px; margin-top:10px; box-shadow:0 1px 4px rgba(0,0,0,0.2); transition: height 0.3s, margin 0.3s; }
+#map.fullscreen { height: 100vh !important; margin-top: 0; border-radius: 0; }
 
 #coordsContainer { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; justify-content: space-between; }
 .pointBox { border-radius:50%; width:40px; height:40px; display:flex; justify-content:center; align-items:center; color:white; font-weight:bold; cursor:pointer; font-size: 0.9em; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
@@ -39,7 +47,7 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 .sub-button-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 .btn-sub { background:#f8f8f8; border:1px solid #ccc; padding:6px 10px; border-radius:6px; font-size:12px; cursor:pointer; font-weight: bold; color: #444; }
 
-#modalOverlay, #distModalOverlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center; }
+#modalOverlay, #distModalOverlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:3000; justify-content:center; align-items:center; }
 .modalContent { background:white; padding:20px; border-radius:12px; width:90%; max-width:400px; box-shadow:0 4px 20px rgba(0,0,0,0.3); }
 .modalContent h3 { margin-top:0; font-size:18px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
 .modal-input-group { margin-bottom:15px; }
@@ -51,99 +59,98 @@ h2 { margin:0 0 8px 0; font-size:18px; }
 .dist-item { background: #f9f9f9; padding: 10px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: bold; }
 </style>
 </head>
-<body>
+<body id="body">
 
-<h2>コース作るくん <span style="font-size:0.7em;">v6.8.3c by Popolo App.com</span></h2>
-<div id="version">v6.8.3c</div>
+<button id="btnToggleUI">全画面</button>
 
-<div class="input-row">
-  <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
-  <div class="input-group"><label>距離(m)</label><input type="number" id="dist" value="500"></div>
-  <div class="input-group"><label>角度(°)</label><input type="number" id="theta" value="5"></div>
-</div>
+<div id="ui-wrapper">
+  <h2>コース作るくん <span style="font-size:0.7em;">v6.7.2 by Popolo App.com</span></h2>
+  <div id="version">v6.7.2</div>
 
-<select id="courseSelect">
-  <option value="mcourse">Ｍコース</option>
-  <option value="figure8">フィギア８</option>
-  <option value="sausage">ソーセージ</option>
-  <option value="5jibe">５ジャイブ</option>
-  <option value="jwsa">JWSA1</option>
-  <option value="jwsa2">JWSA2</option>
-  <option value="jwsa3">JWSA3</option>
-  <option value="jwsa5">JWSA5</option>
-  <option value="jwsa6">JWSA6</option>
-</select>
-
-<div id="sausageSettings">
-  <label>上<br><input type="number" id="upDist" class="compact-input" value="1000"></label>
-  <label>下<br><input type="number" id="downDist" class="compact-input" value="100"></label>
-  <label>AS距離<br><input type="number" id="distAS" class="compact-input" value="100"></label>
-  <label>S角度<br><input type="number" id="sAngle" class="compact-input" value="0"></label>
-</div>
-
-<div id="jwsaSettings">
-  <label>AB<br><input type="number" id="distAB" class="compact-input" value="500"></label>
-  <label>BF<br><input type="number" id="distBC" class="compact-input" value="500"></label>
-  <label>FG<br><input type="number" id="distCD" class="compact-input" value="500"></label>
-  <label>角D<br><input type="number" id="theta2" class="compact-input" value="30"></label>
-</div>
-
-<div id="jwsa2Settings">
-  <label>AB<br><input type="number" id="distAB2" class="compact-input" value="500"></label>
-  <label>BF<br><input type="number" id="distBC2" class="compact-input" value="400"></label>
-  <label>FG<br><input type="number" id="distCD2" class="compact-input" value="500"></label>
-  <label>GK<br><input type="number" id="distDE2" class="compact-input" value="500"></label> 
-  <label>角B<br><input type="number" id="theta3_2" class="compact-input" value="45"></label> 
-  <label>角D<br><input type="number" id="theta2_2" class="compact-input" value="30"></label>
-</div>
-
-<div id="jwsa3Settings">
-  <label>AB<br><input type="number" id="distAB3" class="compact-input" value="500"></label>
-  <label>BF<br><input type="number" id="distBC3" class="compact-input" value="400"></label>
-  <label>FG<br><input type="number" id="distCD3" class="compact-input" value="500"></label>
-  <label>GK<br><input type="number" id="distDE3" class="compact-input" value="500"></label>
-  <label>角B<br><input type="number" id="theta3_3" class="compact-input" value="45"></label>
-  <label>角D<br><input type="number" id="theta2_3" class="compact-input" value="30"></label>
-</div>
-
-<div id="jwsa6Settings">
-  <label>CE距離<br><input type="number" id="distCE6" class="compact-input" value="200"></label>
-</div>
-
-<div class="main-buttons">
-  <button id="btnShareAll">データ送信</button>
-  <button id="btnStarboard">スタボー</button>
-  <button id="btnPort">ポート</button>
-</div>
-
-<div id="inputsMode">
-  <strong>基準点：</strong>
-  <select id="basePointSelect">
-    <option value="A" selected>A点</option><option value="B">B点</option><option value="C">C点</option>
-    <option value="D">D点</option><option value="E">E点</option><option value="F">F点</option><option value="G">G点</option><option value="S">S点</option><option value="K">K点</option>
-  </select>
-  <div class="radio-group">
-    <label><input type="radio" name="aMode" value="gps" checked> 現在地をセット</label>
-    <label><input type="radio" name="aMode" value="map"> マップ指定</label>
+  <div class="input-row">
+    <div class="input-group"><label>風向</label><input type="number" id="wind" step="any" placeholder="0"></div>
+    <div class="input-group"><label>距離(m)</label><input type="number" id="dist" value="500"></div>
+    <div class="input-group"><label>角度(°)</label><input type="number" id="theta" value="5"></div>
   </div>
-  <button id="btnSetCurrent">反映</button>
-</div>
 
-<div id="coordsContainer">
-  <div class="pointBox" id="btnA" style="background:var(--red);">A</div>
-  <div class="pointBox" id="btnB" style="background:var(--blue);">B</div>
-  <div class="pointBox" id="btnC" style="background:var(--yellow); color:#000; text-shadow:none;">C</div>
-  <div class="pointBox" id="btnD" style="background:var(--green);">D</div>
-  <div class="pointBox" id="btnE" style="background:var(--purple);">E</div>
-  <div class="pointBox" id="btnF" style="background:var(--pink); display:none;">F</div>
-  <div class="pointBox" id="btnG" style="background:var(--navy); display:none;">G</div>
-  <div class="pointBox" id="btnK" style="background:var(--teal); display:none;">K</div>
-  <div class="pointBox" id="btnS" style="background:var(--blue); display:none;">S</div>
-</div>
+  <select id="courseSelect">
+    <option value="mcourse">Ｍコース</option>
+    <option value="figure8">フィギア８</option>
+    <option value="sausage">ソーセージ</option>
+    <option value="5jibe">５ジャイブ</option>
+    <option value="jwsa">JWSA1</option>
+    <option value="jwsa2">JWSA2</option>
+    <option value="jwsa3">JWSA3</option>
+    <option value="jwsa5">JWSA5</option>
+  </select>
 
-<div class="sub-button-row">
-  <button id="btnOpenDistModal" class="btn-sub">マーク距離</button>
-  <button id="btnOpenCoordModal" class="btn-sub">基準点緯度経度 修正/確認</button>
+  <div id="sausageSettings">
+    <label>上<br><input type="number" id="upDist" class="compact-input" value="1000"></label>
+    <label>下<br><input type="number" id="downDist" class="compact-input" value="100"></label>
+    <label>AS距離<br><input type="number" id="distAS" class="compact-input" value="100"></label>
+    <label>S角度<br><input type="number" id="sAngle" class="compact-input" value="0"></label>
+  </div>
+
+  <div id="jwsaSettings">
+    <label>AB<br><input type="number" id="distAB" class="compact-input" value="500"></label>
+    <label>BG<br><input type="number" id="distBC" class="compact-input" value="500"></label>
+    <label>GK<br><input type="number" id="distCD" class="compact-input" value="500"></label>
+    <label>角G<br><input type="number" id="theta2" class="compact-input" value="60"></label>
+  </div>
+
+  <div id="jwsa2Settings">
+    <label>AB<br><input type="number" id="distAB2" class="compact-input" value="500"></label>
+    <label>BF<br><input type="number" id="distBC2" class="compact-input" value="400"></label>
+    <label>FG<br><input type="number" id="distCD2" class="compact-input" value="500"></label>
+    <label>GK<br><input type="number" id="distDE2" class="compact-input" value="500"></label> 
+    <label>角B<br><input type="number" id="theta3_2" class="compact-input" value="45"></label> 
+    <label>角G<br><input type="number" id="theta2_2" class="compact-input" value="60"></label>
+  </div>
+
+  <div id="jwsa3Settings">
+    <label>AB<br><input type="number" id="distAB3" class="compact-input" value="500"></label>
+    <label>BF<br><input type="number" id="distBC3" class="compact-input" value="400"></label>
+    <label>FG<br><input type="number" id="distCD3" class="compact-input" value="500"></label>
+    <label>GK<br><input type="number" id="distDE3" class="compact-input" value="500"></label>
+    <label>角B<br><input type="number" id="theta3_3" class="compact-input" value="30"></label>
+    <label>角G<br><input type="number" id="theta2_3" class="compact-input" value="60"></label>
+  </div>
+
+  <div class="main-buttons">
+    <button id="btnShareAll">データ送信</button>
+    <button id="btnStarboard">スタボー</button>
+    <button id="btnPort">ポート</button>
+  </div>
+
+  <div id="inputsMode">
+    <strong>基準点：</strong>
+    <select id="basePointSelect">
+      <option value="A" selected>A点</option><option value="B">B点</option><option value="C">C点</option>
+      <option value="D">D点</option><option value="E">E点</option><option value="F">F点</option><option value="G">G点</option><option value="S">S点</option><option value="K">K点</option>
+    </select>
+    <div class="radio-group">
+      <label><input type="radio" name="aMode" value="gps" checked> 現在地をセット</label>
+      <label><input type="radio" name="aMode" value="map"> マップ指定</label>
+    </div>
+    <button id="btnSetCurrent">反映</button>
+  </div>
+
+  <div id="coordsContainer">
+    <div class="pointBox" id="btnA" style="background:var(--red);">A</div>
+    <div class="pointBox" id="btnB" style="background:var(--blue);">B</div>
+    <div class="pointBox" id="btnC" style="background:var(--yellow); color:#000; text-shadow:none;">C</div>
+    <div class="pointBox" id="btnD" style="background:var(--green);">D</div>
+    <div class="pointBox" id="btnE" style="background:var(--purple);">E</div>
+    <div class="pointBox" id="btnF" style="background:var(--pink); display:none;">F</div>
+    <div class="pointBox" id="btnG" style="background:var(--navy); display:none;">G</div>
+    <div class="pointBox" id="btnK" style="background:var(--teal); display:none;">K</div>
+    <div class="pointBox" id="btnS" style="background:var(--blue); display:none;">S</div>
+  </div>
+
+  <div class="sub-button-row">
+    <button id="btnOpenDistModal" class="btn-sub">マーク距離</button>
+    <button id="btnOpenCoordModal" class="btn-sub">基準点緯度経度 修正/確認</button>
+  </div>
 </div>
 
 <div id="map"></div>
@@ -173,6 +180,26 @@ let points = {A:null,B:null,C:null,D:null,E:null,F:null,G:null,S:null,K:null};
 const COLORS = { A:'#ff3b30', B:'#0000ff', C:'#ffff00', D:'#28a745', E:'#6a1b9a', F:'#ff2d55', G:'#000080', S:'#0000ff', K:'#5ac8fa' };
 let currentIsPort = true;
 let path = [];
+
+// UI切り替え機能
+document.getElementById('btnToggleUI').onclick = function() {
+  const uiWrapper = document.getElementById('ui-wrapper');
+  const mapElement = document.getElementById('map');
+  const body = document.getElementById('body');
+  
+  uiWrapper.classList.toggle('ui-hidden');
+  mapElement.classList.toggle('fullscreen');
+  body.classList.toggle('fullscreen-mode');
+  
+  if (uiWrapper.classList.contains('ui-hidden')) {
+    this.innerText = 'メニュー';
+  } else {
+    this.innerText = '全画面';
+  }
+  
+  // マップのリサイズ通知
+  if(map) google.maps.event.trigger(map, "resize");
+};
 
 function checkUrlParams() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -255,7 +282,7 @@ function movePoint(lat,lng,dist,bearing){
 function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
   let p = {A: baseA};
   const isS = (course==='sausage'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2'), 
-        isJW3 = (course==='jwsa3'), isJW5 = (course==='jwsa5'), isJW6 = (course==='jwsa6'),
+        isJW3 = (course==='jwsa3'), isJW5 = (course==='jwsa5'), 
         is5J = (course==='5jibe'), isF8 = (course==='figure8');
 
   if(isS){
@@ -269,7 +296,7 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
     p.C = movePoint(mid.lat, mid.lng, dDown, wind); 
   }
   else if(isJW || isJW2 || isJW3 || isJW5){
-    const sfx = (isJW3 || isJW5) ? '3' : (isJW2 ? '2' : '');
+    const sfx = (isJW3 || isJW5) ? '3' : '2';
     const dAB=parseFloat(document.getElementById('distAB'+sfx).value)||0, dBC=parseFloat(document.getElementById('distBC'+sfx).value)||0, dCD=parseFloat(document.getElementById('distCD'+sfx).value)||0, dDE=parseFloat(document.getElementById('distDE'+sfx).value)||0, thD=30, thB=45;
     p.B = movePoint(p.A.lat, p.A.lng, dAB, isPort?wind+theta+90:wind-theta+270);
     const bF = isPort ? (wind+270+thB) : (wind+90-thB);
@@ -284,13 +311,6 @@ function getPointsStructure(baseA, wind, dist, theta, course, isPort) {
       p.D = movePoint(p.C.lat, p.C.lng, dist, isPort?wind+90+theta:wind+270-theta);
       p.E = movePoint(p.D.lat, p.D.lng, dist, isPort?wind+270-theta:wind+90+theta);
     }
-  } else if(isJW6){
-    p.B = movePoint(p.A.lat, p.A.lng, dist, isPort?wind+90+theta:wind+270-theta);
-    p.C = movePoint(p.B.lat, p.B.lng, dist, isPort?wind+270-theta:wind+90+theta);
-    p.D = movePoint(p.C.lat, p.C.lng, dist, isPort?wind+90+theta:wind+270-theta);
-    const dCE = parseFloat(document.getElementById('distCE6').value) || 200;
-    const brngCE = isPort ? (wind + 90) : (wind + 270);
-    p.E = movePoint(p.C.lat, p.C.lng, dCE, brngCE);
   } else {
     p.B = movePoint(p.A.lat, p.A.lng, dist, isPort?wind+90+theta:wind+270-theta);
     if(isF8) {
@@ -315,11 +335,11 @@ function calculateCourse(isPort){
   Object.keys(points).forEach(k => { if(circles[k])circles[k].setMap(null); if(markersLabel[k])markersLabel[k].setMap(null); points[k]=null; });
   points = getPointsStructure({lat:latA, lng:lngA}, wind, dist, theta, course, isPort);
 
-  const isM = (course==='mcourse'), isF8 = (course==='figure8'), isS = (course==='sausage'), is5J = (course==='5jibe'), isJW3 = (course==='jwsa3'), isJW5 = (course==='jwsa5'), isJW6 = (course==='jwsa6'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2');
+  const isM = (course==='mcourse'), isF8 = (course==='figure8'), isS = (course==='sausage'), is5J = (course==='5jibe'), isJW3 = (course==='jwsa3'), isJW5 = (course==='jwsa5'), isJW = (course==='jwsa'), isJW2 = (course==='jwsa2');
 
-  document.getElementById('btnC').style.display = (isM || isF8 || isS || is5J || isJW3 || isJW5 || isJW6) ? 'flex' : 'none';
-  document.getElementById('btnD').style.display = (isM || is5J || isJW3 || isJW5 || isJW6) ? 'flex' : 'none';
-  document.getElementById('btnE').style.display = (isM || isF8 || is5J || isJW3 || isJW5 || isJW6) ? 'flex' : 'none';
+  document.getElementById('btnC').style.display = (isM || isF8 || isS || is5J || isJW3 || isJW5) ? 'flex' : 'none';
+  document.getElementById('btnD').style.display = (isM || is5J || isJW3 || isJW5) ? 'flex' : 'none';
+  document.getElementById('btnE').style.display = (isM || isF8 || is5J || isJW3 || isJW5) ? 'flex' : 'none';
   document.getElementById('btnF').style.display = (isJW2 || isJW3 || isJW5 || is5J) ? 'flex' : 'none';
   document.getElementById('btnG').style.display = (isJW2 || isJW3 || isJW5 || is5J) ? 'flex' : 'none';
   document.getElementById('btnK').style.display = (isJW2 || isJW3 || isJW) ? 'flex' : 'none';
@@ -331,21 +351,19 @@ function calculateCourse(isPort){
   else if(isJW2) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.A];
   else if(isJW3) path = [points.A, points.B, points.F, points.G, points.K, points.B, points.C, points.D, points.E];
   else if(isJW5) path = [points.A, points.B, points.F, points.G, points.F, points.B, points.C, points.D, points.E];
-  else if(isJW6) path = [points.A, points.B, points.C, points.E, points.C, points.D];
   else if(is5J) path = [points.A, points.B, points.C, points.D, points.E, points.F, points.G];
   else path = [points.A, points.B, points.C, points.D, points.E].filter(v => v);
 
   polylines.push(new google.maps.Polyline({path:path, strokeColor:'#444', strokeWeight:2, map}));
   Object.keys(points).forEach(k => { if(points[k]) drawPoint(k, points[k], COLORS[k], k); });
-  updateDistModalContent(isJW3, is5J, isJW6);
+  updateDistModalContent(isJW3, is5J);
 }
 
-function updateDistModalContent(isJW3, is5J, isJW6){
+function updateDistModalContent(isJW3, is5J){
   const area = document.getElementById('distResultArea');
   let html = `<div class="dist-item">A～C：${distanceBetween(points.A,points.C).toFixed(1)} m</div>`;
   if(points.E) html += `<div class="dist-item">A～E：${distanceBetween(points.A,points.E).toFixed(1)} m</div>`;
   if(is5J) html += `<div class="dist-item">A～G：${distanceBetween(points.A,points.G).toFixed(1)} m</div>`;
-  if(isJW6) html += `<div class="dist-item">C～E：${distanceBetween(points.C,points.E).toFixed(1)} m</div>`;
   area.innerHTML = html;
 }
 
@@ -383,12 +401,12 @@ function shareCoords(l, p) {
   if (!p) return; 
   const lat = p.lat.toFixed(6);
   const lng = p.lng.toFixed(6);
-  const t = l + "点\n" + lat + "," + lng;
   const mapUrl = "https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng + "&travelmode=walking";
 
   if (confirm(l + "点へ向かいますか？\n(OKでGoogleマップのナビを起動します)")) {
     window.open(mapUrl, '_blank');
   } else {
+    const t = l + "点\n" + lat + "," + lng;
     if (navigator.share) {
       navigator.share({text: t + "\n" + mapUrl}).catch(function(){});
     } else {
@@ -435,8 +453,9 @@ window.addEventListener('load', ()=>{
   document.getElementById('courseSelect').onchange = (e) => {
     const v = e.target.value;
     const dI = document.getElementById('dist'), tI = document.getElementById('theta');
-    if(v === 'sausage') { dI.value = 100; tI.value = 0; }
-    ['sausage', 'jwsa', 'jwsa2', 'jwsa3', 'jwsa6'].forEach(s => {
+    dI.value = (v === 'sausage') ? 100 : 500;
+    tI.value = (v === 'sausage') ? 0 : 5; 
+    ['sausage', 'jwsa', 'jwsa2', 'jwsa3'].forEach(s => {
       const el = document.getElementById(s + 'Settings');
       if (el) {
         if (v === 'jwsa5' && s === 'jwsa3') el.style.display = 'flex';
@@ -458,6 +477,6 @@ window.addEventListener('load', ()=>{
   initMap();
 });
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAHhxSJK-IhYiT9XBRwE1MX7DHhghBQQQk&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script>
 </body>
 </html>
